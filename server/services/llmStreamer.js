@@ -1120,16 +1120,20 @@ async function executeSingleTargetAttempt({
       }))
     : [];
 
+  const savedHistoryTok = Number(compiled.stats?.historyTokensSaved) || 0;
   recordConsoleLog({
     category: 'prompt',
     level: 'info',
     scope: 'LLM Request',
     title: `Generating ${normalizedMode.toUpperCase()} via ${target.connectionName} → ${target.modelName}`,
-    summary: `${wireMessages.length} wire turns (~${wireTotalTokens} tok) • Preset "${compiled.presetName || 'Default'}"`,
+    summary: `${wireMessages.length} wire turns (~${wireTotalTokens} tok${savedHistoryTok > 0 ? `, saved ~${savedHistoryTok} tok via regex/recap` : ''}) • Preset "${compiled.presetName || 'Default'}"`,
     badges: [
       { label: normalizedMode.toUpperCase(), tone: 'accent' },
       { label: target.protocol.toUpperCase(), tone: 'neutral' },
       { label: `~${wireTotalTokens} tok`, tone: 'neutral' },
+      ...(savedHistoryTok > 0
+        ? [{ label: `Saved ${savedHistoryTok} tok`, tone: 'ok' }]
+        : []),
     ],
     details: {
       endpoint: maskUrlSecrets(target.endpointUrl || ''),

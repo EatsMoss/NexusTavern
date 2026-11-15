@@ -12,11 +12,13 @@ import {
   ChatMessageCard,
   PromptEditorSheet,
   RefusalCatcherManager,
+  MessageRecapManager,
   StImporterManager,
   ConsoleDrawer,
   ConsoleToggleButton,
 } from '@ui/index.js';
 import { DEFAULT_BANNED_PHRASES } from '@core/refusal/refusalEngine.js';
+import { normalizeRecapConfig } from '@core/recap/recapEngine.js';
 
 const MODEL_OPTIONS = [
   { value: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet (Extended Thinking)', meta: '200k' },
@@ -96,6 +98,9 @@ export function OrganismsShowcase() {
   const [demoBannedPhrases, setDemoBannedPhrases] = useState(() => [
     ...DEFAULT_BANNED_PHRASES,
   ]);
+  const [demoRecapConfig, setDemoRecapConfig] = useState(() =>
+    normalizeRecapConfig({ enabled: true, keepFullDepth: 4 }),
+  );
   const [demoStRootPath, setDemoStRootPath] = useState('C:\\SillyTavern');
   const [demoStConflictMode, setDemoStConflictMode] = useState('skip');
   const [demoStCategories, setDemoStCategories] = useState({
@@ -328,6 +333,23 @@ export function OrganismsShowcase() {
               onSaveEdit={(_, nextText) => setMdText(nextText)}
             />
           </FolderCard>
+
+          <MessageRecapManager
+            collapsible
+            defaultOpen
+            config={demoRecapConfig}
+            savedChatTokens={4580}
+            tokenContext={{ charName: 'Elowen Vane', userName: 'Aki' }}
+            onPatchConfig={(patch) =>
+              setDemoRecapConfig((prev) => normalizeRecapConfig({ ...prev, ...patch }))
+            }
+            onResetDefaults={() =>
+              setDemoRecapConfig((prev) =>
+                normalizeRecapConfig({ enabled: prev.enabled }),
+              )
+            }
+            onImportConfig={setDemoRecapConfig}
+          />
 
           <RefusalCatcherManager
             collapsible

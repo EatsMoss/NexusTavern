@@ -14,6 +14,7 @@ import { ModelIcon } from '../../atoms/ModelIcon/ModelIcon.jsx';
 import { SafeImage } from '../../atoms/SafeImage/SafeImage.jsx';
 import { KebabMenu } from '../../molecules/KebabMenu/KebabMenu.jsx';
 import { MessageDecorator } from '../../molecules/MessageDecorator/MessageDecorator.jsx';
+import { replaceRecapBlockInRawText } from '@core/messages/messageDecorator.js';
 import { AttachmentLightbox } from '../../molecules/AttachmentPreview/AttachmentPreview.jsx';
 import {
   formatFileSize,
@@ -112,6 +113,7 @@ export function ChatMessageCard({
   multiSelected = false,
   onEnterMultiSelect,
   onToggleMultiSelect,
+  recapCompressDepth = null,
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(message?.text || '');
@@ -470,6 +472,12 @@ export function ChatMessageCard({
     setIsEditing(false);
   };
 
+  const handleQuickSaveRecap = async (nextRecapText) => {
+    if (!onSaveEdit) return false;
+    const updatedRawText = replaceRecapBlockInRawText(message?.text || '', nextRecapText);
+    return onSaveEdit(message.index, updatedRawText, false, message?.reasoning || '');
+  };
+
   const kebabItems = [
     {
       id: 'copy',
@@ -769,6 +777,12 @@ export function ChatMessageCard({
                       isStreaming={false}
                       streamPhase={null}
                       streamStalled={false}
+                      isRecapCompressed={
+                        !isUser &&
+                        typeof recapCompressDepth === 'number' &&
+                        depth >= recapCompressDepth
+                      }
+                      recapCompressDepth={recapCompressDepth}
                     />
                   </div>
                 )}
@@ -800,6 +814,13 @@ export function ChatMessageCard({
                       isStreaming={isStreaming}
                       streamPhase={message.streamPhase || null}
                       streamStalled={Boolean(isStreaming && message.streamStalled)}
+                      isRecapCompressed={
+                        !isUser &&
+                        typeof recapCompressDepth === 'number' &&
+                        depth >= recapCompressDepth
+                      }
+                      recapCompressDepth={recapCompressDepth}
+                      onSaveRecap={!isUser && onSaveEdit ? handleQuickSaveRecap : undefined}
                     />
                   )}
 

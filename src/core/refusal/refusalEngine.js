@@ -131,17 +131,23 @@ function isAlphaNumericChar(ch) {
  * in-character RP turn that must bypass refusal scanning immediately.
  */
 export function startsWithRpMarker(rawText = '') {
-  const trimmed = String(rawText || '').replace(/^\s+/u, '');
+  const trimmed = String(rawText || '').replace(
+    /^\s*(?:<[a-zA-Z][\w:-]*>\s*)*/u,
+    '',
+  );
   if (!trimmed) return false;
   return /^["«“„*'‘’`]/u.test(trimmed);
 }
 
 /**
  * Strips non-RP leading formatting markers (headings, underscores, list dashes)
- * from the opening of an AI response before inspecting the head window.
+ * and transparent opening XML tags (e.g. `<story>`, `<ru>`) from the opening
+ * of an AI response before inspecting the head window.
  */
 function extractNormalizedHead(rawText = '', maxChars = DEFAULT_REFUSAL_HEAD_CHARS) {
-  const strippedStart = String(rawText || '').replace(/^[\s_#>—–\-]+/u, '');
+  const strippedStart = String(rawText || '')
+    .replace(/^\s*(?:<[a-zA-Z][\w:-]*>\s*)*/u, '')
+    .replace(/^[\s_#>—–\-]+/u, '');
   const sliced = strippedStart.slice(0, maxChars);
   return normalizeForRefusalMatch(sliced);
 }

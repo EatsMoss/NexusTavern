@@ -188,9 +188,22 @@ export function PromptManager({
   treeRef.current = promptTree;
 
   const totalEnabledTokens = useMemo(
-    () => computeTotalEnabledTreeTokens(promptTree),
-    [promptTree],
+    () => computeTotalEnabledTreeTokens(promptTree, tokenContext),
+    [promptTree, tokenContext],
   );
+
+  const chatHistoryRawTokens = Math.max(
+    Number(tokenContext?.chatHistoryTokens) || 0,
+    Number(tokenContext?.chatHistoryRawTokens) || 0,
+  );
+  const chatHistorySavedTokens = Math.max(
+    0,
+    chatHistoryRawTokens - (Number(tokenContext?.chatHistoryTokens) || 0),
+  );
+  const chatHistorySavedPct =
+    chatHistoryRawTokens > 0 && chatHistorySavedTokens > 0
+      ? Math.max(1, Math.round((chatHistorySavedTokens / chatHistoryRawTokens) * 100))
+      : 0;
 
   const nonHistoryEnabledCount = useMemo(() => {
     return orderedPrompts.filter((p) => p.identifier !== 'chatHistory' && p.enabled).length;
@@ -724,6 +737,14 @@ export function PromptManager({
               ) : null}
             </span>
             <span className="bb-pm-name">{p.name}</span>
+            {isChatHistory && chatHistorySavedTokens > 0 && (
+              <span
+                className="bb-pm-badge is-saved"
+                title={`Saved ${chatHistorySavedTokens.toLocaleString('en-US')} tokens via regex/recap (${node.tokens || 0} active vs ${chatHistoryRawTokens.toLocaleString('en-US')} raw)`}
+              >
+                -{chatHistorySavedPct}%
+              </span>
+            )}
             {!isChatHistory && renderRoleIndicator(p.marker, p.role)}
             {!p.marker && Number(p.injection_position) === 1 && (
               <span className="bb-pm-badge is-depth" title="In-chat injection depth">
@@ -737,33 +758,53 @@ export function PromptManager({
             data-pm-nodrag="1"
             onClick={(e) => e.stopPropagation()}
           >
-            {!p.marker ? (
-              <button
-                type="button"
-                title="Duplicate prompt"
-                className="bb-pm-act-btn"
-                onClick={() => handleDuplicatePrompt(p)}
+            {isChatHistory && chatHistorySavedTokens > 0 ? (
+              <span
+                className="bb-pm-tokens-raw"
+                title={`Raw uncompressed chat tokens without regex/recap: ${chatHistoryRawTokens.toLocaleString('en-US')}`}
               >
-                <Icon name="copy" size={15} />
-              </button>
+                {formatCompactTokens(chatHistoryRawTokens)}
+              </span>
             ) : (
-              <span className="bb-pm-col-empty" aria-hidden="true" />
+              <>
+                {!p.marker ? (
+                  <button
+                    type="button"
+                    title="Duplicate prompt"
+                    className="bb-pm-act-btn"
+                    onClick={() => handleDuplicatePrompt(p)}
+                  >
+                    <Icon name="copy" size={15} />
+                  </button>
+                ) : (
+                  <span className="bb-pm-col-empty" aria-hidden="true" />
+                )}
+
+                {!isChatHistory ? (
+                  <button
+                    type="button"
+                    title="Unlink from active prompt order"
+                    className="bb-pm-act-btn is-danger"
+                    onClick={() => handleUnlinkPrompt(p)}
+                  >
+                    <Icon name="unlink" size={15} />
+                  </button>
+                ) : (
+                  <span className="bb-pm-col-empty" aria-hidden="true" />
+                )}
+              </>
             )}
 
-            {!isChatHistory ? (
-              <button
-                type="button"
-                title="Unlink from active prompt order"
-                className="bb-pm-act-btn is-danger"
-                onClick={() => handleUnlinkPrompt(p)}
-              >
-                <Icon name="unlink" size={15} />
-              </button>
-            ) : (
-              <span className="bb-pm-col-empty" aria-hidden="true" />
-            )}
-
-            <span className="bb-pm-tokens" title={`${node.tokens || 0} estimated tokens`}>
+            <span
+              className={`bb-pm-tokens ${
+                isChatHistory && chatHistorySavedTokens > 0 ? 'is-compressed' : ''
+              }`.trim()}
+              title={
+                isChatHistory && chatHistorySavedTokens > 0
+                  ? `${(node.tokens || 0).toLocaleString('en-US')} active tokens in prompt • ${chatHistoryRawTokens.toLocaleString('en-US')} raw tokens without regex/recap (saved ${chatHistorySavedTokens.toLocaleString('en-US')} tokens / -${chatHistorySavedPct}%)`
+                  : `${node.tokens || 0} estimated tokens`
+              }
+            >
               {formatCompactTokens(node.tokens)}
             </span>
 
@@ -1024,7 +1065,11 @@ export function PromptManager({
           </span>
           <span
             className="bb-pm-tokens is-header"
-            title={`${totalEnabledTokens} total enabled tokens`}
+            title={
+              chatHistorySavedTokens > 0
+                ? `${totalEnabledTokens.toLocaleString('en-US')} total active tokens (saved ${chatHistorySavedTokens.toLocaleString('en-US')} chat tokens via regex/recap)`
+                : `${totalEnabledTokens.toLocaleString('en-US')} total enabled tokens`
+            }
           >
             {formatCompactTokens(totalEnabledTokens)}
           </span>

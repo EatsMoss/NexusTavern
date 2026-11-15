@@ -156,6 +156,8 @@ import { PersonaSheet } from '@features/personas/PersonaSheet.jsx';
 import { RegexTomePanel } from '@features/regex/RegexTomePanel.jsx';
 import { useRegexWorkspace } from '@features/regex/useRegexWorkspace.js';
 import { useRefusalCatcher } from '@features/refusal/useRefusalCatcher.js';
+import { RecapTomePanel } from '@features/recap/RecapTomePanel.jsx';
+import { useMessageRecap } from '@features/recap/useMessageRecap.js';
 import { StImporterTomePanel } from '@features/st-importer/StImporterTomePanel.jsx';
 import { useStImporter } from '@features/st-importer/useStImporter.js';
 import {
@@ -170,7 +172,10 @@ import {
 import { useCharacterGallery } from '@features/characters/useCharacterGallery.js';
 import { usePinnedLayout, isCardInPinnedEntries } from '@features/characters/usePinnedLayout.js';
 import { filterCards, sortCards } from '@features/characters/tagFilters.js';
-import { estimateHistorySliceTokens } from '@core/presets/tokenEstimator.js';
+import {
+  estimateHistorySliceTokenBreakdown,
+  estimateRecapInjectedPromptTokens,
+} from '@core/presets/tokenEstimator.js';
 import './AppShell.css';
 
 const LEFT_TABS = [
@@ -484,6 +489,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     hasMoreOlder: false,
     olderCount: 0,
     olderHistoryTokens: 0,
+    olderHistoryRawTokens: 0,
     fileSize: 0,
     elapsedMs: 0,
     syncStatus: '',
@@ -1564,6 +1570,9 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             hasMoreOlder: Boolean(win.hasMoreOlder),
             olderCount: win.olderCount || 0,
             olderHistoryTokens: Number(win.olderHistoryTokens || 0),
+            olderHistoryRawTokens: Number(
+              win.olderHistoryRawTokens ?? win.olderHistoryTokens ?? 0,
+            ),
             hasUserMessages: Boolean(win.hasUserMessages),
             userMessageCount: Number(win.userMessageCount || 0),
             fileSize: win.fileSize || 0,
@@ -2856,6 +2865,9 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           hasMoreOlder: Boolean(olderWin.hasMoreOlder),
           olderCount: olderWin.olderCount || 0,
           olderHistoryTokens: Number(olderWin.olderHistoryTokens || 0),
+          olderHistoryRawTokens: Number(
+            olderWin.olderHistoryRawTokens ?? olderWin.olderHistoryTokens ?? 0,
+          ),
           elapsedMs: olderWin.elapsedMs || 0,
           syncStatus: `Prepended #${olderWin.startIndex + 1}..${olderWin.endIndex} (${olderWin.elapsedMs} ms)`,
         }));
@@ -4468,6 +4480,9 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             hasMoreOlder: Boolean(branched.hasMoreOlder),
             olderCount: branched.olderCount || 0,
             olderHistoryTokens: Number(branched.olderHistoryTokens || 0),
+            olderHistoryRawTokens: Number(
+              branched.olderHistoryRawTokens ?? branched.olderHistoryTokens ?? 0,
+            ),
             hasUserMessages: Boolean(branched.hasUserMessages),
             userMessageCount: Number(branched.userMessageCount || 0),
             fileSize: branched.fileSize || 0,
@@ -5031,6 +5046,9 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             hasMoreOlder: Boolean(branched.hasMoreOlder),
             olderCount: branched.olderCount || 0,
             olderHistoryTokens: Number(branched.olderHistoryTokens || 0),
+            olderHistoryRawTokens: Number(
+              branched.olderHistoryRawTokens ?? branched.olderHistoryTokens ?? 0,
+            ),
             hasUserMessages: Boolean(branched.hasUserMessages),
             userMessageCount: Number(branched.userMessageCount || 0),
             fileSize: branched.fileSize || 0,
@@ -5200,6 +5218,10 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     activeConnectionId:
       apiHubState?.activeConnectionId || apiHubState?.activeProviderId || '',
     activeModelId: apiHubState?.activeModelId || '',
+    onNotify: (message, tone = 'info') => pushToast({ variant: tone, message }),
+  });
+
+  const messageRecap = useMessageRecap({
     onNotify: (message, tone = 'info') => pushToast({ variant: tone, message }),
   });
 
@@ -5726,36 +5748,80 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     ? Math.max(Number(chatMetaStats.userMessageCount || 0), visibleUserMessageCount)
     : visibleUserMessageCount;
   const effectiveHasUserMessages = effectiveUserMessageCount > 0;
-  const chatHistoryTokens = useMemo(() => {
+  const activePromptRegexScripts = useMemo(() => {
+    if (!regexWorkspace.masterEnabled) return [];
+    return [
+      ...(regexWorkspace.globalScripts || []),
+      ...(regexWorkspace.presetScripts || []),
+      ...(hasActiveScenario ? regexWorkspace.cardScripts || [] : []),
+    ];
+  }, [
+    regexWorkspace.masterEnabled,
+    regexWorkspace.globalScripts,
+    regexWorkspace.presetScripts,
+    regexWorkspace.cardScripts,
+    hasActiveScenario,
+  ]);
+
+  const chatHistoryTokenBreakdown = useMemo(() => {
     const resolvedCharName = activeCardFull?.name || activeCharacter?.name || 'Character';
     const resolvedUserName = personaName || 'User';
     const nameCtx = { charName: resolvedCharName, userName: resolvedUserName };
     if (hasActiveScenario && committedChatCardId === selectedCardId) {
-      const olderTokens = chatMetaStats.hasMoreOlder
+      const olderActive = chatMetaStats.hasMoreOlder
         ? Number(chatMetaStats.olderHistoryTokens || 0)
         : 0;
-      const visibleTokens = estimateHistorySliceTokens(messages, nameCtx);
-      return olderTokens + visibleTokens;
+      const olderRaw = chatMetaStats.hasMoreOlder
+        ? Number(chatMetaStats.olderHistoryRawTokens ?? olderActive)
+        : 0;
+      const visible = estimateHistorySliceTokenBreakdown(messages, nameCtx, {
+        regexScripts: activePromptRegexScripts,
+        recapConfig: messageRecap.config,
+      });
+      const activeTokens = olderActive + visible.activeTokens;
+      const rawTokens = Math.max(activeTokens, olderRaw + visible.rawTokens);
+      return {
+        activeTokens,
+        rawTokens,
+        savedTokens: Math.max(0, rawTokens - activeTokens),
+      };
     }
     if (hasActiveScenario && activeCardFull?.first_mes) {
-      return estimateHistorySliceTokens(
+      return estimateHistorySliceTokenBreakdown(
         [{ isUser: false, text: activeCardFull.first_mes }],
         nameCtx,
+        {
+          regexScripts: activePromptRegexScripts,
+          recapConfig: messageRecap.config,
+        },
       );
     }
-    return 0;
+    return { activeTokens: 0, rawTokens: 0, savedTokens: 0 };
   }, [
     hasActiveScenario,
     committedChatCardId,
     selectedCardId,
     chatMetaStats.hasMoreOlder,
     chatMetaStats.olderHistoryTokens,
+    chatMetaStats.olderHistoryRawTokens,
     messages,
     activeCardFull?.name,
     activeCardFull?.first_mes,
     activeCharacter?.name,
     personaName,
+    activePromptRegexScripts,
+    messageRecap.config,
   ]);
+
+  const recapPluginPromptTokens = useMemo(
+    () =>
+      estimateRecapInjectedPromptTokens(messageRecap.config, {
+        charName: activeCardFull?.name || activeCharacter?.name || 'Character',
+        userName: personaName || 'User',
+      }),
+    [messageRecap.config, activeCardFull?.name, activeCharacter?.name, personaName],
+  );
+
   const promptTokenContext = useMemo(
     () => ({
       charName: activeCardFull?.name || activeCharacter?.name || 'Character',
@@ -5765,7 +5831,10 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       scenario: activeCardFull?.scenario || '',
       mesExample: activeCardFull?.mes_example || '',
       personaDescription: activePersonaObj?.description || '',
-      chatHistoryTokens,
+      chatHistoryTokens: chatHistoryTokenBreakdown.activeTokens,
+      chatHistoryRawTokens: chatHistoryTokenBreakdown.rawTokens,
+      chatHistorySavedTokens: chatHistoryTokenBreakdown.savedTokens,
+      pluginExtraPromptTokens: recapPluginPromptTokens,
     }),
     [
       activeCardFull?.name,
@@ -5776,7 +5845,8 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       activeCharacter?.name,
       personaName,
       activePersonaObj?.description,
-      chatHistoryTokens,
+      chatHistoryTokenBreakdown,
+      recapPluginPromptTokens,
     ],
   );
   const matchedActiveCardFull =
@@ -6906,6 +6976,11 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             onSendMessage={handleSend}
             isGenerating={isGenerating}
             onStopGeneration={handleStopGeneration}
+            recapCompressDepth={
+              messageRecap.config.enabled && messageRecap.config.stripEnabled
+                ? messageRecap.config.keepFullDepth
+                : null
+            }
           />
         )}
       </main>
@@ -7050,6 +7125,13 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                   collapsible
                   defaultOpen
                   importer={stImporter}
+                />
+                <RecapTomePanel
+                  collapsible
+                  defaultOpen
+                  recap={messageRecap}
+                  tokenContext={promptTokenContext}
+                  savedChatTokens={chatHistoryTokenBreakdown.savedTokens}
                 />
                 <RefusalCatcherManager
                   collapsible

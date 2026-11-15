@@ -35,6 +35,7 @@ export { FolderCard } from './molecules/FolderCard/FolderCard.jsx';
 export { Dropdown } from './molecules/Dropdown/Dropdown.jsx';
 export { KebabMenu } from './molecules/KebabMenu/KebabMenu.jsx';
 export { MessageDecorator } from './molecules/MessageDecorator/MessageDecorator.jsx';
+export { MessageRecapBox } from './molecules/MessageRecapBox/MessageRecapBox.jsx';
 export { ToggleGroup } from './molecules/ToggleGroup/ToggleGroup.jsx';
 export { ChipScrollStrip } from './molecules/ChipScrollStrip/ChipScrollStrip.jsx';
 export { TagPicker } from './molecules/TagPicker/TagPicker.jsx';
@@ -111,6 +112,7 @@ export {
 export { RegexManager } from './organisms/RegexManager/RegexManager.jsx';
 export { RegexEditorModal } from './organisms/RegexManager/RegexEditorModal.jsx';
 export { RefusalCatcherManager } from './organisms/RefusalCatcherManager/RefusalCatcherManager.jsx';
+export { MessageRecapManager } from './organisms/MessageRecapManager/MessageRecapManager.jsx';
 export {
   StImporterManager,
   ST_IMPORT_CATEGORIES,

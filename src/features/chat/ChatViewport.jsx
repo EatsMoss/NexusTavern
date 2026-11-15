@@ -222,6 +222,7 @@ export function ChatViewport({
   onSendMessage,
   isGenerating = false,
   onStopGeneration,
+  recapCompressDepth = null,
   hasActiveScenario = true,
   switchingScenario = false,
   onOpenCreateScenario,
@@ -1655,6 +1656,7 @@ export function ChatViewport({
               onToggleMultiSelect={
                 hasActions ? handleToggleMsgMultiSelect : undefined
               }
+              recapCompressDepth={recapCompressDepth}
             />
           );
 

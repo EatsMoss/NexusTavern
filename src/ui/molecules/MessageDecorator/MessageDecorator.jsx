@@ -4,6 +4,7 @@ import { TypingDots } from '../../atoms/TypingDots/TypingDots.jsx';
 import { OverlayScrollArea } from '../../atoms/OverlayScrollArea/OverlayScrollArea.jsx';
 import {
   extractThinkingAndCleanBody,
+  extractRecapAndCleanBody,
   extractLatestReasoningHeading,
   replaceDisplayMacros,
   decorateInlineText,
@@ -18,6 +19,7 @@ import {
   REGEX_PLACEMENT,
 } from '@core/regex/regexEngine.js';
 import { useRegexDisplayStore } from '@core/regex/regexDisplayStore.js';
+import { MessageRecapBox } from '../MessageRecapBox/MessageRecapBox.jsx';
 import './MessageDecorator.css';
 
 /**
@@ -368,6 +370,9 @@ export function MessageDecorator({
   isStreaming = false,
   streamPhase = null,
   streamStalled = false,
+  isRecapCompressed = false,
+  recapCompressDepth = null,
+  onSaveRecap,
 }) {
   const [reasoningOpen, setReasoningOpen] = useState(defaultReasoningOpen);
   const [copiedCodeIdx, setCopiedCodeIdx] = useState(null);
@@ -375,84 +380,109 @@ export function MessageDecorator({
   const activeDisplayScripts =
     overrideRegexScripts !== null ? overrideRegexScripts : regexDisplayState.combinedScripts;
 
-  const { reasoningText, blocks, htmlBody, streamingHtmlNodes } = useMemo(() => {
-    const macroResolved = replaceDisplayMacros(text, userName, charName);
-    const extracted = extractThinkingAndCleanBody(macroResolved, reasoning, {
-      isStreaming,
-    });
-    let resolvedReasoning = replaceDisplayMacros(
-      extracted.reasoningText,
-      userName,
-      charName,
-    );
-    let bodyBeforeSanitize = extracted.cleanBody;
+  const { reasoningText, recapText, isRecapStreaming, blocks, htmlBody, streamingHtmlNodes } =
+    useMemo(() => {
+      const macroResolved = replaceDisplayMacros(text, userName, charName);
+      const extracted = extractThinkingAndCleanBody(macroResolved, reasoning, {
+        isStreaming,
+      });
+      let resolvedReasoning = replaceDisplayMacros(
+        extracted.reasoningText,
+        userName,
+        charName,
+      );
 
-    if (Array.isArray(activeDisplayScripts) && activeDisplayScripts.length > 0) {
-      if (bodyBeforeSanitize) {
-        bodyBeforeSanitize = applyRegexPipeline(bodyBeforeSanitize, activeDisplayScripts, {
-          placement: isUser ? REGEX_PLACEMENT.USER_INPUT : REGEX_PLACEMENT.AI_OUTPUT,
-          isMarkdown: true,
-          isStreaming,
-          depth,
-          charName,
-          userName,
-        });
+      const recapExtracted = !isUser
+        ? extractRecapAndCleanBody(extracted.cleanBody, { isStreaming })
+        : { recapText: '', cleanBody: extracted.cleanBody, isRecapStreaming: false };
+
+      let bodyBeforeSanitize = recapExtracted.cleanBody;
+      let resolvedRecap = recapExtracted.recapText;
+
+      if (Array.isArray(activeDisplayScripts) && activeDisplayScripts.length > 0) {
+        if (bodyBeforeSanitize) {
+          bodyBeforeSanitize = applyRegexPipeline(bodyBeforeSanitize, activeDisplayScripts, {
+            placement: isUser ? REGEX_PLACEMENT.USER_INPUT : REGEX_PLACEMENT.AI_OUTPUT,
+            isMarkdown: true,
+            isStreaming,
+            depth,
+            charName,
+            userName,
+          });
+        }
+        if (resolvedReasoning) {
+          resolvedReasoning = applyRegexPipeline(resolvedReasoning, activeDisplayScripts, {
+            placement: REGEX_PLACEMENT.REASONING,
+            isMarkdown: true,
+            isStreaming,
+            depth,
+            charName,
+            userName,
+          });
+        }
       }
-      if (resolvedReasoning) {
-        resolvedReasoning = applyRegexPipeline(resolvedReasoning, activeDisplayScripts, {
-          placement: REGEX_PLACEMENT.REASONING,
-          isMarkdown: true,
-          isStreaming,
-          depth,
-          charName,
-          userName,
-        });
+
+      if (resolvedRecap) {
+        resolvedRecap = stripNonHtmlXmlTags(resolvedRecap, {
+          stripTrailingPartial: recapExtracted.isRecapStreaming,
+        }).trim();
       }
-    }
 
-    const cleanedBody = stripNonHtmlXmlTags(bodyBeforeSanitize, {
-      stripTrailingPartial: isStreaming,
-    });
+      const cleanedBody = stripNonHtmlXmlTags(bodyBeforeSanitize, {
+        stripTrailingPartial: isStreaming,
+      });
 
-    if (hasHtmlMarkup(cleanedBody)) {
-      const sanitized = sanitizeMessageHtml(cleanedBody);
-      if (isStreaming) {
+      if (hasHtmlMarkup(cleanedBody)) {
+        const sanitized = sanitizeMessageHtml(cleanedBody);
+        if (isStreaming) {
+          return {
+            reasoningText: resolvedReasoning,
+            recapText: resolvedRecap,
+            isRecapStreaming: recapExtracted.isRecapStreaming,
+            blocks: [],
+            htmlBody: '',
+            streamingHtmlNodes: renderStreamingSanitizedHtml(
+              sanitized,
+              Boolean(
+                isStreaming &&
+                  streamStalled &&
+                  !recapExtracted.isRecapStreaming &&
+                  streamPhase !== 'waiting' &&
+                  streamPhase !== 'generating',
+              ),
+            ),
+          };
+        }
         return {
           reasoningText: resolvedReasoning,
+          recapText: resolvedRecap,
+          isRecapStreaming: false,
           blocks: [],
-          htmlBody: '',
-          streamingHtmlNodes: renderStreamingSanitizedHtml(
-            sanitized,
-            Boolean(isStreaming && streamStalled && streamPhase !== 'waiting' && streamPhase !== 'generating'),
-          ),
+          htmlBody: decorateTextNodesInHtml(sanitized),
+          streamingHtmlNodes: null,
         };
       }
+
       return {
         reasoningText: resolvedReasoning,
-        blocks: [],
-        htmlBody: decorateTextNodesInHtml(sanitized),
+        recapText: resolvedRecap,
+        isRecapStreaming: recapExtracted.isRecapStreaming,
+        blocks: parseMessageBlocks(cleanedBody),
+        htmlBody: '',
         streamingHtmlNodes: null,
       };
-    }
-
-    return {
-      reasoningText: resolvedReasoning,
-      blocks: parseMessageBlocks(cleanedBody),
-      htmlBody: '',
-      streamingHtmlNodes: null,
-    };
-  }, [
-    text,
-    reasoning,
-    userName,
-    charName,
-    isUser,
-    depth,
-    activeDisplayScripts,
-    isStreaming,
-    streamStalled,
-    streamPhase,
-  ]);
+    }, [
+      text,
+      reasoning,
+      userName,
+      charName,
+      isUser,
+      depth,
+      activeDisplayScripts,
+      isStreaming,
+      streamStalled,
+      streamPhase,
+    ]);
 
   const hasRichStreamingNodes =
     Array.isArray(streamingHtmlNodes) && streamingHtmlNodes.length > 0;
@@ -686,6 +716,21 @@ export function MessageDecorator({
             );
           })}
         </div>
+      )}
+
+      {!isUser && (recapText || isRecapStreaming) && (
+        <MessageRecapBox
+          recapText={recapText}
+          isStreaming={isRecapStreaming}
+          isCompressed={Boolean(isRecapCompressed)}
+          compressedTooltip={
+            typeof recapCompressDepth === 'number'
+              ? `Active context compression — full <story> block is stripped at depth ${depth} (threshold ≥ ${recapCompressDepth}), sending only this recap to the model.`
+              : undefined
+          }
+          tokenContext={{ charName, userName }}
+          onSaveRecap={onSaveRecap}
+        />
       )}
 
       {showLoadingIndicator && (

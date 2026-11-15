@@ -48,6 +48,7 @@ import {
   FloatingPaletteButton,
   FloatingPaletteDivider,
   FloatingPaletteReadout,
+  MessageRecapBox,
 } from '@ui/index.js';
 
 const LEFT_TOME_TABS = [
@@ -102,6 +103,9 @@ export function AtomsMoleculesShowcase() {
   const [multiSelectActive, setMultiSelectActive] = useState(true);
   const [tileChecked, setTileChecked] = useState(true);
   const [demoRegexPattern, setDemoRegexPattern] = useState('/<status>([\\s\\S]*?)<\\/status>/gi');
+  const [demoRecapText, setDemoRecapText] = useState(
+    'Elowen met Aki in the rain-streaked observatory, lowered her lantern, and asked: "Did you bring the cipher_key or only excuses?"',
+  );
   const [demoYamlInclude, setDemoYamlInclude] = useState(
     'top_k: 40\nprovider:\n  allow_fallbacks: false',
   );
@@ -808,6 +812,27 @@ export function AtomsMoleculesShowcase() {
                 }
               />
             )}
+          />
+        </div>
+      </FolderCard>
+
+      <FolderCard
+        title="MessageRecapBox (M3 Scene Memory & Context Recap Molecule)"
+        subtitle="Paired visually with Chain of Thought — displays recap token footprint, Compressed depth state & surgical inline recap editor"
+        icon="scissors"
+        defaultOpen
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 560 }}>
+          <MessageRecapBox
+            recapText={demoRecapText}
+            isCompressed
+            defaultOpen
+            tokenContext={{ charName: 'Elowen Vane', userName: 'Aki' }}
+            onSaveRecap={(next) => setDemoRecapText(next)}
+          />
+          <MessageRecapBox
+            recapText="Streaming draft recap in progress..."
+            isStreaming
           />
         </div>
       </FolderCard>

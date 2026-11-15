@@ -16,12 +16,13 @@ import {
 } from './cardStore.js';
 import { buildZipBuffer, extractZipEntries } from '../utils/zipBuilder.js';
 import { resolveActiveRegexScriptsServer } from './regexStore.js';
+import { readMessageRecapConfig } from './recapStore.js';
 import { readSession } from './sessionStore.js';
 import {
   applyRegexPipeline,
   REGEX_PLACEMENT,
 } from '../../src/core/regex/regexEngine.js';
-import { estimateHistorySliceTokens } from '../../src/core/presets/tokenEstimator.js';
+import { estimateHistorySliceTokenBreakdown } from '../../src/core/presets/tokenEstimator.js';
 
 export const GROUP_CHATS_DIR = path.join(DEFAULT_USER_DIR, 'group chats');
 export const BACKUPS_DIR = path.join(DEFAULT_USER_DIR, 'backups');
@@ -1171,6 +1172,7 @@ export function getChatWindow(avatarOrFolder, options = {}) {
       hasMoreOlder: false,
       olderCount: 0,
       olderHistoryTokens: 0,
+      olderHistoryRawTokens: 0,
       messages: [],
     };
   }
@@ -1198,6 +1200,7 @@ export function getChatWindow(avatarOrFolder, options = {}) {
       hasMoreOlder: false,
       olderCount: 0,
       olderHistoryTokens: 0,
+      olderHistoryRawTokens: 0,
       messages: [],
     };
   }
@@ -1216,13 +1219,28 @@ export function getChatWindow(avatarOrFolder, options = {}) {
   }
 
   const personaState = resolveChatPersonaState(parsed);
-  const olderHistoryTokens =
-    startIndex > 0
-      ? estimateHistorySliceTokens(parsed.messages.slice(0, startIndex), {
-          charName: parsed.header?.character_name || chatFolder,
-          userName: personaState.chatPersonaName || parsed.header?.user_name || 'User',
-        })
-      : 0;
+  let olderHistoryTokens = 0;
+  let olderHistoryRawTokens = 0;
+  if (startIndex > 0) {
+    const activeRegexScripts = !isGroup
+      ? resolveActiveRegexScriptsServer({ cardAvatar: avatarOrFolder })
+      : [];
+    const recapConfig = readMessageRecapConfig();
+    const olderBreakdown = estimateHistorySliceTokenBreakdown(
+      parsed.messages.slice(0, startIndex),
+      {
+        charName: parsed.header?.character_name || chatFolder,
+        userName: personaState.chatPersonaName || parsed.header?.user_name || 'User',
+      },
+      {
+        regexScripts: activeRegexScripts,
+        recapConfig,
+        tailCountAfterSlice: totalMessages - startIndex,
+      },
+    );
+    olderHistoryTokens = olderBreakdown.activeTokens;
+    olderHistoryRawTokens = olderBreakdown.rawTokens;
+  }
 
   return {
     found: true,
@@ -1242,6 +1260,7 @@ export function getChatWindow(avatarOrFolder, options = {}) {
     hasMoreOlder: startIndex > 0,
     olderCount: startIndex,
     olderHistoryTokens,
+    olderHistoryRawTokens,
     messages: slice,
   };
 }

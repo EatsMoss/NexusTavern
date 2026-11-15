@@ -12,6 +12,7 @@ import { presetsRouter } from './routes/presets.js';
 import { apiHubRouter } from './routes/apiHub.js';
 import { regexRouter } from './routes/regex.js';
 import { refusalRouter } from './routes/refusal.js';
+import { recapRouter } from './routes/recap.js';
 import { stImportRouter } from './routes/stImport.js';
 import { getLanAddresses } from './utils/network.js';
 import { securityGuard } from './utils/auth.js';
@@ -96,6 +97,7 @@ app.use('/api/presets', presetsRouter);
 app.use('/api/hub', apiHubRouter);
 app.use('/api/regex', regexRouter);
 app.use('/api/refusal-catcher', refusalRouter);
+app.use('/api/message-recap', recapRouter);
 app.use('/api/st-import', stImportRouter);
 app.use('/api/thumbnails', thumbnailsRouter);
 

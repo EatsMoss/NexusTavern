@@ -51,6 +51,7 @@ export const NEXUSTAVERN_CHARACTERS_DIR = path.join(NEXUSTAVERN_DIR, 'characters
 export const NEXUSTAVERN_PORTRAITS_DIR = path.join(NEXUSTAVERN_DIR, 'portraits');
 export const NEXUSTAVERN_SESSION_FILE = path.join(NEXUSTAVERN_DIR, 'session.json');
 export const NEXUSTAVERN_REFUSAL_FILE = path.join(NEXUSTAVERN_DIR, 'refusal-catcher.json');
+export const NEXUSTAVERN_RECAP_FILE = path.join(NEXUSTAVERN_DIR, 'message-recap.json');
 export const NEXUSTAVERN_ST_IMPORTER_FILE = path.join(NEXUSTAVERN_DIR, 'st-importer.json');
 export const USER_IMAGES_DIR = path.join(DEFAULT_USER_DIR, 'user', 'images');
 export const USER_FILES_DIR = path.join(DEFAULT_USER_DIR, 'user', 'files');

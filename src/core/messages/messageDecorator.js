@@ -67,6 +67,82 @@ export function extractThinkingAndCleanBody(
   };
 }
 
+const RECAP_BLOCK_REGEX = /<recap\b[^>]*>([\s\S]*?)<\/recap>/gi;
+const OPEN_STREAM_RECAP_REGEX = /<recap\b[^>]*>([\s\S]*)$/i;
+
+function unwrapLegacyRecapDetails(rawInner = '') {
+  let cleaned = String(rawInner || '').trim();
+  const detailsMatch = cleaned.match(
+    /^<details\b[^>]*>\s*(?:<summary\b[^>]*>[\s\S]*?<\/summary>\s*)?([\s\S]*?)<\/details>$/i,
+  );
+  if (detailsMatch) {
+    cleaned = String(detailsMatch[1] || '').trim();
+  }
+  return cleaned;
+}
+
+/**
+ * Extracts `<recap>...</recap>` blocks (and an unclosed trailing `<recap>...`
+ * shard while `isStreaming` is active) from an AI message body so the recap
+ * can be rendered in the dedicated M3 `MessageRecapBox` molecule.
+ */
+export function extractRecapAndCleanBody(rawBody = '', { isStreaming = false } = {}) {
+  let body = String(rawBody || '');
+  const collected = [];
+  let isRecapStreaming = false;
+
+  if (!body || !/<recap\b/i.test(body)) {
+    return { recapText: '', cleanBody: body, isRecapStreaming: false };
+  }
+
+  body = body.replace(RECAP_BLOCK_REGEX, (_, inner) => {
+    const clean = unwrapLegacyRecapDetails(inner);
+    if (clean) collected.push(clean);
+    return '';
+  });
+
+  if (isStreaming) {
+    const openMatch = body.match(OPEN_STREAM_RECAP_REGEX);
+    if (openMatch) {
+      isRecapStreaming = true;
+      const partial = unwrapLegacyRecapDetails(openMatch[1]);
+      if (partial) collected.push(partial);
+      body = body.slice(0, openMatch.index);
+    }
+  }
+
+  return {
+    recapText: collected.join('\n\n').trim(),
+    cleanBody: body.trim(),
+    isRecapStreaming,
+  };
+}
+
+/**
+ * Surgically updates (or removes if empty) the `<recap>...</recap>` block inside
+ * a raw AI message string while leaving `<story>...</story>` and `<think>` intact.
+ */
+export function replaceRecapBlockInRawText(rawText = '', nextRecapText = '') {
+  const source = String(rawText || '');
+  const trimmedRecap = String(nextRecapText || '').trim();
+  const replacementBlock = trimmedRecap ? `<recap>\n${trimmedRecap}\n</recap>` : '';
+
+  if (/<recap\b[^>]*>[\s\S]*?<\/recap>/i.test(source)) {
+    let replacedFirst = false;
+    const updated = source.replace(RECAP_BLOCK_REGEX, () => {
+      if (!replacedFirst) {
+        replacedFirst = true;
+        return replacementBlock;
+      }
+      return '';
+    });
+    return updated.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  if (!trimmedRecap) return source;
+  return `${source.trimEnd()}\n\n${replacementBlock}`.trim();
+}
+
 /**
  * Extracts the latest completed section heading from a streaming or finished
  * Chain-of-Thought / reasoning trace (e.g. `**Interpreting the Scene**`,

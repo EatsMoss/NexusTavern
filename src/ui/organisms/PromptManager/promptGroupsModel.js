@@ -431,7 +431,7 @@ export function buildPromptTree(orderedPrompts = [], tokenContext = null) {
   return parseRange(0, n, 0);
 }
 
-export function computeTotalEnabledTreeTokens(treeNodes = []) {
+export function computeTotalEnabledTreeTokens(treeNodes = [], tokenContext = null) {
   let sum = 0;
   for (const node of treeNodes) {
     if (!node) continue;
@@ -443,6 +443,9 @@ export function computeTotalEnabledTreeTokens(treeNodes = []) {
     ) {
       sum += node.tokens || 0;
     }
+  }
+  if (tokenContext && Number(tokenContext.pluginExtraPromptTokens) > 0) {
+    sum += Number(tokenContext.pluginExtraPromptTokens) || 0;
   }
   return sum;
 }

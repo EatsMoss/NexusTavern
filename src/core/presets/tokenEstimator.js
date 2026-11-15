@@ -3,6 +3,15 @@
  * history tracking, and server Tail-First chat window summaries (`chatStore.js`).
  */
 
+import {
+  applyRegexPipeline,
+  REGEX_PLACEMENT,
+} from '../regex/regexEngine.js';
+import {
+  normalizeRecapConfig,
+  buildRecapSyntheticRegexScript,
+} from '../recap/recapEngine.js';
+
 const REASONING_TAGS_RE =
   /<(?:think|thinking|reasoning|thought)>[\s\S]*?<\/(?:think|thinking|reasoning|thought)>/gi;
 
@@ -95,6 +104,85 @@ export function estimateHistorySliceTokens(messages = [], tokenContext = null) {
     const cleanText = isUser ? rawText : stripReasoningBlocksForTokens(rawText);
     if (!cleanText || !cleanText.trim()) continue;
     sum += estimateTextTokens(cleanText, tokenContext);
+  }
+  return sum;
+}
+
+/**
+ * Computes both active (post-regex / post-recap) and raw (uncompressed) token counts
+ * for a chat history slice, respecting message depth from the tail of the chat.
+ */
+export function estimateHistorySliceTokenBreakdown(
+  messages = [],
+  tokenContext = null,
+  { regexScripts = [], recapConfig = null, tailCountAfterSlice = 0 } = {},
+) {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return { activeTokens: 0, rawTokens: 0, savedTokens: 0 };
+  }
+
+  const charName = tokenContext?.charName || 'Character';
+  const userName = tokenContext?.userName || 'User';
+  const recapStripScript = recapConfig
+    ? buildRecapSyntheticRegexScript(recapConfig)
+    : null;
+  const effectiveScripts = recapStripScript
+    ? [recapStripScript, ...(Array.isArray(regexScripts) ? regexScripts : [])]
+    : Array.isArray(regexScripts)
+      ? regexScripts
+      : [];
+
+  const tailOffset = Math.max(0, Math.floor(Number(tailCountAfterSlice) || 0));
+  let rawTokens = 0;
+  let activeTokens = 0;
+
+  for (let i = 0; i < messages.length; i += 1) {
+    const msg = messages[i];
+    if (!msg || msg.is_system) continue;
+    const isUser = Boolean(msg.isUser ?? msg.is_user);
+    const rawText = extractRawHistoryMessageText(msg);
+    const cleanText = isUser ? rawText : stripReasoningBlocksForTokens(rawText);
+    if (!cleanText || !cleanText.trim()) continue;
+
+    const rawTok = estimateTextTokens(cleanText, tokenContext);
+    rawTokens += rawTok;
+
+    if (effectiveScripts.length === 0) {
+      activeTokens += rawTok;
+      continue;
+    }
+
+    const msgDepth = messages.length - 1 - i + tailOffset;
+    const transformed = applyRegexPipeline(cleanText, effectiveScripts, {
+      placement: isUser ? REGEX_PLACEMENT.USER_INPUT : REGEX_PLACEMENT.AI_OUTPUT,
+      isPrompt: true,
+      depth: msgDepth,
+      charName,
+      userName,
+    }).trim();
+
+    activeTokens += transformed ? estimateTextTokens(transformed, tokenContext) : 0;
+  }
+
+  return {
+    activeTokens,
+    rawTokens,
+    savedTokens: Math.max(0, rawTokens - activeTokens),
+  };
+}
+
+/**
+ * Computes prompt tokens added by enabled Message Recap prompts (Opening Rules + Closing Reminder).
+ */
+export function estimateRecapInjectedPromptTokens(rawConfig = null, tokenContext = null) {
+  const cfg = normalizeRecapConfig(rawConfig);
+  if (!cfg.enabled) return 0;
+  let sum = 0;
+  if (cfg.openingEnabled && cfg.openingPrompt?.trim()) {
+    sum += estimateTextTokens(cfg.openingPrompt, tokenContext);
+  }
+  if (cfg.closingEnabled && cfg.closingPrompt?.trim()) {
+    sum += estimateTextTokens(cfg.closingPrompt, tokenContext);
   }
   return sum;
 }

@@ -23,10 +23,15 @@ import {
 } from './macroResolver.js';
 import { scanWorldInfoForPrompt } from './worldInfoScanner.js';
 import { resolveActiveRegexScriptsServer } from './regexStore.js';
+import { readMessageRecapConfig } from './recapStore.js';
 import {
   applyRegexPipeline,
   REGEX_PLACEMENT,
 } from '../../src/core/regex/regexEngine.js';
+import {
+  normalizeRecapConfig,
+  buildRecapSyntheticRegexScript,
+} from '../../src/core/recap/recapEngine.js';
 
 /**
  * Resolves the active user persona for a given character & chat from `settings.json`.
@@ -314,6 +319,7 @@ export function compileChatPrompt({
   chatFileName = '',
   messagesOverride = null,
   presetOverride = null,
+  recapOverride = null,
   draftUserMessage = '',
   continueMode = false,
   historyEndExclusiveIndex = null,
@@ -322,6 +328,9 @@ export function compileChatPrompt({
   const settings = readUserSettings();
   const hubState = getApiHubState();
   const presetSettings = getConnectionAndPresetSettings();
+  const recapConfig = recapOverride
+    ? normalizeRecapConfig(recapOverride)
+    : readMessageRecapConfig();
 
   // 1. Load character card (disk or live unsaved override)
   const diskCard = characterAvatar ? getFullCharacterCard(characterAvatar) : null;
@@ -665,11 +674,70 @@ export function compileChatPrompt({
     });
   }
 
+  // 7.5. Inject native Message Recap prompts (Opening Rules & Closing Reminder)
+  let recapOpeningBeforeHistory = null;
+  if (recapConfig.enabled) {
+    if (recapConfig.openingEnabled) {
+      const openingText = resolveMacros(recapConfig.openingPrompt || '', macroCtx).trim();
+      if (openingText) {
+        if (recapConfig.openingPosition === 'depth') {
+          depthInjections.push({
+            identifier: 'messageRecapOpening',
+            name: 'Message Recap (Opening Rules)',
+            role: recapConfig.openingRole || 'system',
+            content: openingText,
+            injection_depth: Number(recapConfig.openingDepth ?? 4),
+            injection_order: 90,
+            source: 'messageRecapOpening',
+          });
+        } else {
+          recapOpeningBeforeHistory = {
+            role: recapConfig.openingRole || 'system',
+            content: openingText,
+            label: 'Message Recap (Opening Rules)',
+            source: 'messageRecapOpening',
+            tokens: estimateTokens(openingText),
+          };
+        }
+      }
+    }
+
+    if (recapConfig.closingEnabled) {
+      const closingText = resolveMacros(recapConfig.closingPrompt || '', macroCtx).trim();
+      if (closingText) {
+        if (recapConfig.closingPosition === 'depth') {
+          depthInjections.push({
+            identifier: 'messageRecapClosing',
+            name: 'Message Recap (Closing Reminder)',
+            role: recapConfig.closingRole || 'system',
+            content: closingText,
+            injection_depth: Number(recapConfig.closingDepth ?? 0),
+            injection_order: 999,
+            source: 'messageRecapClosing',
+          });
+        } else {
+          pushEntry(postHistoryMessages, {
+            role: recapConfig.closingRole || 'system',
+            content: closingText,
+            label: 'Message Recap (Closing Reminder)',
+            source: 'messageRecapClosing',
+          });
+        }
+      }
+    }
+  }
+
+  const recapStripScript = buildRecapSyntheticRegexScript(recapConfig);
+  const historyRegexScripts = recapStripScript
+    ? [recapStripScript, ...activeRegexScripts]
+    : activeRegexScripts;
+
   // 8. Budget tokens & select tail of chatHistory, then splice @Depth injections
   const fixedTokens =
     preHistoryMessages.reduce((s, m) => s + m.tokens, 0) +
     postHistoryMessages.reduce((s, m) => s + m.tokens, 0) +
-    depthInjections.reduce((s, d) => s + estimateTokens(d.content), 0);
+    depthInjections.reduce((s, d) => s + estimateTokens(d.content), 0) +
+    (recapOpeningBeforeHistory ? recapOpeningBeforeHistory.tokens : 0);
 
   const newChatBanner = resolveMacros(String(oaiData.new_chat_prompt ?? '[Start a new Chat]'), macroCtx).trim();
   const newChatBannerTokens = newChatBanner ? estimateTokens(newChatBanner) : 0;
@@ -690,14 +758,43 @@ export function compileChatPrompt({
     ? String(oaiData.inline_image_quality).toLowerCase()
     : 'auto';
 
+  const formatSpeakerMessage = (text, h) => {
+    const speaker = String(h.speakerName || '').trim();
+    const startsWithSpeaker =
+      speaker && text.toLowerCase().startsWith(`${speaker.toLowerCase()}:`);
+    let formattedContent = text;
+    let messageApiName = '';
+
+    if (namesBehavior === 2 && speaker && !startsWithSpeaker) {
+      formattedContent = `${speaker}: ${text}`;
+    } else if (namesBehavior === 1 && speaker) {
+      if (/^[a-zA-Z0-9_-]{1,64}$/.test(speaker)) {
+        messageApiName = speaker;
+      } else if (!startsWithSpeaker) {
+        formattedContent = `${speaker}: ${text}`;
+      }
+    } else if (namesBehavior === 0 && speaker && !startsWithSpeaker) {
+      const expectedSpeaker = h.role === 'user' ? userName : charName;
+      if (speaker.toLowerCase() !== String(expectedSpeaker || '').trim().toLowerCase()) {
+        formattedContent = `${speaker}: ${text}`;
+      }
+    }
+
+    return { formattedContent, messageApiName };
+  };
+
   const selectedHistoryReversed = [];
   let visionMessagesIncluded = 0;
+  let historyTokensSum = 0;
+  let historyTokensRawSum = 0;
+
   for (let i = normalizedHistoryAll.length - 1; i >= 0; i -= 1) {
     const h = normalizedHistoryAll[i];
     const msgDepth = normalizedHistoryAll.length - 1 - i;
-    let resolvedMsg = resolveMacros(h.rawContent, macroCtx).trim();
-    if (resolvedMsg && activeRegexScripts.length > 0) {
-      resolvedMsg = applyRegexPipeline(resolvedMsg, activeRegexScripts, {
+    const rawResolvedMsg = resolveMacros(h.rawContent, macroCtx).trim();
+    let resolvedMsg = rawResolvedMsg;
+    if (resolvedMsg && historyRegexScripts.length > 0) {
+      resolvedMsg = applyRegexPipeline(resolvedMsg, historyRegexScripts, {
         placement:
           h.role === 'user' ? REGEX_PLACEMENT.USER_INPUT : REGEX_PLACEMENT.AI_OUTPUT,
         isPrompt: true,
@@ -722,36 +819,29 @@ export function compileChatPrompt({
       }
     }
 
-    if (!resolvedMsg && resolvedImages.length === 0) continue;
-    const effectiveText = resolvedMsg || '[Attached image]';
-    const speaker = String(h.speakerName || '').trim();
-    const startsWithSpeaker =
-      speaker && effectiveText.toLowerCase().startsWith(`${speaker.toLowerCase()}:`);
+    const imageTokens = resolvedImages.length * 256;
+    const rawEffectiveText = rawResolvedMsg || (resolvedImages.length > 0 ? '[Attached image]' : '');
+    const rawMsgTok = rawEffectiveText
+      ? estimateTokens(formatSpeakerMessage(rawEffectiveText, h).formattedContent) + imageTokens
+      : 0;
 
-    let formattedContent = effectiveText;
-    let messageApiName = '';
-
-    if (namesBehavior === 2 && speaker && !startsWithSpeaker) {
-      formattedContent = `${speaker}: ${effectiveText}`;
-    } else if (namesBehavior === 1 && speaker) {
-      if (/^[a-zA-Z0-9_-]{1,64}$/.test(speaker)) {
-        messageApiName = speaker;
-      } else if (!startsWithSpeaker) {
-        formattedContent = `${speaker}: ${effectiveText}`;
+    if (!resolvedMsg && resolvedImages.length === 0) {
+      if (rawMsgTok > 0 && remainingHistoryBudget > 0) {
+        historyTokensRawSum += rawMsgTok;
       }
-    } else if (namesBehavior === 0 && speaker && !startsWithSpeaker) {
-      const expectedSpeaker = h.role === 'user' ? userName : charName;
-      if (speaker.toLowerCase() !== String(expectedSpeaker || '').trim().toLowerCase()) {
-        formattedContent = `${speaker}: ${effectiveText}`;
-      }
+      continue;
     }
 
-    const msgTok = estimateTokens(formattedContent) + resolvedImages.length * 256;
+    const effectiveText = resolvedMsg || '[Attached image]';
+    const { formattedContent, messageApiName } = formatSpeakerMessage(effectiveText, h);
+    const msgTok = estimateTokens(formattedContent) + imageTokens;
 
     if (selectedHistoryReversed.length > 0 && msgTok > remainingHistoryBudget) {
       break;
     }
     remainingHistoryBudget -= msgTok;
+    historyTokensSum += msgTok;
+    historyTokensRawSum += Math.max(msgTok, rawMsgTok);
     selectedHistoryReversed.push({
       role: h.role,
       ...(messageApiName ? { name: messageApiName } : {}),
@@ -811,6 +901,14 @@ export function compileChatPrompt({
     historyWithDepth.push(historySegment[idx]);
   }
   if (byDepth.has(0)) pushDepthGroup(0);
+
+  if (recapOpeningBeforeHistory) {
+    if (seenChatHistoryMarker) {
+      historyWithDepth.unshift(recapOpeningBeforeHistory);
+    } else {
+      preHistoryMessages.push(recapOpeningBeforeHistory);
+    }
+  }
 
   if (newChatBanner && (historySegment.length > 0 || seenChatHistoryMarker)) {
     historyWithDepth.unshift({
@@ -924,6 +1022,10 @@ export function compileChatPrompt({
       messageBlocksCount: compiledMessages.length,
       historyIncluded: historySegment.length,
       historyTotal: normalizedHistoryAll.length,
+      historyTokens: historyTokensSum,
+      historyTokensRaw: historyTokensRawSum,
+      historyTokensSaved: Math.max(0, historyTokensRawSum - historyTokensSum),
+      recapEnabled: Boolean(recapConfig.enabled),
       depthInjectionsCount: sortedDepth.length,
       worldInfoActivated: worldInfo.activatedCount,
     },
