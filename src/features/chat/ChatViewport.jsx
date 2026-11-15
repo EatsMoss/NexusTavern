@@ -1511,6 +1511,15 @@ export function ChatViewport({
       )}
 
       <div className="bb-chat-viewport__stage" aria-hidden={timelinesOpen || undefined}>
+        {loadingChat && !switchingScenario && messages.length > 0 && !chatMetaStats.hasMoreOlder && (
+          <ProgressIndicator
+            variant="linear"
+            size="sm"
+            overlay="top"
+            ariaLabel="Switching timeline"
+            className="bb-chat-viewport__top-progress"
+          />
+        )}
         <div
           ref={resolvedStreamRef}
           className={`bb-chat-viewport__stream bb-scrollbar--hidden ${
@@ -1521,14 +1530,6 @@ export function ChatViewport({
           onScroll={handleScroll}
         >
         <div ref={streamTrackRef} className="bb-chat-viewport__track">
-        {loadingChat && !switchingScenario && messages.length > 0 && !chatMetaStats.hasMoreOlder && (
-          <ProgressIndicator
-            variant="linear"
-            size="sm"
-            ariaLabel="Switching timeline"
-            className="bb-chat-viewport__top-progress"
-          />
-        )}
         {chatMetaStats.hasMoreOlder && !switchingScenario && (
           <div className="bb-chat-viewport__tail-banner">
             <span className="bb-caption-text">

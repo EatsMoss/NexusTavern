@@ -497,9 +497,8 @@ export function MarkdownEditor({
       )}
 
       <div className="bb-md-editor-shell">
-        <div className="bb-md-toolbar">
-          <div className="bb-md-toolbar-left" onMouseDown={preventFocusLoss}>
-            <div className="bb-md-toolbar-group">
+        <div className="bb-md-toolbar" onMouseDown={preventFocusLoss}>
+          <div className="bb-md-toolbar-group">
               <ToolBtn
                 className="bb-md-tool-btn"
                 tip="Undo · Ctrl+Z"
@@ -678,7 +677,6 @@ export function MarkdownEditor({
                 {'{{user}}'}
               </ToolBtn>
             </div>
-          </div>
 
           <div className="bb-md-toolbar-right">
             <button

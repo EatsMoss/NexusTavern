@@ -287,6 +287,7 @@ export function PresetVaultInspector({
           <ProgressIndicator
             variant="linear"
             size="sm"
+            overlay="top"
             ariaLabel={savingPreset ? 'Saving preset' : 'Loading preset'}
           />
         )}

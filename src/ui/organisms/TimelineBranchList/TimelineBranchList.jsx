@@ -329,17 +329,17 @@ export function TimelineBranchList({
           placeholder="Search timelines & branches..."
           size="md"
         />
+      </div>
+
+      <div className="bb-tl-branch-list__stage">
         {(loadingChat || (loadingList && visibleGroups.length > 0)) && (
           <ProgressIndicator
             variant="linear"
             size="sm"
+            overlay="top"
             ariaLabel="Loading timeline"
-            style={{ marginTop: 6 }}
           />
         )}
-      </div>
-
-      <div className="bb-tl-branch-list__stage">
         <div ref={scrollRef} className="bb-tl-branch-list__scroll bb-scrollbar--hidden">
           {loadingList && visibleGroups.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '2px 0' }}>

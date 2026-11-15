@@ -73,6 +73,8 @@ import {
   writeCachedUiState,
   readCachedPresetDraft,
   writeCachedPresetDraft,
+  readCachedOnboardingDismissed,
+  writeCachedOnboardingDismissed,
   pickNewestSessionSlice,
 } from '@core/session/sessionApi.js';
 import {
@@ -118,6 +120,7 @@ import {
   Dropdown,
   MarkdownEditor,
   Modal,
+  WelcomeModal,
   UnsavedChangesModal,
   PearlescentShader,
   TopBar,
@@ -437,6 +440,8 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   const [apiModalOpen, setApiModalOpen] = useState(false);
   const [personaModalOpen, setPersonaModalOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [welcomeModalOpen, setWelcomeModalOpen] = useState(false);
+  const onboardingDismissedRef = useRef(readCachedOnboardingDismissed());
   const [draftMsg, setDraftMsg] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState([]);
   const pendingAttachmentsRef = useRef([]);
@@ -1292,17 +1297,25 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
 
       setGroups(groupRes?.groups || []);
 
-      if (personaRes?.personas?.length > 0) {
-        personasRef.current = personaRes.personas;
-        setPersonas(personaRes.personas);
+      const loadedPersonas = Array.isArray(personaRes?.personas) ? personaRes.personas : [];
+      personasRef.current = loadedPersonas;
+      setPersonas(loadedPersonas);
+      if (loadedPersonas.length > 0) {
         if (!activePersonaAvatarRef.current && personaRes.activePersonaAvatar) {
           activePersonaAvatarRef.current = personaRes.activePersonaAvatar;
         }
-        syncSessionPersona(sessionPersonaHintRef.current, personaRes.personas);
+        syncSessionPersona(sessionPersonaHintRef.current, loadedPersonas);
+      } else {
+        activePersonaAvatarRef.current = '';
+        setActivePersonaAvatar('');
       }
-      return { count: loadedChars.length, selectedId: chosenBootCardId };
+      return {
+        count: loadedChars.length,
+        personasCount: loadedPersonas.length,
+        selectedId: chosenBootCardId,
+      };
     } catch {
-      return { count: 0, selectedId: '' };
+      return { count: 0, personasCount: 0, selectedId: '' };
     } finally {
       setLoadingCards(false);
     }
@@ -1350,6 +1363,13 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   isMobileRef.current = isMobile;
   const sessionBootCompletedRef = useRef(false);
 
+  const markOnboardingDismissed = useCallback(() => {
+    onboardingDismissedRef.current = true;
+    writeCachedOnboardingDismissed(true);
+    setWelcomeModalOpen(false);
+    queueSessionPatch({ onboardingDismissed: true });
+  }, [queueSessionPatch]);
+
   // Boot sequence: read the persisted session pointer FIRST, then load cards and
   // personas so `loadCardsAndPersonas` can select the restored character on first boot.
   useEffect(() => {
@@ -1362,6 +1382,12 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     sessionPromiseRef.current.then((res) => {
       if (cancelled || sessionBootCompletedRef.current) return undefined;
       sessionBootCompletedRef.current = true;
+      if (res?.onboardingDismissed) {
+        onboardingDismissedRef.current = true;
+        writeCachedOnboardingDismissed(true);
+      } else if (onboardingDismissedRef.current) {
+        queueSessionPatch({ onboardingDismissed: true });
+      }
       const localLastChat = readCachedLastChat();
       const serverLastChat = res?.lastChat || null;
       const bestLastChat = pickNewestSessionSlice(localLastChat, serverLastChat);
@@ -1426,6 +1452,12 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         if (cancelled) return undefined;
         if (!bootCardsInfo?.count) {
           finishBootSplash();
+          if (
+            !bootCardsInfo?.personasCount &&
+            !onboardingDismissedRef.current
+          ) {
+            setWelcomeModalOpen(true);
+          }
         } else {
           setBootStage({
             statusText: 'Opening active timeline...',
@@ -2695,6 +2727,11 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       if (Array.isArray(res?.personas)) {
         personasRef.current = res.personas;
         setPersonas(res.personas);
+      }
+      if (!onboardingDismissedRef.current) {
+        onboardingDismissedRef.current = true;
+        writeCachedOnboardingDismissed(true);
+        queueSessionPatch({ onboardingDismissed: true });
       }
       if (res?.createdPersonaAvatar) {
         const created = (res.personas || []).find(
@@ -5229,6 +5266,11 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
 
   const stImporter = useStImporter({
     onImportCompleted: async () => {
+      if (!onboardingDismissedRef.current) {
+        onboardingDismissedRef.current = true;
+        writeCachedOnboardingDismissed(true);
+        queueSessionPatch({ onboardingDismissed: true });
+      }
       await Promise.all([
         loadCardsAndPersonas(),
         regexWorkspace.syncWorkspace(),
@@ -7183,6 +7225,17 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         </aside>
       )}
       {/* 3. Popup Windows (Modals) */}
+      <WelcomeModal
+        open={welcomeModalOpen && !bootSplashOpen && viewMode === 'tavern'}
+        onClose={markOnboardingDismissed}
+        onStartEmpty={markOnboardingDismissed}
+        onCreatePersona={() => {
+          markOnboardingDismissed();
+          handleOpenCreatePersonaModal();
+        }}
+        importer={stImporter}
+      />
+
       <ApiHubModal
         open={apiModalOpen}
         hubState={apiHubState}
@@ -7211,6 +7264,14 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         {serverStatus ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="bb-tunnel-box">
+              {tunnelBusy && (
+                <ProgressIndicator
+                  variant="linear"
+                  size="sm"
+                  overlay="top"
+                  ariaLabel="Updating encrypted tunnel..."
+                />
+              )}
               {serverStatus.tunnel?.qrSvg && (
                 <div
                   className="bb-qr-wrap"
@@ -7233,13 +7294,6 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                   >
                     {serverStatus.tunnel.publicUrl}
                   </a>
-                )}
-                {tunnelBusy && (
-                  <ProgressIndicator
-                    variant="linear"
-                    size="sm"
-                    label="Updating encrypted tunnel..."
-                  />
                 )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
                   <Button

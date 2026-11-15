@@ -1,0 +1,197 @@
+/* ==========================================================================
+   NEXUSTAVERN UI — WELCOME QUICK-START MODAL (PURE M3 SOLID SHEET)
+   Shown on clean/empty launches to create a Persona or run Full ST Import.
+   ========================================================================== */
+
+.bb-welcome-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bb-welcome-modal__hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--md-sys-shape-corner-lg, 16px);
+  border: 1px solid var(--bb-page-border, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-header-bg, var(--md-sys-color-surface-container-low));
+}
+
+.bb-welcome-modal__hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.bb-welcome-modal__hero-title {
+  font-family: var(--bb-font-heading);
+  font-size: calc(15px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}
+
+.bb-welcome-modal__hero-sub {
+  margin: 0;
+  font-family: var(--bb-font-body);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  line-height: 1.45;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+}
+
+.bb-welcome-modal__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bb-welcome-card {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 78px;
+  padding: 14px 16px;
+  text-align: left;
+  border-radius: var(--md-sys-shape-corner-lg, 16px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-well-bg, var(--md-sys-color-surface-container));
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  cursor: pointer;
+  transition:
+    background-color 140ms var(--md-sys-motion-easing-standard, ease),
+    border-color 140ms var(--md-sys-motion-easing-standard, ease),
+    transform 120ms var(--md-sys-motion-easing-standard, ease);
+}
+
+.bb-welcome-card:hover {
+  background: var(--bb-sheet-item-hover, var(--md-sys-color-surface-container-high));
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+}
+
+.bb-welcome-card:active {
+  transform: scale(0.994);
+}
+
+.bb-welcome-card:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.bb-welcome-card__icon-box {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--md-sys-shape-corner-md, 12px);
+}
+
+.bb-welcome-card__icon-box--primary {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.bb-welcome-card__icon-box--secondary {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.bb-welcome-card__body {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bb-welcome-card__title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bb-welcome-card__title {
+  font-family: var(--bb-font-heading);
+  font-size: calc(14.5px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}
+
+.bb-welcome-card__pill {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  font-family: var(--bb-font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.bb-welcome-card__pill--muted {
+  background: var(--bb-btn-flat-bg, var(--md-sys-color-surface-container-highest));
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+}
+
+.bb-welcome-card__desc {
+  font-family: var(--bb-font-body);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  line-height: 1.42;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+}
+
+.bb-welcome-card__arrow {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+  transition: transform 140ms ease, color 140ms ease, background-color 140ms ease;
+}
+
+.bb-welcome-card:hover .bb-welcome-card__arrow {
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  background: var(--bb-btn-flat-bg, var(--md-sys-color-surface-container-highest));
+  transform: translateX(2px);
+}
+
+.bb-welcome-modal__importer-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.bb-welcome-modal__footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.bb-welcome-modal__footer-row--end {
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .bb-welcome-modal__hero {
+    align-items: flex-start;
+    padding: 12px 14px;
+  }
+
+  .bb-welcome-card {
+    padding: 13px 14px;
+    gap: 12px;
+  }
+}

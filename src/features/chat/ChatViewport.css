@@ -954,12 +954,11 @@
 }
 
 .bb-chat-viewport__top-progress {
-  position: sticky;
-  top: 0;
-  z-index: 6;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   width: var(--bb-chat-column-width);
   max-width: var(--bb-chat-column-max);
-  margin-bottom: 6px;
 }
 
 

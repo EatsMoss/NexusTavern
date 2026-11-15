@@ -30,6 +30,7 @@ function createDefaultSession() {
     lastChats: {},
     uiState: null,
     presetDraft: null,
+    onboardingDismissed: false,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -150,6 +151,7 @@ function normalizeSession(raw) {
     lastChats: normalizeLastChatsMap(raw.lastChats, normalizedLastChat),
     uiState: normalizeUiState(raw.uiState),
     presetDraft: normalizePresetDraft(raw.presetDraft),
+    onboardingDismissed: Boolean(raw.onboardingDismissed),
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : base.updatedAt,
   };
 }
@@ -210,6 +212,9 @@ export async function saveSession(patch = {}) {
     }
     if ('presetDraft' in patch) {
       nextRaw.presetDraft = patch.presetDraft;
+    }
+    if ('onboardingDismissed' in patch) {
+      nextRaw.onboardingDismissed = Boolean(patch.onboardingDismissed);
     }
     nextRaw.updatedAt = new Date().toISOString();
 

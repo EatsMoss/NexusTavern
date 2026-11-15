@@ -7,6 +7,7 @@ import {
   MarkdownEditor,
   PinnedLayout,
   Modal,
+  WelcomeModal,
   UnsavedChangesModal,
   TopBar,
   ChatMessageCard,
@@ -85,6 +86,7 @@ export function OrganismsShowcase() {
   const [cards, setCards] = useState(INITIAL_CARDS);
   const [selectedCardId, setSelectedCardId] = useState('c1');
   const [modalOpen, setModalOpen] = useState(false);
+  const [welcomeDemoOpen, setWelcomeDemoOpen] = useState(false);
   const [unsavedDemoOpen, setUnsavedDemoOpen] = useState(false);
   const [demoChatListOpen, setDemoChatListOpen] = useState(false);
   const [demoSwipeId, setDemoSwipeId] = useState(1);
@@ -169,9 +171,14 @@ export function OrganismsShowcase() {
             Starred searchable dropdowns, the pinned gallery layout, popup modals and the live-syntax Markdown editor.
           </p>
         </div>
-        <Button variant="b1" emphasis="filled" icon="expand" onClick={() => setModalOpen(true)}>
-          Open Popup Window (Modal)
-        </Button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <Button variant="b1" emphasis="tonal" icon="sparkles" onClick={() => setWelcomeDemoOpen(true)}>
+            Preview First-Run Welcome Modal
+          </Button>
+          <Button variant="b1" emphasis="filled" icon="expand" onClick={() => setModalOpen(true)}>
+            Open Popup Window (Modal)
+          </Button>
+        </div>
       </div>
 
       <div className="bb-grid">
@@ -600,6 +607,46 @@ export function OrganismsShowcase() {
           onChange={setMdText}
         />
       </Modal>
+
+      <WelcomeModal
+        open={welcomeDemoOpen}
+        onClose={() => setWelcomeDemoOpen(false)}
+        onStartEmpty={() => setWelcomeDemoOpen(false)}
+        onCreatePersona={() => setWelcomeDemoOpen(false)}
+        importer={{
+          isLocalHost: true,
+          canBrowseNative: true,
+          rootPath: demoStRootPath,
+          handleChangeRootPath: setDemoStRootPath,
+          handleBrowseDirectory: () => {},
+          handleScanDirectory: () => {},
+          handleClearSavedState: () => setDemoStRootPath(''),
+          browsing: false,
+          scanning: false,
+          scanSummary: null,
+          scanError: '',
+          selectedProfile: 'default-user',
+          handleSelectProfile: () => {},
+          categories: demoStCategories,
+          handleToggleCategory: (id, nextVal) =>
+            setDemoStCategories((prev) => ({ ...prev, [id]: nextVal })),
+          handleSetAllCategories: (val) =>
+            setDemoStCategories({
+              backgrounds: val,
+              characters: val,
+              personas: val,
+              regex: val,
+              chats: val,
+            }),
+          conflictMode: demoStConflictMode,
+          setConflictMode: setDemoStConflictMode,
+          job: null,
+          lastReport: null,
+          handleStartImport: () => {},
+          handleCancelImport: () => {},
+          handleDismissReport: () => {},
+        }}
+      />
 
       <UnsavedChangesModal
         open={unsavedDemoOpen}

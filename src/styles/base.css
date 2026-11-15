@@ -243,6 +243,8 @@ body,
 }
 
 .bb-tunnel-box {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-wrap: wrap;
   gap: 16px;

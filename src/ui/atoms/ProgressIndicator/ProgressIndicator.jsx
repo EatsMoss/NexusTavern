@@ -18,6 +18,7 @@ export function ProgressIndicator({
   size = 'md', // 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   value = null, // number (0..100) for determinate, null/undefined for indeterminate
   tone = 'primary', // 'primary' | 'muted' | 'on-surface'
+  overlay = false, // false | true | 'top' | 'bottom' (zero-layout-shift absolute bar)
   showTrack = true,
   label = '',
   showValue = false,
@@ -29,6 +30,7 @@ export function ProgressIndicator({
   const clamped = isDeterminate ? Math.max(0, Math.min(100, value)) : null;
 
   if (variant === 'linear') {
+    const overlayPos = overlay ? (overlay === 'bottom' ? 'bottom' : 'top') : null;
     return (
       <div
         className={[
@@ -36,6 +38,8 @@ export function ProgressIndicator({
           'bb-progress--linear-wrap',
           `bb-progress--size-${size}`,
           `bb-progress--tone-${tone}`,
+          overlayPos ? 'bb-progress--overlay' : '',
+          overlayPos ? `bb-progress--overlay-${overlayPos}` : '',
           className,
         ]
           .filter(Boolean)

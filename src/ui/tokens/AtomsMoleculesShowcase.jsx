@@ -1279,6 +1279,22 @@ export function AtomsMoleculesShowcase() {
             />
           </div>
 
+          <div
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              padding: '12px 14px',
+              borderRadius: 'var(--bb-control-radius, 8px)',
+              border: '1px solid var(--md-sys-color-outline-variant)',
+              background: 'var(--md-sys-color-surface-container-low)',
+              fontSize: 'var(--bb-caption-size)',
+              color: 'var(--md-sys-color-on-surface-variant)',
+            }}
+          >
+            <ProgressIndicator variant="linear" size="sm" overlay="top" ariaLabel="Overlay loading preview" />
+            Zero-layout-shift M3 overlay progress bar (`overlay=&quot;top&quot;`) — floats over container edge without pushing content.
+          </div>
+
           <Slider
             label="Determinate Progress Preview"
             min={0}

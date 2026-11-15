@@ -4,6 +4,7 @@ const LAST_CHAT_STORAGE_KEY = 'nexustavern_last_chat_v1';
 const LAST_CHATS_MAP_STORAGE_KEY = 'nexustavern_last_chats_map_v1';
 const UI_STATE_STORAGE_KEY = 'nexustavern_ui_session_v1';
 const PRESET_DRAFT_STORAGE_KEY = 'nexustavern_preset_draft_v1';
+const ONBOARDING_DISMISSED_KEY = 'nexustavern_onboarding_dismissed_v1';
 
 const VALID_LEFT_TABS = new Set(['characters', 'chats', 'worldinfo', 'usersettings']);
 const VALID_RIGHT_TABS = new Set(['selected', 'aiconfig', 'media', 'extensions']);
@@ -240,6 +241,30 @@ export function pickNewestSessionSlice(localSlice, serverSlice) {
   return localSlice || serverSlice || null;
 }
 
+export function readCachedOnboardingDismissed() {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    return localStorage.getItem(ONBOARDING_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function writeCachedOnboardingDismissed(dismissed) {
+  if (typeof localStorage === 'undefined') return Boolean(dismissed);
+  const val = Boolean(dismissed);
+  try {
+    if (val) {
+      localStorage.setItem(ONBOARDING_DISMISSED_KEY, '1');
+    } else {
+      localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
+    }
+  } catch {
+    // Ignore storage quota errors
+  }
+  return val;
+}
+
 /**
  * Reads the persisted UI session state (`GET /api/system/session`).
  */
@@ -260,6 +285,7 @@ export async function fetchSession() {
     lastChats,
     uiState: sanitizeUiState(session?.uiState),
     presetDraft: session?.presetDraft || null,
+    onboardingDismissed: Boolean(session?.onboardingDismissed),
   };
 }
 

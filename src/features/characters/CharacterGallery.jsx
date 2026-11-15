@@ -495,17 +495,17 @@ export function CharacterGallery({
             )}
           </div>
         </div>
+      </div>
+
+      <div className="bb-char-gallery__stage">
         {loading && visibleCards.length > 0 && (
           <ProgressIndicator
             variant="linear"
             size="sm"
+            overlay="top"
             ariaLabel="Updating scenario gallery"
-            style={{ marginTop: 6 }}
           />
         )}
-      </div>
-
-      <div className="bb-char-gallery__stage">
         <div
           className="bb-char-gallery__scroll bb-scrollbar--hidden"
           ref={resolvedScrollRef}

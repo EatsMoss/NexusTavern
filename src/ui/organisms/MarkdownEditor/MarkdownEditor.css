@@ -72,34 +72,34 @@
 .bb-md-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 4px 6px;
-  padding: 5px 8px;
+  gap: 4px 2px;
+  padding: 5px 6px;
   background: var(--bb-sheet-header-bg, var(--bb-page-card-bg));
   border-bottom: 1px solid var(--bb-page-border);
   user-select: none;
 }
 
-.bb-md-toolbar-left,
 .bb-md-toolbar-right {
   display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 2px;
+  margin-left: auto;
+  padding-left: 4px;
+  flex-shrink: 0;
 }
 
 .bb-md-toolbar-group {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  flex-wrap: wrap;
+  gap: 1px;
 }
 
 .bb-md-toolbar-sep {
   width: 1px;
   height: 15px;
   background: var(--bb-page-border);
-  margin: 0 3px;
+  margin: 0 2px;
   flex-shrink: 0;
 }
 
@@ -151,10 +151,11 @@
   font-family: var(--bb-font-mono);
   font-size: calc(10.5px * var(--bb-font-scale, 1));
   font-weight: 600;
-  padding: 0 8px;
+  padding: 0 7px;
   background: var(--bb-page-input-bg);
   border-color: var(--bb-page-border);
   color: var(--bb-ink-accent);
+  white-space: nowrap;
 }
 
 .bb-md-tool-btn:hover:not(:disabled),
@@ -460,6 +461,8 @@
   font-family: var(--bb-font-mono);
   font-size: calc(10.5px * var(--bb-font-scale, 1));
   font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
