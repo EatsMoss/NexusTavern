@@ -12,6 +12,7 @@ import {
   patchChatMetadata,
   replacePersonaInChat,
   deleteChatMessage,
+  deleteChatMessagesBatch,
   createNewCharacterChat,
   branchCharacterChat,
   deleteCharacterChatFiles,
@@ -258,6 +259,28 @@ chatsRouter.delete('/:avatar/messages/:index/swipes/:swipeId', async (req, res) 
       Number(req.params.index),
       Number(req.params.swipeId),
     );
+    const elapsedMs = Number((performance.now() - startMs).toFixed(2));
+    res.json({ ok: true, elapsedMs, ...result });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+chatsRouter.post('/:avatar/messages/delete-batch', async (req, res) => {
+  try {
+    const startMs = performance.now();
+    const { file, indices, isGroup = false } = req.body || {};
+    if (!file) {
+      return res.status(400).json({ ok: false, error: 'Target chat file is required' });
+    }
+    if (!Array.isArray(indices) || indices.length === 0) {
+      return res
+        .status(400)
+        .json({ ok: false, error: 'At least one message index is required' });
+    }
+    const result = await deleteChatMessagesBatch(req.params.avatar, file, indices, {
+      isGroup: Boolean(isGroup),
+    });
     const elapsedMs = Number((performance.now() - startMs).toFixed(2));
     res.json({ ok: true, elapsedMs, ...result });
   } catch (err) {

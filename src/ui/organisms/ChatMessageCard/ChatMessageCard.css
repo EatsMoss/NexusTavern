@@ -27,6 +27,37 @@
   box-shadow: var(--md-sys-elevation-1);
 }
 
+.bb-chat-msg-card--selectable {
+  cursor: pointer;
+}
+
+.bb-chat-msg-card--selectable:hover {
+  border-color: var(--bb-page-border-strong, var(--md-sys-color-outline));
+}
+
+.bb-chat-msg-card--selected,
+.bb-chat-msg-card--selected:hover {
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  background: color-mix(
+    in srgb,
+    var(--bb-accent-surface-top, var(--md-sys-color-primary-container)) 28%,
+    var(--bb-page-card-bg, var(--md-sys-color-surface-container))
+  );
+  box-shadow:
+    0 0 0 1px var(--bb-accent-border, var(--md-sys-color-primary)),
+    var(--md-sys-elevation-2);
+}
+
+.bb-chat-msg-card--last.bb-chat-msg-card--selected,
+.bb-chat-msg-card--last.bb-chat-msg-card--selected:hover {
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  background: color-mix(
+    in srgb,
+    var(--bb-accent-surface-top, var(--md-sys-color-primary-container)) 18%,
+    transparent
+  );
+}
+
 /* --- Avatar (2:3 portrait format, barely-there outline) --- */
 .bb-chat-msg-card__avatar {
   position: relative;

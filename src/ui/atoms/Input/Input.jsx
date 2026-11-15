@@ -64,30 +64,32 @@ export function SearchInput({
 
   return (
     <div className={`bb-m3-search bb-m3-search--${size} ${className}`.trim()}>
-      <Icon name="search" size={size === 'sm' ? 14 : 17} className="bb-m3-search__icon" />
-      <input
-        ref={assignRef}
-        type="text"
-        value={value}
-        onChange={(e) => onChange?.(e.target.value, e)}
-        placeholder={placeholder}
-        className={`bb-m3-input ${inputClassName}`.trim()}
-        {...rest}
-      />
-      {value && (
-        <button
-          type="button"
-          aria-label="Clear search"
-          className="bb-m3-search__clear"
-          onClick={() => {
-            onChange?.('');
-            onClear?.();
-            innerRef.current?.focus();
-          }}
-        >
-          <Icon name="close" size={14} />
-        </button>
-      )}
+      <div className="bb-m3-search__field">
+        <Icon name="search" size={size === 'sm' ? 14 : 17} className="bb-m3-search__icon" />
+        <input
+          ref={assignRef}
+          type="text"
+          value={value}
+          onChange={(e) => onChange?.(e.target.value, e)}
+          placeholder={placeholder}
+          className={`bb-m3-input ${inputClassName}`.trim()}
+          {...rest}
+        />
+        {value && (
+          <button
+            type="button"
+            aria-label="Clear search"
+            className="bb-m3-search__clear"
+            onClick={() => {
+              onChange?.('');
+              onClear?.();
+              innerRef.current?.focus();
+            }}
+          >
+            <Icon name="close" size={14} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

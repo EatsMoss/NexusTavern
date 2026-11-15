@@ -21,8 +21,8 @@
   justify-content: space-between;
   gap: 8px;
   min-height: 30px;
-  /* 10px row right padding + 1px row border compensation = exact subpixel column alignment */
-  padding: 0 11px 0 4px;
+  /* Exact 19px right offset matching root, Level 1, and Level 2 rows/headers */
+  padding: 0 19px 0 4px;
   box-sizing: border-box;
 }
 
@@ -360,7 +360,8 @@
   justify-content: space-between;
   gap: 8px;
   min-height: var(--bb-list-row-height, 42px);
-  padding: 4px 10px 4px 7px;
+  /* 1px border + 18px right padding = 19px table column alignment */
+  padding: 4px 18px 4px 7px;
   border-radius: var(--bb-list-card-radius, 6px);
   border: 1px solid var(--bb-list-card-border, var(--bb-page-border));
   background: var(--bb-list-card-bg, var(--bb-page-input-bg));
@@ -596,9 +597,8 @@
 }
 
 .bb-pm-row:hover .bb-pm-act-btn,
-.bb-pm-row:focus-within .bb-pm-act-btn,
 .bb-pm-group-header:hover .bb-pm-act-btn,
-.bb-pm-group-header:focus-within .bb-pm-act-btn {
+.bb-pm-act-btn:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }
@@ -627,21 +627,54 @@
   background: var(--bb-danger-surface);
 }
 
-/* --- XML Prompt Groups (Level 1 & Level 2 — 0px right offset so right columns never shift) --- */
+/* --- XML Prompt Groups (M3 Framed Tonal Containers for Clear Nesting) --- */
 .bb-pm-group {
   display: flex;
   flex-direction: column;
-  border: none;
-  background: transparent;
+  border-radius: var(--md-sys-shape-corner-sm, 10px);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--bb-accent-border, var(--md-sys-color-primary)) 38%,
+      var(--bb-page-border-mid, var(--md-sys-color-outline-variant))
+    );
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container, #2d3452) 20%,
+    var(--bb-list-surface-bg, var(--bb-sheet-bg, var(--bb-page-card-bg)))
+  );
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: border-color 0.14s ease, background-color 0.14s ease, box-shadow 0.14s ease,
+    opacity 0.14s ease;
 }
 
-.bb-pm-group.is-drop-target > .bb-pm-group-header {
-  border-color: var(--bb-accent-border);
-  box-shadow: 0 0 0 1px var(--bb-accent-border);
+.bb-pm-group.is-level-2 {
+  border-radius: var(--md-sys-shape-corner-xs, 8px);
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-tertiary, var(--bb-accent-border)) 46%,
+    var(--bb-page-border-mid, var(--md-sys-color-outline-variant))
+  );
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-tertiary-container, #382c42) 24%,
+    var(--bb-sheet-header-bg, var(--bb-page-input-bg))
+  );
 }
 
-.bb-pm-group.is-forbidden-target > .bb-pm-group-header {
+.bb-pm-group.is-drop-target {
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  box-shadow: 0 0 0 1px var(--bb-accent-border, var(--md-sys-color-primary));
+}
+
+.bb-pm-group.is-forbidden-target {
   border-color: #e57373 !important;
+  box-shadow: 0 0 0 1px rgba(229, 115, 115, 0.45);
+}
+
+.bb-pm-group.is-disabled {
+  opacity: 0.56;
 }
 
 .bb-pm-group-header {
@@ -650,10 +683,20 @@
   justify-content: space-between;
   gap: 8px;
   min-height: var(--bb-list-row-height, 42px);
-  padding: 4px 10px 4px 7px;
-  border-radius: var(--md-sys-shape-corner-xs, 6px);
-  border: 1px solid var(--bb-page-border-mid);
-  background: var(--bb-sheet-well-bg, var(--bb-page-card-bg));
+  /* 1px group border + 18px right padding = 19px table column alignment */
+  padding: 5px 18px 5px 7px;
+  border: none;
+  border-bottom: 1px solid
+    color-mix(
+      in srgb,
+      var(--bb-accent-border, var(--md-sys-color-primary)) 26%,
+      var(--bb-page-border, var(--md-sys-color-outline-variant))
+    );
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container, #2d3452) 30%,
+    var(--bb-sheet-header-bg, var(--bb-page-card-bg))
+  );
   box-sizing: border-box;
   cursor: pointer;
   touch-action: pan-y;
@@ -661,20 +704,42 @@
 }
 
 .bb-pm-group.is-level-2 > .bb-pm-group-header {
-  border-style: dashed;
+  /* 1px L1 border + 5px L1 pad + 1px L2 border + 12px = 19px */
+  padding-right: 12px;
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--md-sys-color-tertiary, var(--bb-accent-border)) 30%,
+    var(--bb-page-border, var(--md-sys-color-outline-variant))
+  );
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-tertiary-container, #382c42) 32%,
+    var(--bb-sheet-header-bg, var(--bb-page-card-bg))
+  );
+}
+
+.bb-pm-group.is-collapsed > .bb-pm-group-header {
+  border-bottom-color: transparent;
 }
 
 .bb-pm-group-header:hover {
-  background: var(--bb-sheet-item-hover, var(--bb-page-input-hover));
-  border-color: var(--bb-page-border-strong);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container, #2d3452) 40%,
+    var(--bb-sheet-item-hover, var(--bb-page-input-hover))
+  );
+}
+
+.bb-pm-group.is-level-2 > .bb-pm-group-header:hover {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-tertiary-container, #382c42) 42%,
+    var(--bb-sheet-item-hover, var(--bb-page-input-hover))
+  );
 }
 
 .bb-pm-group-header:active {
   cursor: grabbing;
-}
-
-.bb-pm-group.is-disabled > .bb-pm-group-header {
-  opacity: 0.56;
 }
 
 .bb-pm-group-collapse-btn {
@@ -708,6 +773,51 @@
   transform: rotate(-90deg);
 }
 
+/* M3 Lowercase XML Tag Chip shown in place of folder title */
+.bb-pm-group-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--bb-accent-border, var(--md-sys-color-primary)) 55%,
+      var(--bb-page-border-mid, transparent)
+    );
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container, #2d3452) 56%,
+    var(--bb-sheet-well-bg, var(--bb-page-input-bg))
+  );
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  font-family: var(--bb-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-transform: lowercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bb-pm-group.is-level-2 > .bb-pm-group-header .bb-pm-group-tag-chip {
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-tertiary, var(--bb-accent-border)) 58%,
+    var(--bb-page-border-mid, transparent)
+  );
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-tertiary-container, #382c42) 58%,
+    var(--bb-sheet-well-bg, var(--bb-page-input-bg))
+  );
+}
+
 .bb-pm-group-xml-badge {
   font-family: var(--bb-font-mono);
   font-size: calc(11.5px * var(--bb-font-scale, 1));
@@ -716,24 +826,37 @@
   flex-shrink: 0;
 }
 
-/* 0px horizontal indent so nested prompts stay on the exact same vertical table column
-   as root prompts; folder membership is indicated via zero-layout inset left accent rail */
 .bb-pm-group-body {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-left: 0;
-  padding: 6px 0 2px 0;
+  margin: 0;
+  padding: 6px 5px 6px 8px;
 }
 
-.bb-pm-group-body .bb-pm-row,
-.bb-pm-group-body .bb-pm-group-header {
-  box-shadow: inset 3px 0 0 var(--bb-accent-border);
+/* 1px L1 border + 5px L1 pad + 1px row border + 12px = 19px */
+.bb-pm-group-body .bb-pm-row {
+  padding-right: 12px;
 }
 
+/* 1px L1 border + 5px L1 pad + 1px L2 border + 5px L2 pad + 1px row border + 6px = 19px */
 .bb-pm-group.is-level-2 > .bb-pm-group-body .bb-pm-row {
-  box-shadow: inset 3px 0 0 var(--md-sys-color-tertiary);
+  padding-right: 6px;
+}
+
+.bb-pm-group-body > .bb-pm-drop-indicator {
+  left: 8px;
+  right: 5px;
+}
+
+.bb-pm-group.is-level-2 > .bb-pm-group-body {
+  padding: 6px 5px 6px 7px;
+}
+
+.bb-pm-group.is-level-2 > .bb-pm-group-body > .bb-pm-drop-indicator {
+  left: 7px;
+  right: 5px;
 }
 
 .bb-pm-group-empty {
@@ -940,14 +1063,6 @@
   grid-template-columns: minmax(110px, 1fr) minmax(145px, 1.3fr) 88px 88px;
 }
 
-.bb-pm-sheet__delivery-grid--group {
-  grid-template-columns: minmax(140px, 1.2fr) minmax(110px, 0.9fr) minmax(145px, 1.15fr);
-}
-
-.bb-pm-sheet__delivery-grid--group-depth {
-  grid-template-columns: minmax(130px, 1.2fr) minmax(105px, 0.9fr) minmax(140px, 1.15fr) 80px 80px;
-}
-
 .bb-pm-sheet__rules-bar {
   display: flex;
   align-items: center;
@@ -1124,8 +1239,40 @@
   line-height: 1.45;
 }
 
-.bb-pm-row.is-editing,
-.bb-pm-group.is-editing > .bb-pm-group-header {
+/* Group Tag Chip Header inside PromptEditorSheet */
+.bb-pm-sheet__group-title .bb-inline-title__trigger {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--bb-accent-border, var(--md-sys-color-primary)) 58%,
+      var(--bb-page-border-mid, transparent)
+    );
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container, #2d3452) 52%,
+    var(--bb-sheet-well-bg, var(--bb-page-input-bg))
+  );
+  font-family: var(--bb-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: calc(14px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: lowercase;
+}
+
+.bb-pm-sheet__group-title .bb-inline-title__input {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  font-family: var(--bb-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: calc(14px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.bb-pm-row.is-editing {
   border-color: var(--md-sys-color-primary);
   background: color-mix(
     in srgb,
@@ -1135,10 +1282,21 @@
   box-shadow: inset 3px 0 0 var(--md-sys-color-primary);
 }
 
+.bb-pm-group.is-editing {
+  border-color: var(--md-sys-color-primary);
+  box-shadow: 0 0 0 1px var(--md-sys-color-primary);
+}
+
+.bb-pm-group.is-editing > .bb-pm-group-header {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container) 44%,
+    var(--bb-sheet-header-bg, var(--bb-page-card-bg))
+  );
+}
+
 @media (max-width: 680px) {
-  .bb-pm-sheet__delivery-grid--depth,
-  .bb-pm-sheet__delivery-grid--group,
-  .bb-pm-sheet__delivery-grid--group-depth {
+  .bb-pm-sheet__delivery-grid--depth {
     grid-template-columns: 1fr 1fr;
   }
 

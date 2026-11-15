@@ -29,7 +29,8 @@ export function TomeResizeCurtain({
 
   const [dragging, setDragging] = useState(false);
   const [tooltip, setTooltip] = useState(null); // { x, y, widthPx }
-  const [editor, setEditor] = useState(null); // { x, y, draftValue }
+  const [editor, setEditor] = useState(null); // { sessionId, x, y, draftValue }
+  const editorSessionRef = useRef(0);
 
   const latestPropsRef = useRef({ width, minWidth, maxWidth, defaultWidth, onChangeWidth });
   latestPropsRef.current = { width, minWidth, maxWidth, defaultWidth, onChangeWidth };
@@ -73,8 +74,10 @@ export function TomeResizeCurtain({
     wrap.style.top = `${Math.round(top)}px`;
   }, [editor?.x, editor?.y]);
 
+  const editorSessionId = editor?.sessionId ?? 0;
+
   useEffect(() => {
-    if (!editor) return undefined;
+    if (!editorSessionId) return undefined;
     const input = editorInputRef.current;
     if (input) {
       input.focus();
@@ -97,7 +100,7 @@ export function TomeResizeCurtain({
       document.removeEventListener('pointerdown', handleOutsidePointerDown, true);
       window.removeEventListener('resize', handleWindowResize);
     };
-  }, [editor, closeEditor]);
+  }, [editorSessionId, closeEditor]);
 
   const handlePointerDown = (e) => {
     if (e.button !== 0) return;
@@ -155,7 +158,9 @@ export function TomeResizeCurtain({
         setTooltip(null);
       } else if (ev.type === 'pointerup') {
         const currentW = Math.round(latestPropsRef.current.width);
+        editorSessionRef.current += 1;
         setEditor({
+          sessionId: editorSessionRef.current,
           x: ev.clientX,
           y: ev.clientY,
           draftValue: String(currentW),

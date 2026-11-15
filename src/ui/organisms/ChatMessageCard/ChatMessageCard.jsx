@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { Button } from '../../atoms/Button/Button.jsx';
+import { Checkbox } from '../../atoms/Checkbox/Checkbox.jsx';
 import { Input } from '../../atoms/Input/Input.jsx';
 import { Tooltip } from '../../atoms/Tooltip/Tooltip.jsx';
 import { ModelIcon } from '../../atoms/ModelIcon/ModelIcon.jsx';
@@ -104,10 +105,13 @@ export function ChatMessageCard({
   onSaveEdit,
   onRemoveAttachment,
   onDelete,
-  onTruncateBranch,
   onCreateBranch,
   onReturnToParentChat,
   parentChatLabel = '',
+  multiSelectActive = false,
+  multiSelected = false,
+  onEnterMultiSelect,
+  onToggleMultiSelect,
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(message?.text || '');
@@ -340,6 +344,12 @@ export function ChatMessageCard({
     }
   }, [message?.text, message?.reasoning, isEditing]);
 
+  useEffect(() => {
+    if (multiSelectActive && isEditing) {
+      setIsEditing(false);
+    }
+  }, [multiSelectActive, isEditing]);
+
   if (!message) return null;
 
   const isUser = Boolean(message.isUser);
@@ -373,11 +383,12 @@ export function ChatMessageCard({
   const canEdit = Boolean(onSaveEdit);
   const canUserTriggerReply = isLast && isUser && Boolean(onGenerateSwipe);
   const showSwipeBar =
-    canSwipe ||
-    canReturnToParentChat ||
-    canCreateBranch ||
-    canEdit ||
-    canUserTriggerReply;
+    !multiSelectActive &&
+    (canSwipe ||
+      canReturnToParentChat ||
+      canCreateBranch ||
+      canEdit ||
+      canUserTriggerReply);
 
   const telemetryCollapsed = useSyncExternalStore(
     subscribeTelemetryCollapsed,
@@ -466,11 +477,11 @@ export function ChatMessageCard({
       label: copied ? 'Copied' : 'Copy Text',
       onClick: handleCopyText,
     },
-    onTruncateBranch && {
-      id: 'truncate',
-      icon: 'scissors',
-      label: 'Truncate from Here',
-      onClick: () => onTruncateBranch(message.index),
+    onEnterMultiSelect && {
+      id: 'select',
+      icon: 'check',
+      label: 'Select',
+      onClick: () => onEnterMultiSelect(message.index),
     },
     !isUser &&
       !isGreetingMsg &&
@@ -491,8 +502,23 @@ export function ChatMessageCard({
     },
   ].filter(Boolean);
 
+  const handleCardClick = (e) => {
+    if (!multiSelectActive || isStreaming || !onToggleMultiSelect) return;
+    if (
+      e.target.closest(
+        'button, a, input, textarea, summary, .bb-kebab-menu, .bb-chat-msg-card__image-frame, .bb-chat-msg-card__file-card',
+      )
+    ) {
+      return;
+    }
+    if (typeof window !== 'undefined' && window.getSelection?.()?.toString()) {
+      return;
+    }
+    onToggleMultiSelect(message.index, { shiftKey: e.shiftKey });
+  };
+
   const handleTouchStart = (e) => {
-    if (!canSwipe || isEditing || isStreaming) return;
+    if (!canSwipe || isEditing || isStreaming || multiSelectActive) return;
     const t = e.touches?.[0];
     if (!t) return;
     touchStartRef.current = { x: t.clientX, y: t.clientY };
@@ -527,12 +553,15 @@ export function ChatMessageCard({
         'bb-chat-msg-card',
         isUser ? 'bb-chat-msg-card--user' : 'bb-chat-msg-card--ai',
         isLast ? 'bb-chat-msg-card--last' : '',
-        isDimmed ? 'bb-chat-msg-card--dimmed' : '',
+        isDimmed && !multiSelected ? 'bb-chat-msg-card--dimmed' : '',
         isEditing ? 'bb-chat-msg-card--editing' : '',
+        multiSelectActive ? 'bb-chat-msg-card--selectable' : '',
+        multiSelectActive && multiSelected ? 'bb-chat-msg-card--selected' : '',
       ]
         .filter(Boolean)
         .join(' ')}
       data-message-index={message.index}
+      onClick={multiSelectActive ? handleCardClick : undefined}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -620,12 +649,26 @@ export function ChatMessageCard({
             )}
 
             <div className="bb-chat-msg-card__actions">
-              <KebabMenu
-                items={kebabItems}
-                size="sm"
-                title="Message options"
-                disabled={isStreaming}
-              />
+              {multiSelectActive ? (
+                <Checkbox
+                  checked={multiSelected}
+                  disabled={isStreaming}
+                  size="md"
+                  aria-label={`Select message #${msgNum}`}
+                  onChange={(_, evt) =>
+                    onToggleMultiSelect?.(message.index, {
+                      shiftKey: Boolean(evt?.shiftKey),
+                    })
+                  }
+                />
+              ) : (
+                <KebabMenu
+                  items={kebabItems}
+                  size="sm"
+                  title="Message options"
+                  disabled={isStreaming}
+                />
+              )}
             </div>
           </div>
         </header>

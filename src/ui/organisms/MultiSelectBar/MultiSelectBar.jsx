@@ -20,6 +20,7 @@ export function MultiSelectBar({
   onClear,
   onClose,
   actions = [],
+  inlineActions = false,
   activeActionId = null,
   popover = null,
   className = '',
@@ -28,7 +29,13 @@ export function MultiSelectBar({
 
   return (
     <div
-      className={`bb-m3-multiselect-bar ${className}`.trim()}
+      className={[
+        'bb-m3-multiselect-bar',
+        inlineActions ? 'bb-m3-multiselect-bar--inline' : '',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       role="region"
       aria-label="Multi-select actions"
       onPointerDown={(e) => e.stopPropagation()}
@@ -89,11 +96,40 @@ export function MultiSelectBar({
                 Done
               </button>
             )}
+            {inlineActions && actions.length > 0 && (
+              <>
+                <span className="bb-m3-multiselect-bar__sep" aria-hidden="true" />
+                {actions.map((act) => {
+                  const isDisabled = Boolean(act.disabled) || count === 0;
+                  const isActive = activeActionId === act.id;
+                  return (
+                    <button
+                      key={act.id}
+                      type="button"
+                      disabled={isDisabled}
+                      title={act.title || act.label}
+                      className={[
+                        'bb-m3-multiselect-bar__pill',
+                        'bb-m3-multiselect-bar__pill--action',
+                        act.danger ? 'is-danger' : '',
+                        isActive ? 'is-active' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => act.onClick?.()}
+                    >
+                      {act.icon && <Icon name={act.icon} size={14} />}
+                      <span>{act.label}</span>
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </div>
         </div>
 
         {/* Bottom Row: Batch Action Buttons */}
-        {actions.length > 0 && (
+        {!inlineActions && actions.length > 0 && (
           <div
             className="bb-m3-multiselect-bar__actions"
             style={{

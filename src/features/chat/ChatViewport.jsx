@@ -205,6 +205,7 @@ export function ChatViewport({
   onSaveEditedMessage,
   onRemoveMessageAttachment,
   onDeleteMessage,
+  onDeleteMessagesBatch,
   onCreateBranch,
   onNotify,
   composerToasts = [],
@@ -245,6 +246,14 @@ export function ChatViewport({
   });
   const [chatDeleteConfirm, setChatDeleteConfirm] = useState(null); // string[] | null
   const [deletingChats, setDeletingChats] = useState(false);
+  const [msgMultiSelectActive, setMsgMultiSelectActive] = useState(false);
+  const [selectedMsgIndices, setSelectedMsgIndices] = useState([]);
+  const [lastMsgSelectClick, setLastMsgSelectClick] = useState({
+    index: null,
+    selected: true,
+  });
+  const [msgDeleteConfirm, setMsgDeleteConfirm] = useState(null); // number[] | null
+  const [deletingMsgs, setDeletingMsgs] = useState(false);
   const [enterToSend, setEnterToSend] = useState(() => loadEnterToSendPref());
   const [branchingAtIndex, setBranchingAtIndex] = useState(null);
   const branchSettleTimerRef = useRef(null);
@@ -1171,6 +1180,147 @@ export function ChatViewport({
     selectedChatFiles.length,
   ]);
 
+  const selectableMsgIndices = useMemo(() => {
+    if (!activeChatFile || !Array.isArray(messages)) return [];
+    const out = [];
+    for (let i = 0; i < messages.length; i += 1) {
+      const m = messages[i];
+      if (!m || m.isStreaming) continue;
+      const mIdx = m.index !== undefined ? m.index : i;
+      if (Number.isInteger(mIdx) && mIdx >= 0) {
+        out.push(mIdx);
+      }
+    }
+    return out;
+  }, [activeChatFile, messages]);
+
+  const selectedMsgSet = useMemo(
+    () => new Set(selectedMsgIndices),
+    [selectedMsgIndices],
+  );
+
+  const handleExitMsgMultiSelect = useCallback(() => {
+    setMsgMultiSelectActive(false);
+    setSelectedMsgIndices([]);
+    setLastMsgSelectClick({ index: null, selected: true });
+    setMsgDeleteConfirm(null);
+  }, []);
+
+  useEffect(() => {
+    handleExitMsgMultiSelect();
+  }, [activeChatFile, characterName, handleExitMsgMultiSelect]);
+
+  useEffect(() => {
+    if ((timelinesOpen || isGenerating) && msgMultiSelectActive) {
+      handleExitMsgMultiSelect();
+    }
+  }, [timelinesOpen, isGenerating, msgMultiSelectActive, handleExitMsgMultiSelect]);
+
+  useEffect(() => {
+    if (!msgMultiSelectActive) return;
+    const valid = new Set(selectableMsgIndices);
+    setSelectedMsgIndices((prev) => {
+      const filtered = prev.filter((idx) => valid.has(idx));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [msgMultiSelectActive, selectableMsgIndices]);
+
+  useEffect(() => {
+    if (!msgMultiSelectActive || msgDeleteConfirm) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleExitMsgMultiSelect();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [msgMultiSelectActive, msgDeleteConfirm, handleExitMsgMultiSelect]);
+
+  const handleEnterMsgMultiSelect = useCallback((mIdx) => {
+    if (!Number.isInteger(mIdx)) return;
+    setMsgMultiSelectActive(true);
+    setSelectedMsgIndices([mIdx]);
+    setLastMsgSelectClick({ index: mIdx, selected: true });
+  }, []);
+
+  const handleToggleMsgMultiSelect = useCallback(
+    (mIdx, { shiftKey = false } = {}) => {
+      if (!Number.isInteger(mIdx)) return;
+      if (!msgMultiSelectActive) {
+        setMsgMultiSelectActive(true);
+      }
+      setSelectedMsgIndices((prev) => {
+        const set = new Set(prev);
+        const targetState = !set.has(mIdx);
+        if (shiftKey && lastMsgSelectClick.index !== null) {
+          const a = selectableMsgIndices.indexOf(lastMsgSelectClick.index);
+          const b = selectableMsgIndices.indexOf(mIdx);
+          if (a !== -1 && b !== -1) {
+            const [start, end] = a < b ? [a, b] : [b, a];
+            for (let i = start; i <= end; i += 1) {
+              if (lastMsgSelectClick.selected) set.add(selectableMsgIndices[i]);
+              else set.delete(selectableMsgIndices[i]);
+            }
+            return Array.from(set).sort((x, y) => x - y);
+          }
+        }
+        if (targetState) set.add(mIdx);
+        else set.delete(mIdx);
+        setLastMsgSelectClick({ index: mIdx, selected: targetState });
+        return Array.from(set).sort((x, y) => x - y);
+      });
+    },
+    [msgMultiSelectActive, lastMsgSelectClick, selectableMsgIndices],
+  );
+
+  const allLoadedMsgsSelected = useMemo(() => {
+    if (selectableMsgIndices.length === 0) return false;
+    return selectableMsgIndices.every((idx) => selectedMsgSet.has(idx));
+  }, [selectableMsgIndices, selectedMsgSet]);
+
+  const handleToggleSelectAllMsgs = useCallback(() => {
+    if (allLoadedMsgsSelected) {
+      setSelectedMsgIndices([]);
+    } else {
+      setSelectedMsgIndices([...selectableMsgIndices]);
+    }
+  }, [allLoadedMsgsSelected, selectableMsgIndices]);
+
+  const handleConfirmDeleteMsgs = useCallback(async () => {
+    if (
+      !Array.isArray(msgDeleteConfirm) ||
+      msgDeleteConfirm.length === 0 ||
+      deletingMsgs
+    ) {
+      return;
+    }
+    setDeletingMsgs(true);
+    try {
+      let ok = false;
+      if (onDeleteMessagesBatch) {
+        ok = await onDeleteMessagesBatch(msgDeleteConfirm);
+      } else if (onDeleteMessage) {
+        const desc = [...msgDeleteConfirm].sort((a, b) => b - a);
+        for (const mIdx of desc) {
+          await onDeleteMessage(mIdx, false);
+        }
+        ok = true;
+      }
+      if (ok !== false) {
+        handleExitMsgMultiSelect();
+      }
+    } finally {
+      setDeletingMsgs(false);
+    }
+  }, [
+    msgDeleteConfirm,
+    deletingMsgs,
+    onDeleteMessagesBatch,
+    onDeleteMessage,
+    handleExitMsgMultiSelect,
+  ]);
+
   const hasMoreLocalChats = visibleChatFiles.length < sortedChatFiles.length;
   const canLoadMoreChats = hasMoreLocalChats || hasMoreChats;
   const displayedTotalChats =
@@ -1309,7 +1459,9 @@ export function ChatViewport({
           ref={resolvedStreamRef}
           className={`bb-chat-viewport__stream bb-scrollbar--hidden ${
             scrolledUnderTop ? 'is-scrolled-under-top' : ''
-          } ${scrolledUnderBottom ? 'is-scrolled-under-bottom' : ''}`.trim()}
+          } ${scrolledUnderBottom ? 'is-scrolled-under-bottom' : ''} ${
+            msgMultiSelectActive ? 'has-multiselect-bar' : ''
+          }`.trim()}
           onScroll={handleScroll}
         >
         <div ref={streamTrackRef} className="bb-chat-viewport__track">
@@ -1432,11 +1584,6 @@ export function ChatViewport({
                   ? (mIdx) => onDeleteMessage(mIdx, false)
                   : undefined
               }
-              onTruncateBranch={
-                hasActions && onDeleteMessage
-                  ? (mIdx) => onDeleteMessage(mIdx, true)
-                  : undefined
-              }
               onCreateBranch={
                 onCreateBranch ? handleTriggerCreateBranch : undefined
               }
@@ -1446,6 +1593,16 @@ export function ChatViewport({
                   : undefined
               }
               parentChatLabel={parentChatInfo?.label || ''}
+              multiSelectActive={msgMultiSelectActive && hasActions}
+              multiSelected={selectedMsgSet.has(normalizedMessage.index)}
+              onEnterMultiSelect={
+                hasActions && (onDeleteMessagesBatch || onDeleteMessage) && !isGenerating
+                  ? handleEnterMsgMultiSelect
+                  : undefined
+              }
+              onToggleMultiSelect={
+                hasActions ? handleToggleMsgMultiSelect : undefined
+              }
             />
           );
 
@@ -1491,7 +1648,7 @@ export function ChatViewport({
 
         <ScrollIndicator scrollRef={resolvedStreamRef} />
 
-        {showJumpBottom && (
+        {showJumpBottom && !msgMultiSelectActive && (
           <button
             type="button"
             className="bb-chat-viewport__jump-bottom"
@@ -1502,6 +1659,28 @@ export function ChatViewport({
             <Icon name="doubleChevronDown" size={18} />
           </button>
         )}
+
+        <MultiSelectBar
+          open={msgMultiSelectActive}
+          count={selectedMsgIndices.length}
+          totalSelectable={selectableMsgIndices.length}
+          allSelected={allLoadedMsgsSelected}
+          onSelectAll={handleToggleSelectAllMsgs}
+          onClear={() => setSelectedMsgIndices([])}
+          onClose={handleExitMsgMultiSelect}
+          inlineActions
+          className="bb-chat-viewport__msg-multiselect"
+          actions={[
+            {
+              id: 'delete-messages',
+              label: 'Delete',
+              icon: 'trash',
+              danger: true,
+              title: 'Delete selected messages',
+              onClick: () => setMsgDeleteConfirm([...selectedMsgIndices]),
+            },
+          ]}
+        />
 
         <ToastStack
           toasts={composerToasts}
@@ -1723,6 +1902,60 @@ export function ChatViewport({
         onRequestKeyboard={handleFocusComposerKeyboard}
         onSelect={handleInsertComposerEmoji}
       />
+
+      <Modal
+        open={Boolean(msgDeleteConfirm?.length)}
+        onClose={() => !deletingMsgs && setMsgDeleteConfirm(null)}
+        title={
+          msgDeleteConfirm?.length === 1
+            ? 'Delete Selected Message'
+            : `Delete ${msgDeleteConfirm?.length || 0} Selected Messages`
+        }
+        subtitle="A backup of the .jsonl chat file will be saved automatically"
+        icon="trash"
+        width={440}
+        footer={
+          <>
+            <Button
+              variant="b1"
+              emphasis="outlined"
+              disabled={deletingMsgs}
+              onClick={() => setMsgDeleteConfirm(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="b4"
+              icon="trash"
+              disabled={deletingMsgs}
+              onClick={handleConfirmDeleteMsgs}
+            >
+              {deletingMsgs
+                ? 'Deleting...'
+                : msgDeleteConfirm?.length === 1
+                  ? 'Delete Message'
+                  : `Delete (${msgDeleteConfirm?.length || 0})`}
+            </Button>
+          </>
+        }
+      >
+        {msgDeleteConfirm?.length > 0 && (
+          <p className="bb-caption-text">
+            {msgDeleteConfirm.length === 1 ? (
+              <>
+                Are you sure you want to permanently remove message{' '}
+                <strong>#{msgDeleteConfirm[0] + 1}</strong> from the current chat?
+              </>
+            ) : (
+              <>
+                Are you sure you want to permanently remove{' '}
+                <strong>{msgDeleteConfirm.length}</strong> selected messages from the
+                current chat?
+              </>
+            )}
+          </p>
+        )}
+      </Modal>
     </section>
   );
 }

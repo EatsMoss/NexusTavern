@@ -35,14 +35,16 @@ function buildNormalizedDraft(mode, target) {
 
   if (mode === 'group') {
     const normG = normalizePromptNameAndEmoji(
-      target.groupName || target.xmlTag || 'prompt_group',
+      target.xmlTag && target.xmlTag !== 'prompt_group'
+        ? target.xmlTag
+        : target.groupName || target.xmlTag || 'prompt_group',
       target.bb_icon || '',
     );
-    const cleanTag = sanitizeXmlTagName(target.xmlTag || normG.name || 'prompt_group');
+    const cleanTag = sanitizeXmlTagName(normG.name || target.xmlTag || 'prompt_group');
     return {
       groupId: target.groupId,
-      groupName: normG.name || cleanTag || 'prompt_group',
-      xmlTag: target.xmlTag || cleanTag || 'prompt_group',
+      groupName: cleanTag,
+      xmlTag: cleanTag,
       role: target.role || 'system',
       injection_position: Number(target.injection_position ?? 0),
       injection_depth: Math.max(0, Number(target.injection_depth ?? 4) || 0),
@@ -75,12 +77,15 @@ function buildNormalizedDraft(mode, target) {
 function serializePromptDraftSnapshot(mode, draft) {
   if (!draft) return '';
   if (mode === 'group') {
-    const cleanTag = sanitizeXmlTagName(draft.xmlTag || draft.groupName);
-    const normG = normalizePromptNameAndEmoji(draft.groupName, draft.bb_icon);
+    const normG = normalizePromptNameAndEmoji(
+      draft.xmlTag || draft.groupName,
+      draft.bb_icon,
+    );
+    const cleanTag = sanitizeXmlTagName(normG.name || draft.xmlTag || draft.groupName);
     return JSON.stringify({
       mode: 'group',
       groupId: draft.groupId || '',
-      groupName: normG.name.trim() || cleanTag,
+      groupName: cleanTag,
       xmlTag: cleanTag,
       role: draft.role || 'system',
       injection_position: Number(draft.injection_position ?? 0),
@@ -183,12 +188,15 @@ export const PromptEditorSheet = forwardRef(function PromptEditorSheet(
   const handleApply = useCallback(() => {
     if (!draft) return;
     if (mode === 'group') {
-      const cleanTag = sanitizeXmlTagName(draft.xmlTag || draft.groupName);
-      const normG = normalizePromptNameAndEmoji(draft.groupName, draft.bb_icon);
+      const normG = normalizePromptNameAndEmoji(
+        draft.xmlTag || draft.groupName,
+        draft.bb_icon,
+      );
+      const cleanTag = sanitizeXmlTagName(normG.name || draft.xmlTag || draft.groupName);
       const savedGroup = {
         ...draft,
         xmlTag: cleanTag,
-        groupName: normG.name.trim() || cleanTag,
+        groupName: cleanTag,
         bb_icon: normG.bb_icon || '',
       };
       setDraft(savedGroup);
@@ -217,7 +225,7 @@ export const PromptEditorSheet = forwardRef(function PromptEditorSheet(
   useEffect(() => {
     const label = draft
       ? mode === 'group'
-        ? String(draft.groupName || draft.xmlTag || 'Prompt Group').trim()
+        ? `<${sanitizeXmlTagName(draft.xmlTag || draft.groupName || 'prompt_group')}>`
         : String(draft.name || draft.identifier || 'Prompt').trim()
       : '';
     onDirtyChange?.({
@@ -280,12 +288,20 @@ export const PromptEditorSheet = forwardRef(function PromptEditorSheet(
     draft.name !== draft.defaultName;
 
   const handleTitleChange = (rawTitle) => {
-    const fieldKey = mode === 'group' ? 'groupName' : 'name';
     setDraft((prev) => {
       const norm = normalizePromptNameAndEmoji(rawTitle, prev.bb_icon);
+      if (mode === 'group') {
+        const cleanTag = sanitizeXmlTagName(norm.name);
+        return {
+          ...prev,
+          groupName: cleanTag,
+          xmlTag: cleanTag,
+          bb_icon: norm.bb_icon,
+        };
+      }
       return {
         ...prev,
-        [fieldKey]: norm.name,
+        name: norm.name,
         bb_icon: norm.bb_icon,
       };
     });
@@ -358,12 +374,16 @@ export const PromptEditorSheet = forwardRef(function PromptEditorSheet(
 
         <div className="bb-pm-sheet__head-main">
           <InlineEditableTitle
-            value={mode === 'group' ? draft.groupName || '' : draft.name || ''}
+            value={mode === 'group' ? cleanXmlTag : draft.name || ''}
+            formatDisplay={mode === 'group' ? (val) => `<${val}>` : null}
             onChange={handleTitleChange}
-            placeholder={mode === 'group' ? 'Unnamed XML Group' : 'Unnamed Prompt'}
+            placeholder={mode === 'group' ? 'prompt_group' : 'Unnamed Prompt'}
             size="lg"
+            className={mode === 'group' ? 'bb-pm-sheet__group-title' : ''}
             editTooltip={
-              mode === 'group' ? 'Click to rename XML group' : 'Click to rename prompt'
+              mode === 'group'
+                ? 'Click to rename XML group tag (auto-converted to lowercase)'
+                : 'Click to rename prompt'
             }
             trailing={
               <div className="bb-pm-sheet__head-actions">
@@ -397,7 +417,7 @@ export const PromptEditorSheet = forwardRef(function PromptEditorSheet(
           <div className="bb-pm-sheet__telemetry">
             {mode === 'group' ? (
               <>
-                <span className="bb-pm-group-xml-badge">&lt;{cleanXmlTag}&gt;</span>
+                <span className="bb-pm-sheet__pill">XML Group</span>
                 <span className="bb-pm-sheet__telemetry-dot">·</span>
                 <span className="bb-pm-sheet__telemetry-item">
                   Role <strong>{roleLabel}</strong>
@@ -453,26 +473,11 @@ export const PromptEditorSheet = forwardRef(function PromptEditorSheet(
 
           <div
             className={`bb-pm-sheet__delivery-grid ${
-              mode === 'group'
-                ? isDepthInjection
-                  ? 'bb-pm-sheet__delivery-grid--group-depth'
-                  : 'bb-pm-sheet__delivery-grid--group'
-                : isDepthInjection
-                  ? 'bb-pm-sheet__delivery-grid--depth'
-                  : 'bb-pm-sheet__delivery-grid--compact'
+              isDepthInjection
+                ? 'bb-pm-sheet__delivery-grid--depth'
+                : 'bb-pm-sheet__delivery-grid--compact'
             }`}
           >
-            {mode === 'group' && (
-              <Input
-                size="sm"
-                label="XML Tag (<tag>)"
-                value={draft.xmlTag || ''}
-                onChange={(e) =>
-                  setDraft((prev) => ({ ...prev, xmlTag: e.target.value }))
-                }
-              />
-            )}
-
             <Dropdown
               size="sm"
               label="Role"

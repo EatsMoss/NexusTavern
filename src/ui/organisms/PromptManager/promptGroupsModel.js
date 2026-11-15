@@ -86,8 +86,11 @@ export function sanitizeXmlTagName(raw) {
   const cleaned = String(raw || '')
     .trim()
     .replace(/^<+|\/?>+$/g, '')
+    .toLowerCase()
     .replace(/\s+/g, '_')
-    .replace(/[^a-zA-Z0-9_.:{}-]/g, '');
+    .replace(/[^a-z0-9_.:{}-]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
   if (!cleaned) return 'prompt_group';
   if (/^[0-9.-]/.test(cleaned)) return `grp_${cleaned}`;
   return cleaned;
@@ -213,13 +216,9 @@ export function buildClosePromptContent(postamble, xmlTag) {
   return post ? `</${cleanTag}>\n${post}` : `</${cleanTag}>`;
 }
 
-export function formatOpenGroupMarkerName(groupId, xmlTag, level = 1, groupName = '') {
+export function formatOpenGroupMarkerName(groupId, xmlTag, level = 1) {
   const sym = level >= 2 ? '▽' : '▼';
   const cleanTag = sanitizeXmlTagName(xmlTag);
-  const cleanTitle = String(groupName || '').trim();
-  if (cleanTitle && cleanTitle !== cleanTag) {
-    return `${sym} [${groupId}] ${cleanTitle} <${cleanTag}>`;
-  }
   return `${sym} [${groupId}] <${cleanTag}>`;
 }
 
@@ -375,12 +374,18 @@ export function buildPromptTree(orderedPrompts = [], tokenContext = null) {
           ch.type === 'group' ? ch.enabled : ch.prompt?.enabled,
         ).length;
 
+        const normalizedTag = sanitizeXmlTagName(
+          pair.xmlTag && pair.xmlTag !== 'prompt_group'
+            ? pair.xmlTag
+            : pair.groupName || pair.xmlTag,
+        );
+
         nodes.push({
           type: 'group',
           id: pair.groupId,
           groupId: pair.groupId,
-          xmlTag: pair.xmlTag,
-          groupName: pair.groupName || pair.xmlTag,
+          xmlTag: normalizedTag,
+          groupName: normalizedTag,
           level: currentDepth + 1,
           openPrompt: p,
           closePrompt,
@@ -477,7 +482,7 @@ export function flattenPromptTree(
     if (!node) continue;
 
     if (node.type === 'group') {
-      const cleanTag = sanitizeXmlTagName(node.xmlTag);
+      const cleanTag = sanitizeXmlTagName(node.xmlTag || node.groupName);
       const persistedGroupId = nextGrpId(node.groupId);
       const role = parentGroupConfig ? parentGroupConfig.role : node.role || 'system';
       const injection_position = parentGroupConfig
@@ -676,10 +681,13 @@ export function applyEditedGroupToOrdered(
     nodes.map((n) => {
       if (n.type !== 'group') return n;
       if (n.groupId === updatedGroup.groupId) {
+        const cleanTag = sanitizeXmlTagName(
+          updatedGroup.xmlTag || updatedGroup.groupName,
+        );
         return {
           ...n,
-          groupName: updatedGroup.groupName,
-          xmlTag: updatedGroup.xmlTag,
+          groupName: cleanTag,
+          xmlTag: cleanTag,
           role: updatedGroup.role,
           injection_position: updatedGroup.injection_position,
           injection_depth: updatedGroup.injection_depth,

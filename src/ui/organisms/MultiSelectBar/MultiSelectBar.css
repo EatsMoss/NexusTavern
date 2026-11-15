@@ -70,6 +70,19 @@
   box-shadow: var(--md-sys-elevation-5, 0 14px 36px rgba(0, 0, 0, 0.48));
 }
 
+.bb-m3-multiselect-bar--inline .bb-m3-multiselect-bar__surface {
+  padding: 8px 12px;
+}
+
+.bb-m3-multiselect-bar--inline .bb-m3-multiselect-bar__header {
+  flex-wrap: wrap;
+}
+
+.bb-m3-multiselect-bar--inline .bb-m3-multiselect-bar__quick {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 /* Header row: counter badge + quick actions */
 .bb-m3-multiselect-bar__header {
   display: flex;
@@ -168,6 +181,32 @@
 
 .bb-m3-multiselect-bar__pill--done:hover:not(:disabled) {
   filter: brightness(1.08);
+}
+
+.bb-m3-multiselect-bar__sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  flex-shrink: 0;
+}
+
+.bb-m3-multiselect-bar__pill--action {
+  gap: 6px;
+  padding: 0 13px;
+  font-weight: 700;
+}
+
+.bb-m3-multiselect-bar__pill--action.is-danger {
+  border-color: var(--bb-danger-border);
+  background: var(--bb-danger-surface);
+  color: var(--bb-danger-ink);
+}
+
+.bb-m3-multiselect-bar__pill--action.is-danger:hover:not(:disabled) {
+  border-color: rgba(239, 83, 80, 0.65);
+  background: rgba(198, 40, 40, 0.26);
+  color: #ffdad6;
 }
 
 /* Bottom row: M3 action tiles */

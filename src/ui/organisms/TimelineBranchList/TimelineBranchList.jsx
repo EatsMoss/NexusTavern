@@ -486,13 +486,6 @@ export function TimelineBranchList({
 
                         const rowKebabItems = [
                           {
-                            id: 'focus-on-tree',
-                            label: 'Locate on Tree',
-                            icon: 'timeline',
-                            onClick: () =>
-                              onFocusNodeOnTree?.(branch.fileName, { openTree: true }),
-                          },
-                          {
                             id: 'branch',
                             label: 'Create Branch',
                             icon: 'codeBranch',

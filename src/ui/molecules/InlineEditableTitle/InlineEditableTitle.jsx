@@ -9,6 +9,7 @@ import './InlineEditableTitle.css';
 export function InlineEditableTitle({
   value = '',
   onChange,
+  formatDisplay = null,
   placeholder = 'Untitled',
   size = 'lg', // 'lg' | 'md' | 'sm'
   variant = 'plain', // 'plain' | 'badge'
@@ -73,8 +74,13 @@ export function InlineEditableTitle({
     }
   };
 
-  const displayText = String(value ?? '').trim() || placeholder;
-  const isEmpty = !String(value ?? '').trim();
+  const trimmedValue = String(value ?? '').trim();
+  const isEmpty = !trimmedValue;
+  const displayText = isEmpty
+    ? placeholder
+    : typeof formatDisplay === 'function'
+      ? formatDisplay(trimmedValue)
+      : trimmedValue;
 
   const handleClear = (e) => {
     e.stopPropagation();

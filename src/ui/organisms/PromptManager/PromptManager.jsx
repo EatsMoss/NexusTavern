@@ -8,6 +8,7 @@ import {
   NON_GROUPABLE_PROMPT_IDS,
   UNDELETABLE_SYSTEM_PROMPT_IDS,
   normalizePromptNameAndEmoji,
+  sanitizeXmlTagName,
   buildPromptTree,
   flattenPromptTree,
   computeTotalEnabledTreeTokens,
@@ -122,7 +123,7 @@ function computeDropIndicatorBox(hover, metrics, draggedHeight = 42) {
   const h = Math.max(38, Math.round(draggedHeight || 42));
 
   if (rects.length === 0) {
-    return { top: 4, height: h };
+    return { top: 6, height: h };
   }
 
   if (sourceScopeId === metrics.scopeId && typeof sourceIndex === 'number' && sourceIndex >= 0) {
@@ -812,15 +813,26 @@ export function PromptManager({
         ? computeDropIndicatorBox(dragState.hover, bodyMetrics, dragState.ghost?.height)
         : null;
 
-    const visibleChildren = isFilterActive
-      ? (node.children || []).filter((ch) =>
-          ch.type === 'group'
-            ? (ch.children || []).some((sub) => sub.type === 'prompt' && matchesFilter(sub.prompt))
-            : matchesFilter(ch.prompt),
-        )
-      : node.children || [];
+    const groupTag = sanitizeXmlTagName(node.xmlTag || node.groupName);
+    const queryLower = searchQuery.trim().toLowerCase();
+    const groupMatchesSearch =
+      Boolean(queryLower) &&
+      filterMode === 'all' &&
+      groupTag.includes(queryLower.replace(/^<+|\/?>+$/g, ''));
 
-    if (isFilterActive && visibleChildren.length === 0) return null;
+    const visibleChildren =
+      isFilterActive && !groupMatchesSearch
+        ? (node.children || []).filter((ch) =>
+            ch.type === 'group'
+              ? sanitizeXmlTagName(ch.xmlTag || ch.groupName).includes(
+                  queryLower.replace(/^<+|\/?>+$/g, ''),
+                ) ||
+                (ch.children || []).some((sub) => sub.type === 'prompt' && matchesFilter(sub.prompt))
+              : matchesFilter(ch.prompt),
+          )
+        : node.children || [];
+
+    if (isFilterActive && !groupMatchesSearch && visibleChildren.length === 0) return null;
 
     return (
       <div
@@ -831,8 +843,8 @@ export function PromptManager({
       >
         <div
           className={`bb-pm-group ${node.level >= 2 ? 'is-level-2' : ''} ${
-            !node.enabled ? 'is-disabled' : ''
-          } ${
+            isCollapsed ? 'is-collapsed' : ''
+          } ${!node.enabled ? 'is-disabled' : ''} ${
             activeEditorSelection?.mode === 'group' && activeEditorSelection?.id === node.groupId
               ? 'is-editing'
               : ''
@@ -875,16 +887,16 @@ export function PromptManager({
                   <Icon name="folder" size={15} style={{ color: 'var(--bb-ink-accent, #d4af63)' }} />
                 )}
               </span>
-              <span className="bb-pm-name">
-                {node.groupName || node.xmlTag}
+              <span
+                className="bb-pm-group-tag-chip"
+                title={`XML Group <${groupTag}>`}
+              >
+                &lt;{groupTag}&gt;
               </span>
-              {node.groupName && node.groupName !== node.xmlTag && (
-                <span className="bb-pm-group-xml-badge">&lt;{node.xmlTag}&gt;</span>
-              )}
               {Boolean(String(node.preamble || '').trim()) && (
                 <span
                   className="bb-pm-affix-icon"
-                  title={`Prefix prompt (before <${node.xmlTag}>):\n${String(node.preamble).trim().slice(0, 180)}`}
+                  title={`Prefix prompt (before <${groupTag}>):\n${String(node.preamble).trim().slice(0, 180)}`}
                 >
                   <Icon name="prefixPrompt" size={14} />
                 </span>
@@ -892,7 +904,7 @@ export function PromptManager({
               {Boolean(String(node.postamble || '').trim()) && (
                 <span
                   className="bb-pm-affix-icon"
-                  title={`Postfix prompt (after </${node.xmlTag}>):\n${String(node.postamble).trim().slice(0, 180)}`}
+                  title={`Postfix prompt (after </${groupTag}>):\n${String(node.postamble).trim().slice(0, 180)}`}
                 >
                   <Icon name="suffixPrompt" size={14} />
                 </span>
@@ -952,7 +964,7 @@ export function PromptManager({
 
               {visibleChildren.length === 0 ? (
                 <div className="bb-pm-group-empty">
-                  Empty XML group &lt;{node.xmlTag}&gt; — drag prompts here
+                  Empty XML group &lt;{groupTag}&gt; — drag prompts here
                 </div>
               ) : (
                 visibleChildren.map((child, chIdx) =>
@@ -1198,11 +1210,12 @@ export function PromptManager({
                         <Icon name="folder" size={13} style={{ color: 'var(--bb-ink-accent)' }} />
                       )}
                     </span>
-                    <span className="bb-pm-name">
-                      {dragState.node.groupName || dragState.node.xmlTag}
-                    </span>
-                    <span className="bb-pm-group-xml-badge">
-                      &lt;{dragState.node.xmlTag}&gt;
+                    <span className="bb-pm-group-tag-chip">
+                      &lt;
+                      {sanitizeXmlTagName(
+                        dragState.node.xmlTag || dragState.node.groupName,
+                      )}
+                      &gt;
                     </span>
                   </>
                 ) : (

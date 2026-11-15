@@ -297,6 +297,25 @@ export async function deleteMessageFromChat(
 }
 
 /**
+ * Batch deletes an arbitrary selection of messages (`POST /api/chats/:avatar/messages/delete-batch`).
+ */
+export async function deleteMessagesFromChat(
+  avatarOrFolder,
+  file,
+  messageIndices = [],
+  isGroup = false,
+) {
+  const res = await apiFetchJson(
+    `/api/chats/${encodeURIComponent(avatarOrFolder)}/messages/delete-batch`,
+    {
+      method: 'POST',
+      body: { file, indices: messageIndices, isGroup },
+    },
+  );
+  return normalizeChatWindowResponse(res);
+}
+
+/**
  * Lists rotating `.jsonl` chat backups (`GET /api/chats/backups/list`).
  */
 export async function fetchChatBackups() {

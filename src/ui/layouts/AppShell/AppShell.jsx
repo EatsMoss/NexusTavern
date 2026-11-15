@@ -53,6 +53,7 @@ import {
   patchMessageInChat,
   deleteSwipeFromMessage,
   deleteMessageFromChat,
+  deleteMessagesFromChat,
   updateChatMetadata,
   replaceChatPersona,
 } from '@core/chats/chatsApi.js';
@@ -5093,6 +5094,43 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     }
   };
 
+  const handleDeleteMessagesBatch = async (messageIndices = []) => {
+    if (
+      !selectedCardId ||
+      !activeChatFile ||
+      !Array.isArray(messageIndices) ||
+      messageIndices.length === 0
+    ) {
+      return false;
+    }
+    try {
+      const res = await deleteMessagesFromChat(
+        selectedCardId,
+        activeChatFile,
+        messageIndices,
+      );
+      if (res?.ok) {
+        await openChatFileWindow(selectedCardId, activeChatFile, { force: true });
+        const removed = Number(res.deletedCount || messageIndices.length);
+        setChatMetaStats((prev) => ({
+          ...prev,
+          syncStatus:
+            removed === 1
+              ? 'Deleted 1 message (backup saved)'
+              : `Deleted ${removed} messages (backup saved)`,
+        }));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      pushComposerToast({
+        variant: 'error',
+        message: err?.message || 'Failed to delete selected messages',
+      });
+      return false;
+    }
+  };
+
   const selectedCharacterObj =
     (selectedCardId && cards.find((c) => c.id === selectedCardId)) || cards[0] || null;
   const hasActiveScenario = Boolean(selectedCharacterObj && selectedCardId);
@@ -6855,6 +6893,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             onSaveEditedMessage={handleSaveEditedMessage}
             onRemoveMessageAttachment={handleRemoveMessageAttachment}
             onDeleteMessage={handleDeleteMessage}
+            onDeleteMessagesBatch={handleDeleteMessagesBatch}
             onCreateBranch={handleCreateBranchAtMessage}
             onNotify={pushComposerToast}
             composerToasts={composerToasts}

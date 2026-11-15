@@ -1777,6 +1777,51 @@ export async function deleteChatMessage(
   };
 }
 
+export async function deleteChatMessagesBatch(
+  avatarOrFolder,
+  fileName,
+  messageIndices = [],
+  options = {},
+) {
+  const { isGroup = false } = options;
+  const { chatFolder, filePath } = resolveChatFilePath(
+    avatarOrFolder,
+    fileName,
+    isGroup,
+  );
+  const parsed = readParsedJsonlChat(filePath);
+  if (!parsed) {
+    throw new Error('Chat file not found');
+  }
+
+  const rawList = Array.isArray(messageIndices) ? messageIndices : [];
+  const validSet = new Set();
+  for (const raw of rawList) {
+    const idx = Number(raw);
+    if (Number.isInteger(idx) && idx >= 0 && idx < parsed.messages.length) {
+      validSet.add(idx);
+    }
+  }
+
+  if (validSet.size === 0) {
+    throw new Error('No valid message indices provided');
+  }
+
+  const backupFile = ensureChatBackup(filePath, chatFolder, true);
+  const nextMessages = parsed.messages.filter((_, idx) => !validSet.has(idx));
+  const deletedCount = parsed.messages.length - nextMessages.length;
+
+  await writeParsedJsonlChat(filePath, parsed.header, nextMessages);
+
+  return {
+    chatFolder,
+    fileName,
+    backupFile,
+    deletedCount,
+    totalMessages: nextMessages.length,
+  };
+}
+
 export async function createNewCharacterChat(avatarOrFolder, options = {}) {
   const {
     greetingIndex = 0,
