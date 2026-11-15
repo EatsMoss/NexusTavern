@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { Icon } from '@ui/atoms/Icon/Icon.jsx';
 import { Checkbox } from '@ui/atoms/Checkbox/Checkbox.jsx';
 import { SafeImage } from '@ui/atoms/SafeImage/SafeImage.jsx';
@@ -53,7 +53,7 @@ export function resolveCharacterRowSnippet(item, { userName = 'User' } = {}) {
   };
 }
 
-export function CharacterCardRow({
+function CharacterCardRowInner({
   item,
   selected = false,
   showPinBadge = true,
@@ -64,6 +64,7 @@ export function CharacterCardRow({
   onOpen,
   onToggleMultiSelect,
   kebabItems = [],
+  kebabItemsFor = null,
   draggable = false,
   onDragStart,
   onDragEnd,
@@ -72,6 +73,11 @@ export function CharacterCardRow({
   isDragging = false,
   className = '',
 }) {
+  const resolveLazyKebab = useCallback(
+    () => (kebabItemsFor && item ? kebabItemsFor(item) : []),
+    [kebabItemsFor, item],
+  );
+
   if (!item) return null;
 
   const initials =
@@ -80,6 +86,7 @@ export function CharacterCardRow({
   const subtitle = String(item.subtitle || item.scenarioMeta?.subtitle || '').trim();
   const chatsCount = Math.max(0, Number(item.chatsCount ?? item.chatStats?.chatsCount ?? 0));
   const { text: snippetText, isIntro } = resolveCharacterRowSnippet(item, { userName });
+  const hasKebab = typeof kebabItemsFor === 'function' || kebabItems.length > 0;
 
   const handleClick = (e) => {
     const isQuickMultiTrigger = e?.ctrlKey || e?.metaKey || e?.shiftKey;
@@ -170,12 +177,17 @@ export function CharacterCardRow({
                 className="bb-char-row__check"
               />
             ) : (
-              kebabItems.length > 0 && (
+              hasKebab && (
                 <div
                   className="bb-char-row__actions"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <KebabMenu size="sm" align="right" items={kebabItems} />
+                  <KebabMenu
+                    size="sm"
+                    align="right"
+                    items={kebabItems}
+                    getItems={typeof kebabItemsFor === 'function' ? resolveLazyKebab : null}
+                  />
                 </div>
               )
             )}
@@ -196,3 +208,52 @@ export function CharacterCardRow({
     </div>
   );
 }
+
+function areRowItemsEqual(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    a.initials === b.initials &&
+    a.thumbnailUrl === b.thumbnailUrl &&
+    a.avatarUrl === b.avatarUrl &&
+    Boolean(a.pinned) === Boolean(b.pinned) &&
+    Boolean(a.isGroup) === Boolean(b.isGroup) &&
+    (a.subtitle || a.scenarioMeta?.subtitle || '') ===
+      (b.subtitle || b.scenarioMeta?.subtitle || '') &&
+    (a.chatsCount ?? a.chatStats?.chatsCount ?? 0) ===
+      (b.chatsCount ?? b.chatStats?.chatsCount ?? 0) &&
+    a.latestChatPreview === b.latestChatPreview &&
+    a.firstMesPreview === b.firstMesPreview &&
+    a.first_mes === b.first_mes &&
+    a.descriptionPreview === b.descriptionPreview &&
+    (a.memberCount ?? a.members?.length ?? 0) ===
+      (b.memberCount ?? b.members?.length ?? 0)
+  );
+}
+
+function areCardRowPropsEqual(prev, next) {
+  return (
+    areRowItemsEqual(prev.item, next.item) &&
+    prev.selected === next.selected &&
+    prev.showPinBadge === next.showPinBadge &&
+    prev.multiSelectActive === next.multiSelectActive &&
+    prev.multiSelected === next.multiSelected &&
+    prev.userName === next.userName &&
+    prev.draggable === next.draggable &&
+    prev.isDragging === next.isDragging &&
+    prev.className === next.className &&
+    prev.onSelect === next.onSelect &&
+    prev.onOpen === next.onOpen &&
+    prev.onToggleMultiSelect === next.onToggleMultiSelect &&
+    prev.kebabItemsFor === next.kebabItemsFor &&
+    (prev.kebabItemsFor ? true : prev.kebabItems === next.kebabItems) &&
+    prev.onDragStart === next.onDragStart &&
+    prev.onDragEnd === next.onDragEnd &&
+    prev.onDragOver === next.onDragOver &&
+    prev.onDrop === next.onDrop
+  );
+}
+
+export const CharacterCardRow = memo(CharacterCardRowInner, areCardRowPropsEqual);

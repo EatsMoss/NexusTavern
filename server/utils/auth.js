@@ -5,31 +5,57 @@ import crypto from 'node:crypto';
  * Transmitted ONLY optically via QR URL fragment (#bbkey=...), so the tunnel
  * intermediary server never sees this key in HTTP requests.
  */
-let masterKeyHex = crypto.randomBytes(32).toString('hex');
+let masterKeyHex = '';
+let masterKeyBuffer = null;
+let derivedAuthIdHex = '';
+let derivedAuthIdBuffer = null;
+
+function applyMasterKeyHex(nextHex) {
+  masterKeyHex = nextHex;
+  masterKeyBuffer = Buffer.from(nextHex, 'hex');
+  derivedAuthIdHex = crypto
+    .createHash('sha256')
+    .update(`bb-auth-v1:${nextHex}`, 'utf8')
+    .digest('hex');
+  derivedAuthIdBuffer = Buffer.from(derivedAuthIdHex, 'utf8');
+  return masterKeyHex;
+}
+
+applyMasterKeyHex(crypto.randomBytes(32).toString('hex'));
 
 export function getMasterKeyHex() {
   return masterKeyHex;
 }
 
 export function rotateMasterKey() {
-  masterKeyHex = crypto.randomBytes(32).toString('hex');
-  return masterKeyHex;
+  return applyMasterKeyHex(crypto.randomBytes(32).toString('hex'));
 }
 
 /**
- * Derives a public authentication token from the master key using SHA-256('auth:' + masterKeyHex).
- * The phone sends this derived hash in X-BB-Auth header or cookie to prove possession
+ * Derives a public authentication token from the master key using SHA-256('bb-auth-v1:' + masterKeyHex).
+ * The phone sends this derived hash in X-BB-Auth header or query param to prove possession
  * without ever revealing the master encryption key over the network.
  */
 export function getDerivedAuthId() {
-  return crypto
-    .createHash('sha256')
-    .update(`bb-auth-v1:${masterKeyHex}`, 'utf8')
-    .digest('hex');
+  return derivedAuthIdHex;
+}
+
+/**
+ * Constant-time verification of a client-supplied authentication token against the derived SHA-256 token.
+ */
+export function isValidAuthToken(candidate) {
+  if (typeof candidate !== 'string' || candidate.length !== derivedAuthIdBuffer.length) {
+    return false;
+  }
+  const candidateBuf = Buffer.from(candidate, 'utf8');
+  if (candidateBuf.length !== derivedAuthIdBuffer.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(candidateBuf, derivedAuthIdBuffer);
 }
 
 function getMasterKeyBuffer() {
-  return Buffer.from(masterKeyHex, 'hex');
+  return masterKeyBuffer;
 }
 
 /**
@@ -126,11 +152,10 @@ export function securityGuard(req, res, next) {
     return next();
   }
 
-  const expectedAuthId = getDerivedAuthId();
   const clientAuthHeader = req.headers['x-bb-auth'];
   const queryAuth = req.query?.auth;
 
-  if (clientAuthHeader !== expectedAuthId && queryAuth !== expectedAuthId) {
+  if (!isValidAuthToken(clientAuthHeader) && !isValidAuthToken(queryAuth)) {
     return res.status(401).json({
       ok: false,
       error: 'Unauthorized. Scan the active QR code displayed on the host PC.',

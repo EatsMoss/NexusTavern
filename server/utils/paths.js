@@ -56,19 +56,36 @@ export const NEXUSTAVERN_ST_IMPORTER_FILE = path.join(NEXUSTAVERN_DIR, 'st-impor
 export const USER_IMAGES_DIR = path.join(DEFAULT_USER_DIR, 'user', 'images');
 export const USER_FILES_DIR = path.join(DEFAULT_USER_DIR, 'user', 'files');
 
+const DIR_ENSURE_TTL_MS = 15_000;
+let lastEnsureDirsAt = 0;
+let cachedEnsureDirsResult = null;
+
 /**
- * Ensures all required user data folders exist on startup.
+ * In-memory cache of directory file counts keyed by `${targetDir}::${extKey}`.
+ * Invalidated automatically whenever the directory's `mtimeMs` changes.
  */
-export function ensureUserDirectories() {
+const dirFileCountCache = new Map();
+
+/**
+ * Ensures all required user data folders exist on startup (with short TTL cache for status polling).
+ */
+export function ensureUserDirectories({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && cachedEnsureDirsResult && now - lastEnsureDirsAt < DIR_ENSURE_TTL_MS) {
+    return cachedEnsureDirsResult;
+  }
+
   const results = [];
   for (const dirName of USER_SUBDIRECTORIES) {
     const fullPath = path.join(DEFAULT_USER_DIR, dirName);
-    if (!fs.existsSync(fullPath)) {
+    let exists = fs.existsSync(fullPath);
+    if (!exists) {
       fs.mkdirSync(fullPath, { recursive: true });
+      exists = fs.existsSync(fullPath);
     }
     results.push({
       name: dirName,
-      exists: fs.existsSync(fullPath),
+      exists,
     });
   }
 
@@ -88,25 +105,51 @@ export function ensureUserDirectories() {
     fs.mkdirSync(USER_FILES_DIR, { recursive: true });
   }
 
+  lastEnsureDirsAt = now;
+  cachedEnsureDirsResult = results;
   return results;
 }
 
 /**
  * Counts files matching given extensions in a default-user subdirectory.
+ * Uses directory `mtimeMs` caching to avoid repeated `readdirSync` scans during idle status polling.
  */
 export function countFilesInUserDir(subDir, extensions = null) {
   const targetDir = path.join(DEFAULT_USER_DIR, subDir);
-  if (!fs.existsSync(targetDir)) return 0;
+  let stat;
+  try {
+    stat = fs.statSync(targetDir);
+  } catch {
+    return 0;
+  }
+  if (!stat.isDirectory()) return 0;
+
+  const normalizedExts =
+    Array.isArray(extensions) && extensions.length > 0
+      ? extensions.map((e) => String(e).toLowerCase())
+      : null;
+  const cacheKey = `${targetDir}::${normalizedExts ? normalizedExts.join(',') : '*'}`;
+  const cached = dirFileCountCache.get(cacheKey);
+  if (cached && cached.mtimeMs === stat.mtimeMs) {
+    return cached.count;
+  }
 
   try {
+    const extSet = normalizedExts ? new Set(normalizedExts) : null;
     const entries = fs.readdirSync(targetDir, { withFileTypes: true });
-    return entries.filter((entry) => {
-      if (!entry.isFile()) return false;
-      if (entry.name === '.gitkeep') return false;
-      if (!extensions || extensions.length === 0) return true;
-      const ext = path.extname(entry.name).toLowerCase();
-      return extensions.includes(ext);
-    }).length;
+    let count = 0;
+    for (let i = 0; i < entries.length; i += 1) {
+      const entry = entries[i];
+      if (!entry.isFile() || entry.name === '.gitkeep') continue;
+      if (!extSet) {
+        count += 1;
+      } else {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (extSet.has(ext)) count += 1;
+      }
+    }
+    dirFileCountCache.set(cacheKey, { mtimeMs: stat.mtimeMs, count });
+    return count;
   } catch {
     return 0;
   }

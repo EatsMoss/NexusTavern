@@ -7,17 +7,17 @@ import {
   MarkdownEditor,
   PinnedLayout,
   Modal,
-  WelcomeModal,
   UnsavedChangesModal,
   TopBar,
   ChatMessageCard,
-  PromptEditorSheet,
-  RefusalCatcherManager,
-  MessageRecapManager,
-  StImporterManager,
-  ConsoleDrawer,
   ConsoleToggleButton,
 } from '@ui/index.js';
+import { WelcomeModal } from '../organisms/WelcomeModal/WelcomeModal.jsx';
+import { PromptEditorSheet } from '../organisms/PromptManager/PromptEditorSheet.jsx';
+import { RefusalCatcherManager } from '../organisms/RefusalCatcherManager/RefusalCatcherManager.jsx';
+import { MessageRecapManager } from '../organisms/MessageRecapManager/MessageRecapManager.jsx';
+import { StImporterManager } from '../organisms/StImporterManager/StImporterManager.jsx';
+import { ConsoleDrawer } from '../organisms/ConsoleDrawer/ConsoleDrawer.jsx';
 import { DEFAULT_BANNED_PHRASES } from '@core/refusal/refusalEngine.js';
 import { normalizeRecapConfig } from '@core/recap/recapEngine.js';
 

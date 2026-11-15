@@ -3,7 +3,6 @@ import path from 'node:path';
 import { exec } from 'node:child_process';
 import express from 'express';
 import cors from 'cors';
-import { Router } from 'express';
 import { systemRouter } from './routes/system.js';
 import { charactersRouter, thumbnailsRouter } from './routes/characters.js';
 import { personasRouter } from './routes/personas.js';
@@ -16,6 +15,7 @@ import { recapRouter } from './routes/recap.js';
 import { stImportRouter } from './routes/stImport.js';
 import { getLanAddresses } from './utils/network.js';
 import { securityGuard } from './utils/auth.js';
+import { getTunnelStatus } from './services/tunnel.js';
 import { recordConsoleLog } from './services/consoleLogger.js';
 import {
   DEFAULT_USER_DIR,
@@ -36,11 +36,101 @@ function openBrowser(url) {
 
 const app = express();
 const PORT = Number(process.env.NEXUSTAVERN_SERVER_PORT) || 8088;
+const CLIENT_PORT = Number(process.env.NEXUSTAVERN_CLIENT_PORT) || 5173;
+const PREVIEW_PORT = 4173;
 const HOST = process.env.NEXUSTAVERN_HOST || '0.0.0.0';
+
+const ALLOWED_LOCAL_PORTS = new Set([
+  String(PORT),
+  String(CLIENT_PORT),
+  String(PREVIEW_PORT),
+]);
+
+const EXTRA_ALLOWED_ORIGINS = new Set(
+  String(process.env.NEXUSTAVERN_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim().replace(/\/+$/, '').toLowerCase())
+    .filter(Boolean),
+);
+
+function isPrivateLanIpv4(hostname) {
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  const m172 = hostname.match(/^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+  if (m172) {
+    const second = Number(m172[1]);
+    return second >= 16 && second <= 31;
+  }
+  return false;
+}
+
+function isAllowedOrigin(rawOrigin) {
+  if (!rawOrigin) return true;
+  const normalized = String(rawOrigin).trim().replace(/\/+$/, '').toLowerCase();
+  if (!normalized || normalized === 'null') return false;
+  if (EXTRA_ALLOWED_ORIGINS.has(normalized)) return true;
+
+  const activeTunnelUrl = getTunnelStatus(false).url;
+  if (activeTunnelUrl && normalized === activeTunnelUrl.replace(/\/+$/, '').toLowerCase()) {
+    return true;
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return false;
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return false;
+  }
+
+  const hostname = parsed.hostname;
+  const effectivePort = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
+  if (!ALLOWED_LOCAL_PORTS.has(effectivePort)) {
+    return false;
+  }
+
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]' ||
+    hostname === '::1'
+  ) {
+    return true;
+  }
+
+  if (isPrivateLanIpv4(hostname)) {
+    return true;
+  }
+
+  const hostLanIps = getLanAddresses();
+  return hostLanIps.some((item) => item.address === hostname);
+}
 
 ensureUserDirectories();
 
-app.use(cors());
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && !isAllowedOrigin(origin)) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Cross-origin request blocked by NexusTavern Zero-Trust CORS policy.',
+    });
+  }
+  return next();
+});
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      callback(null, isAllowedOrigin(origin));
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'X-BB-Auth', 'X-BB-E2EE'],
+  }),
+);
 app.use(express.json({ limit: '50mb' }));
 app.use(securityGuard);
 

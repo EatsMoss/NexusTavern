@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { getAuthorizedAssetUrl } from '@core/api/apiClient.js';
 import { useViewport } from '@core/hooks/useViewport.js';
 import {
@@ -106,7 +106,6 @@ import {
   deleteApiHubCustomFamily,
 } from '@core/api/apiHubApi.js';
 import { M3_PRESET_SEEDS, applyM3ThemeTokens } from '@ui/tokens/themeTokens.js';
-import { TokenSandbox } from '@ui/tokens/TokenSandbox.jsx';
 import {
   Icon,
   SafeImage,
@@ -120,12 +119,9 @@ import {
   Dropdown,
   MarkdownEditor,
   Modal,
-  WelcomeModal,
   UnsavedChangesModal,
   PearlescentShader,
   TopBar,
-  PresetVaultInspector,
-  PromptEditorSheet,
   resolvePromptEditorTarget,
   applyEditedPromptToOrdered,
   applyEditedGroupToOrdered,
@@ -135,8 +131,7 @@ import {
   SplashScreen,
   ProgressIndicator,
   OverlayScrollArea,
-  RefusalCatcherManager,
-  createAttachmentDraft,
+  WorkspaceLayout,
   revokeAttachmentDraft,
 } from '@ui/index.js';
 import { ChatViewport } from '@features/chat/ChatViewport.jsx';
@@ -148,31 +143,23 @@ import {
   CharacterSheet,
   serializeCardEditableSnapshot,
 } from '@features/characters/CharacterSheet/CharacterSheet.jsx';
-import { AdvancedDefinitionsPanel } from '@features/characters/CharacterSheet/AdvancedDefinitionsPanel.jsx';
-import { IntroEditorSheet } from '@features/characters/CharacterSheet/IntroEditorSheet.jsx';
 import {
   resolveIntroEditorTargetData,
   padIntroMetaArray,
   toServerIntroMetaPayload,
 } from '@features/characters/CharacterSheet/IntrosTab.jsx';
-import { ApiHubModal } from '@features/api-hub/ApiHubModal.jsx';
-import { PersonaSheet } from '@features/personas/PersonaSheet.jsx';
-import { RegexTomePanel } from '@features/regex/RegexTomePanel.jsx';
 import { useRegexWorkspace } from '@features/regex/useRegexWorkspace.js';
 import { useRefusalCatcher } from '@features/refusal/useRefusalCatcher.js';
-import { RecapTomePanel } from '@features/recap/RecapTomePanel.jsx';
 import { useMessageRecap } from '@features/recap/useMessageRecap.js';
-import { StImporterTomePanel } from '@features/st-importer/StImporterTomePanel.jsx';
 import { useStImporter } from '@features/st-importer/useStImporter.js';
 import {
   isWorkspaceSheetExemptClickTarget,
   hasOpenTopLayerOverlay,
 } from './useWorkspaceSheetDismiss.js';
 import {
-  CreateScenarioSheet,
   convertImageFileToPngBase64,
   readFileAsBase64,
-} from '@features/characters/CreateScenarioSheet.jsx';
+} from '@core/utils/imageCodec.js';
 import { useCharacterGallery } from '@features/characters/useCharacterGallery.js';
 import { usePinnedLayout, isCardInPinnedEntries } from '@features/characters/usePinnedLayout.js';
 import { filterCards, sortCards } from '@features/characters/tagFilters.js';
@@ -180,7 +167,6 @@ import {
   estimateHistorySliceTokenBreakdown,
   estimateRecapInjectedPromptTokens,
 } from '@core/presets/tokenEstimator.js';
-import './AppShell.css';
 
 const LEFT_TABS = [
   { id: 'characters', label: 'Characters', icon: 'addressCard' },
@@ -214,6 +200,63 @@ const EMPTY_CHARACTER_FALLBACK = {
 };
 
 const DEFAULT_TOME_WIDTH = 550;
+const EMPTY_ARRAY = Object.freeze([]);
+
+const LazyTokenSandbox = lazy(() =>
+  import('@ui/tokens/TokenSandbox.jsx').then((m) => ({ default: m.TokenSandbox })),
+);
+const LazyWelcomeModal = lazy(() =>
+  import('@ui/organisms/WelcomeModal/WelcomeModal.jsx').then((m) => ({
+    default: m.WelcomeModal,
+  })),
+);
+const LazyApiHubModal = lazy(() =>
+  import('@features/api-hub/ApiHubModal.jsx').then((m) => ({ default: m.ApiHubModal })),
+);
+const LazyCreateScenarioSheet = lazy(() =>
+  import('@features/characters/CreateScenarioSheet.jsx').then((m) => ({
+    default: m.CreateScenarioSheet,
+  })),
+);
+const LazyPersonaSheet = lazy(() =>
+  import('@features/personas/PersonaSheet.jsx').then((m) => ({ default: m.PersonaSheet })),
+);
+const LazyPromptEditorSheet = lazy(() =>
+  import('@ui/organisms/PromptManager/PromptEditorSheet.jsx').then((m) => ({
+    default: m.PromptEditorSheet,
+  })),
+);
+const LazyIntroEditorSheet = lazy(() =>
+  import('@features/characters/CharacterSheet/IntroEditorSheet.jsx').then((m) => ({
+    default: m.IntroEditorSheet,
+  })),
+);
+const LazyAdvancedDefinitionsPanel = lazy(() =>
+  import('@features/characters/CharacterSheet/AdvancedDefinitionsPanel.jsx').then((m) => ({
+    default: m.AdvancedDefinitionsPanel,
+  })),
+);
+const LazyPresetVaultInspector = lazy(() =>
+  import('@ui/organisms/PresetVaultInspector/PresetVaultInspector.jsx').then((m) => ({
+    default: m.PresetVaultInspector,
+  })),
+);
+const LazyStImporterTomePanel = lazy(() =>
+  import('@features/st-importer/StImporterTomePanel.jsx').then((m) => ({
+    default: m.StImporterTomePanel,
+  })),
+);
+const LazyRecapTomePanel = lazy(() =>
+  import('@features/recap/RecapTomePanel.jsx').then((m) => ({ default: m.RecapTomePanel })),
+);
+const LazyRefusalCatcherManager = lazy(() =>
+  import('@ui/organisms/RefusalCatcherManager/RefusalCatcherManager.jsx').then((m) => ({
+    default: m.RefusalCatcherManager,
+  })),
+);
+const LazyRegexTomePanel = lazy(() =>
+  import('@features/regex/RegexTomePanel.jsx').then((m) => ({ default: m.RegexTomePanel })),
+);
 const MIN_TOME_WIDTH = 400;
 const MAX_STORED_TOME_WIDTH = 2400;
 const CHAT_COLUMN_WIDTH = 784;
@@ -442,36 +485,8 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false);
   const onboardingDismissedRef = useRef(readCachedOnboardingDismissed());
-  const [draftMsg, setDraftMsg] = useState('');
-  const [pendingAttachments, setPendingAttachments] = useState([]);
-  const pendingAttachmentsRef = useRef([]);
+  const chatComposerRef = useRef(null);
   const [swipeIdx, setSwipeIdx] = useState(0);
-
-  useEffect(() => {
-    pendingAttachmentsRef.current = pendingAttachments;
-  }, [pendingAttachments]);
-
-  useEffect(() => {
-    return () => {
-      pendingAttachmentsRef.current.forEach((item) => revokeAttachmentDraft(item));
-    };
-  }, []);
-
-  const handleAddAttachments = useCallback(async (rawFiles) => {
-    const list = Array.from(rawFiles || []).filter(Boolean);
-    if (list.length === 0) return;
-    const created = (await Promise.all(list.map((f) => createAttachmentDraft(f)))).filter(Boolean);
-    if (created.length === 0) return;
-    setPendingAttachments((prev) => [...prev, ...created]);
-  }, []);
-
-  const handleRemoveAttachment = useCallback((attId) => {
-    setPendingAttachments((prev) => {
-      const target = prev.find((x) => x.id === attId);
-      if (target) revokeAttachmentDraft(target);
-      return prev.filter((x) => x.id !== attId);
-    });
-  }, []);
 
   // Step 3.2: Real .jsonl Chat state (Tail-First Pagination, Lazy Swipes, Delta Sync)
   const [chatFiles, setChatFiles] = useState([]);
@@ -3433,6 +3448,41 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     ],
   );
 
+  const galleryHandlersRef = useRef({});
+  galleryHandlersRef.current = {
+    selectCard: handleSelectCard,
+    openCard: handleGalleryOpenCard,
+    togglePin: handleGalleryTogglePin,
+    toggleMultiSelect: handleToggleMultiSelectCard,
+    kebabForCard: kebabItemsForCard,
+    importFiles: handleImportScenarioFiles,
+  };
+
+  const stableHandleSelectCard = useCallback(
+    (id) => galleryHandlersRef.current.selectCard(id),
+    [],
+  );
+  const stableHandleGalleryOpenCard = useCallback(
+    (id) => galleryHandlersRef.current.openCard(id),
+    [],
+  );
+  const stableHandleGalleryTogglePin = useCallback(
+    (id, forcePin) => galleryHandlersRef.current.togglePin(id, forcePin),
+    [],
+  );
+  const stableHandleToggleMultiSelectCard = useCallback(
+    (id, ev) => galleryHandlersRef.current.toggleMultiSelect(id, ev),
+    [],
+  );
+  const stableKebabItemsForCard = useCallback(
+    (card) => galleryHandlersRef.current.kebabForCard(card),
+    [],
+  );
+  const stableHandleDropImportGalleryFiles = useCallback(
+    (files) => galleryHandlersRef.current.importFiles(files, { importEmbeddedTags: true }),
+    [],
+  );
+
   // ---- Step 4.2.4: pinned section & folder management ----------------------
 
   const handleAssignTagToCard = useCallback(
@@ -5619,21 +5669,23 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     [isGenerating, selectedCardId, activeChatFile, mapServerMsgToUi, setGenerationError],
   );
 
-  const handleSend = async (e) => {
-    if (e?.preventDefault) e.preventDefault();
-    if (isGenerating || isSwitchingScenario || loadingChat) return;
+  const handleSend = async (payloadOrEvent) => {
+    if (payloadOrEvent?.preventDefault) payloadOrEvent.preventDefault();
+    if (isGenerating || isSwitchingScenario || loadingChat) {
+      return { ok: false, restoreDraft: true };
+    }
 
-    const clean = draftMsg.trim();
-    const attachmentsSnapshot = [...pendingAttachments];
+    const rawText =
+      payloadOrEvent && typeof payloadOrEvent === 'object' && 'text' in payloadOrEvent
+        ? payloadOrEvent.text
+        : '';
+    const clean = String(rawText || '').trim();
+    const attachmentsSnapshot =
+      payloadOrEvent && Array.isArray(payloadOrEvent.attachments)
+        ? [...payloadOrEvent.attachments]
+        : [];
     const hasPayload = Boolean(clean || attachmentsSnapshot.length > 0);
     const isRealCard = Boolean(selectedCardId && !isDemoCardId(selectedCardId));
-
-    if (clean) {
-      setDraftMsg('');
-    }
-    if (attachmentsSnapshot.length > 0) {
-      setPendingAttachments([]);
-    }
 
     if (isRealCard) {
       try {
@@ -5711,15 +5763,11 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             mode: 'reply',
             targetFile,
           });
-          return;
+          return { ok: true };
         }
       } catch (err) {
-        if (clean) setDraftMsg((prev) => prev || clean);
-        if (attachmentsSnapshot.length > 0) {
-          setPendingAttachments((prev) => [...attachmentsSnapshot, ...prev]);
-        }
         setGenerationError(err?.message || 'Failed to append message before generation');
-        return;
+        return { ok: false, restoreDraft: true };
       }
     }
 
@@ -5761,7 +5809,67 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       targetFile: '',
       overrideMessages: nextDemoMessages,
     });
+    return { ok: true };
   };
+
+  const chatMsgHandlersRef = useRef({});
+  chatMsgHandlersRef.current = {
+    swipe: handleSwipeMessage,
+    generateSwipe: handleGenerateSwipe,
+    continueMsg: handleContinueMessage,
+    deleteSwipe: handleDeleteSwipe,
+    saveEdit: handleSaveEditedMessage,
+    removeAttachment: handleRemoveMessageAttachment,
+    deleteMsg: handleDeleteMessage,
+    deleteBatch: handleDeleteMessagesBatch,
+    createBranch: handleCreateBranchAtMessage,
+  };
+
+  const stableHandleSwipeMessage = useCallback(
+    (mes, nextId) => chatMsgHandlersRef.current.swipe(mes, nextId),
+    [],
+  );
+  const stableHandleGenerateSwipe = useCallback(
+    (mes) => chatMsgHandlersRef.current.generateSwipe(mes),
+    [],
+  );
+  const stableHandleContinueMessage = useCallback(
+    (mes) => chatMsgHandlersRef.current.continueMsg(mes),
+    [],
+  );
+  const stableHandleDeleteSwipe = useCallback(
+    (mIdx, swipeId) => chatMsgHandlersRef.current.deleteSwipe(mIdx, swipeId),
+    [],
+  );
+  const stableHandleSaveEditedMessage = useCallback(
+    (mIdx, txt, asSwipe, rsn) => chatMsgHandlersRef.current.saveEdit(mIdx, txt, asSwipe, rsn),
+    [],
+  );
+  const stableHandleRemoveMessageAttachment = useCallback(
+    (mIdx, attIdx, msgObj) => chatMsgHandlersRef.current.removeAttachment(mIdx, attIdx, msgObj),
+    [],
+  );
+  const stableHandleDeleteMessage = useCallback(
+    (mIdx, truncate) => chatMsgHandlersRef.current.deleteMsg(mIdx, truncate),
+    [],
+  );
+  const stableHandleDeleteMessagesBatch = useCallback(
+    (indices) => chatMsgHandlersRef.current.deleteBatch(indices),
+    [],
+  );
+  const stableHandleCreateBranchAtMessage = useCallback(
+    (mIdx, opts) => chatMsgHandlersRef.current.createBranch(mIdx, opts),
+    [],
+  );
+
+  const handleSendRef = useRef(handleSend);
+  handleSendRef.current = handleSend;
+  const stableHandleSend = useCallback((payload) => handleSendRef.current(payload), []);
+  const handleClickModelBadge = useCallback(() => setApiModalOpen(true), []);
+  const handleClickPersonaBadge = useCallback(
+    () => handleOpenManagePersonaModal(activePersonaAvatarRef.current),
+    [handleOpenManagePersonaModal],
+  );
 
   const selectedModelLabel =
     apiHubState?.activeModelName && apiHubState.activeModelName !== 'Select Model'
@@ -6559,26 +6667,8 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     },
   };
 
-  return (
-    <div className="bb-app-shell">
-      {/* 1. LEFT TOME (Characters, Chats, Journal, Settings) — Full Height Left Side */}
-      {leftOpen && (
-        <aside
-          id="left-nav-panel"
-          className={`bb-tome bb-tome--left ${idleFade ? 'bb-tome--idle-fade' : ''}`}
-          style={{ width: effectiveLeftWidth }}
-        >
-          <BookmarkRibbons
-            tabs={LEFT_TABS}
-            activeId={leftTab}
-            onChange={setLeftTab}
-          />
-
-          <OverlayScrollArea
-            className="bb-tome__body-wrap"
-            viewportClassName="bb-tome__body"
-            disabled={leftTab === 'characters' || leftTab === 'chats'}
-          >
+  const leftTomeContent = (
+    <>
             {leftTab === 'characters' && (
               <CharacterTome
                 pinnedLayout={pinnedLayout}
@@ -6590,7 +6680,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                 hiddenTagIds={hiddenTagIds}
                 multiSelectActive={multiSelectActive}
                 multiSelectedIds={multiSelectedIds}
-                onToggleMultiSelect={handleToggleMultiSelectCard}
+                onToggleMultiSelect={stableHandleToggleMultiSelectCard}
                 onToggleMultiSelectMode={handleToggleMultiSelectMode}
                 onSelectAllResults={handleSelectAllResults}
                 onClearMultiSelect={handleClearMultiSelect}
@@ -6600,16 +6690,14 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                 multiSelectActions={multiSelectActions}
                 multiSelectActiveActionId={multiSelectSubpopover}
                 multiSelectPopover={multiSelectPopover}
-                onSelect={handleSelectCard}
-                onOpen={handleGalleryOpenCard}
-                onTogglePin={handleGalleryTogglePin}
+                onSelect={stableHandleSelectCard}
+                onOpen={stableHandleGalleryOpenCard}
+                onTogglePin={stableHandleGalleryTogglePin}
                 onToggleTagHidden={handleToggleTagHidden}
                 onCreateTag={handleCreateTag}
                 onOpenCreateModal={handleOpenCreateScenarioModal}
-                onDropImportFiles={(files) =>
-                  handleImportScenarioFiles(files, { importEmbeddedTags: true })
-                }
-                kebabItemsFor={kebabItemsForCard}
+                onDropImportFiles={stableHandleDropImportGalleryFiles}
+                kebabItemsFor={stableKebabItemsForCard}
                 kebabItemsForFolder={kebabItemsForPinnedFolder}
                 kebabItemsForTagFolder={kebabItemsForTagFolder}
                 userName={personaName}
@@ -6735,21 +6823,11 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                     </FolderCard>
                   </>
                 )}
-          </OverlayScrollArea>
+    </>
+  );
 
-          <TomeResizeCurtain
-            side="left"
-            width={effectiveLeftWidth}
-            minWidth={MIN_TOME_WIDTH}
-            maxWidth={maxTomeWidth}
-            defaultWidth={DEFAULT_TOME_WIDTH}
-            onChangeWidth={setLeftWidth}
-          />
-        </aside>
-      )}
-
-      {/* 2. CENTER COLUMN (TopBar at top between Tomes + Central Chat Stage / Sandbox) */}
-      <main className="bb-center-column">
+  const centerContent = (
+    <>
         <TopBar
           leftOpen={leftOpen}
           onToggleLeft={() => {
@@ -6824,98 +6902,154 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                   Return to Tavern (Ctrl+Shift+U)
                 </Button>
               </div>
-              <TokenSandbox />
+              <Suspense
+                fallback={
+                  <div style={{ padding: '24px 16px' }}>
+                    <ProgressIndicator
+                      variant="linear"
+                      size="sm"
+                      label="Loading UI Sandbox..."
+                    />
+                  </div>
+                }
+              >
+                <LazyTokenSandbox />
+              </Suspense>
             </div>
           </OverlayScrollArea>
         ) : createScenarioModalOpen ? (
           <section className="bb-center-column__sheet" aria-label="Create scenario workspace">
             <div ref={centerSheetSurfaceRef} className="bb-center-column__sheet-surface">
-              <CreateScenarioSheet
-                ref={createScenarioSheetRef}
-                initialMode={createScenarioModalMode}
-                availableTags={tags}
-                submitting={creatingScenario}
-                statusMsg={createScenarioStatus}
-                onClose={requestCloseActiveWorkspaceSheet}
-                onCreateScenario={handleCreateScenario}
-                onImportScenarioFiles={handleImportScenarioFiles}
-                onDirtyChange={handleCreateScenarioDirtyChange}
-              />
+              <Suspense
+                fallback={
+                  <ProgressIndicator
+                    variant="linear"
+                    size="sm"
+                    overlay="top"
+                    ariaLabel="Loading scenario editor"
+                  />
+                }
+              >
+                <LazyCreateScenarioSheet
+                  ref={createScenarioSheetRef}
+                  initialMode={createScenarioModalMode}
+                  availableTags={tags}
+                  submitting={creatingScenario}
+                  statusMsg={createScenarioStatus}
+                  onClose={requestCloseActiveWorkspaceSheet}
+                  onCreateScenario={handleCreateScenario}
+                  onImportScenarioFiles={handleImportScenarioFiles}
+                  onDirtyChange={handleCreateScenarioDirtyChange}
+                />
+              </Suspense>
             </div>
           </section>
         ) : personaModalOpen ? (
           <section className="bb-center-column__sheet" aria-label="Persona workspace">
             <div ref={centerSheetSurfaceRef} className="bb-center-column__sheet-surface">
-              <PersonaSheet
-                ref={personaSheetRef}
-                initialMode={personaModalMode}
-                initialTargetAvatar={personaModalTargetAvatar}
-                personas={personas}
-                activePersonaAvatar={activePersonaAvatar}
-                cards={cards}
-                groups={groups}
-                activeCharacter={activeCharacter}
-                hasUserMessages={effectiveHasUserMessages}
-                userMessageCount={effectiveUserMessageCount}
-                onClose={requestCloseActiveWorkspaceSheet}
-                onCreatePersona={handleCreatePersona}
-                onSavePersona={handleSavePersonaById}
-                onUploadPersonaAvatar={handleUploadPersonaAvatar}
-                onDuplicatePersona={handleDuplicatePersona}
-                onDeletePersona={handleDeletePersona}
-                onSelectPersonaInChat={handleSelectPersona}
-                onConfirmReplacePersonaInChat={handleConfirmReplacePersonaInChat}
-                onDirtyChange={handlePersonaDirtyChange}
-              />
+              <Suspense
+                fallback={
+                  <ProgressIndicator
+                    variant="linear"
+                    size="sm"
+                    overlay="top"
+                    ariaLabel="Loading persona editor"
+                  />
+                }
+              >
+                <LazyPersonaSheet
+                  ref={personaSheetRef}
+                  initialMode={personaModalMode}
+                  initialTargetAvatar={personaModalTargetAvatar}
+                  personas={personas}
+                  activePersonaAvatar={activePersonaAvatar}
+                  cards={cards}
+                  groups={groups}
+                  activeCharacter={activeCharacter}
+                  hasUserMessages={effectiveHasUserMessages}
+                  userMessageCount={effectiveUserMessageCount}
+                  onClose={requestCloseActiveWorkspaceSheet}
+                  onCreatePersona={handleCreatePersona}
+                  onSavePersona={handleSavePersonaById}
+                  onUploadPersonaAvatar={handleUploadPersonaAvatar}
+                  onDuplicatePersona={handleDuplicatePersona}
+                  onDeletePersona={handleDeletePersona}
+                  onSelectPersonaInChat={handleSelectPersona}
+                  onConfirmReplacePersonaInChat={handleConfirmReplacePersonaInChat}
+                  onDirtyChange={handlePersonaDirtyChange}
+                />
+              </Suspense>
             </div>
           </section>
         ) : resolvedEditingPrompt ? (
           <section className="bb-center-column__sheet" aria-label="Prompt editor workspace">
             <div ref={centerSheetSurfaceRef} className="bb-center-column__sheet-surface">
-              <PromptEditorSheet
-                ref={promptEditorSheetRef}
-                mode={resolvedEditingPrompt.mode}
-                target={resolvedEditingPrompt.target}
-                isInherited={resolvedEditingPrompt.isInherited}
-                onClose={requestCloseActiveWorkspaceSheet}
-                onSavePrompt={handleSaveEditedPromptInDoc}
-                onSaveGroup={handleSaveEditedGroupInDoc}
-                onDirtyChange={handlePromptDirtyChange}
-              />
+              <Suspense
+                fallback={
+                  <ProgressIndicator
+                    variant="linear"
+                    size="sm"
+                    overlay="top"
+                    ariaLabel="Loading prompt editor"
+                  />
+                }
+              >
+                <LazyPromptEditorSheet
+                  ref={promptEditorSheetRef}
+                  mode={resolvedEditingPrompt.mode}
+                  target={resolvedEditingPrompt.target}
+                  isInherited={resolvedEditingPrompt.isInherited}
+                  onClose={requestCloseActiveWorkspaceSheet}
+                  onSavePrompt={handleSaveEditedPromptInDoc}
+                  onSaveGroup={handleSaveEditedGroupInDoc}
+                  onDirtyChange={handlePromptDirtyChange}
+                />
+              </Suspense>
             </div>
           </section>
         ) : resolvedEditingIntro && matchedActiveCardFull ? (
           <section className="bb-center-column__sheet" aria-label="Greeting editor workspace">
             <div ref={centerSheetSurfaceRef} className="bb-center-column__sheet-surface">
-              <IntroEditorSheet
-                ref={introEditorSheetRef}
-                target={resolvedEditingIntro}
-                scenarioName={matchedActiveCardFull.name || ''}
-                defaultPortraitUrl={
-                  matchedActiveCardFull.thumbnailUrl || matchedActiveCardFull.avatarUrl || null
+              <Suspense
+                fallback={
+                  <ProgressIndicator
+                    variant="linear"
+                    size="sm"
+                    overlay="top"
+                    ariaLabel="Loading greeting editor"
+                  />
                 }
-                fallbackInitials={
-                  matchedActiveCardFull.initials ||
-                  String(matchedActiveCardFull.name || 'CH').slice(0, 2).toUpperCase()
-                }
-                portraitGallery={matchedActiveCardFull.scenarioMeta?.avatarGallery || []}
-                busyPortrait={busyPortrait}
-                onClose={requestCloseActiveWorkspaceSheet}
-                onSave={handleSaveEditedIntro}
-                onDirtyChange={handleIntroDirtyChange}
-                onNavigateIndex={(nextKind, nextIdx) => {
-                  if (nextKind === 'standard') {
-                    setActiveIntroIdx(nextIdx);
+              >
+                <LazyIntroEditorSheet
+                  ref={introEditorSheetRef}
+                  target={resolvedEditingIntro}
+                  scenarioName={matchedActiveCardFull.name || ''}
+                  defaultPortraitUrl={
+                    matchedActiveCardFull.thumbnailUrl || matchedActiveCardFull.avatarUrl || null
                   }
-                  setEditingIntroTarget({
-                    cardId: matchedActiveCardFull.avatar || matchedActiveCardFull.id,
-                    kind: nextKind,
-                    index: nextIdx,
-                  });
-                }}
-                onStartChat={(introPayload) => handleCreateNewChat(introPayload)}
-                onUploadPortraitFile={handleUploadIntroPortrait}
-              />
+                  fallbackInitials={
+                    matchedActiveCardFull.initials ||
+                    String(matchedActiveCardFull.name || 'CH').slice(0, 2).toUpperCase()
+                  }
+                  portraitGallery={matchedActiveCardFull.scenarioMeta?.avatarGallery || []}
+                  busyPortrait={busyPortrait}
+                  onClose={requestCloseActiveWorkspaceSheet}
+                  onSave={handleSaveEditedIntro}
+                  onDirtyChange={handleIntroDirtyChange}
+                  onNavigateIndex={(nextKind, nextIdx) => {
+                    if (nextKind === 'standard') {
+                      setActiveIntroIdx(nextIdx);
+                    }
+                    setEditingIntroTarget({
+                      cardId: matchedActiveCardFull.avatar || matchedActiveCardFull.id,
+                      kind: nextKind,
+                      index: nextIdx,
+                    });
+                  }}
+                  onStartChat={(introPayload) => handleCreateNewChat(introPayload)}
+                  onUploadPortraitFile={handleUploadIntroPortrait}
+                />
+              </Suspense>
             </div>
           </section>
         ) : sheetExpanded && (matchedActiveCardFull || hasActiveScenario) ? (
@@ -6927,6 +7061,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         ) : (
           <ChatViewport
             streamRef={chatStreamRef}
+            composerRef={chatComposerRef}
             isDemoCard={!hasActiveScenario || isDemoCardId(selectedCardId)}
             hasActiveScenario={hasActiveScenario}
             switchingScenario={isSwitchingScenario}
@@ -6978,9 +7113,9 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             onOpenCreatePersonaModal={handleOpenCreatePersonaModal}
             onDuplicatePersona={handleDuplicatePersona}
             onDeletePersona={handleDeletePersona}
-            onClickPersonaBadge={() => handleOpenManagePersonaModal(activePersonaAvatar)}
+            onClickPersonaBadge={handleClickPersonaBadge}
             modelLabel={selectedModelLabel}
-            hubConnections={apiHubState?.connections || []}
+            hubConnections={apiHubState?.connections || EMPTY_ARRAY}
             activeProviderId={apiHubState?.activeConnectionId || apiHubState?.activeProviderId || ''}
             activeModelId={apiHubState?.activeModelId || ''}
             activeModelName={apiHubState?.activeModelName || ''}
@@ -6991,34 +7126,29 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             onRevealHubKey={handleRevealHubKey}
             onPingHubConnections={handlePingHubConnections}
             onFetchHubTelemetry={handleFetchHubTelemetry}
-            hubCustomFamilies={apiHubState?.customFamilies || []}
+            hubCustomFamilies={apiHubState?.customFamilies || EMPTY_ARRAY}
             onAddHubCustomFamily={handleAddHubCustomFamily}
             onDeleteHubCustomFamily={handleDeleteHubCustomFamily}
-            onClickModelBadge={() => setApiModalOpen(true)}
+            onClickModelBadge={handleClickModelBadge}
             characterName={chatDisplayCharacter.name}
             characterAvatarUrl={chatScenarioAvatarUrl}
             characterInitials={chatDisplayCharacter.initials || 'CH'}
             shaderStyle={shaderStyle}
             shaderIntensity={shaderIntensity}
             lowGpu={lowGpu}
-            onSwipeMessage={handleSwipeMessage}
-            onGenerateSwipe={handleGenerateSwipe}
-            onContinueMessage={handleContinueMessage}
-            onDeleteSwipe={handleDeleteSwipe}
-            onSaveEditedMessage={handleSaveEditedMessage}
-            onRemoveMessageAttachment={handleRemoveMessageAttachment}
-            onDeleteMessage={handleDeleteMessage}
-            onDeleteMessagesBatch={handleDeleteMessagesBatch}
-            onCreateBranch={handleCreateBranchAtMessage}
+            onSwipeMessage={stableHandleSwipeMessage}
+            onGenerateSwipe={stableHandleGenerateSwipe}
+            onContinueMessage={stableHandleContinueMessage}
+            onDeleteSwipe={stableHandleDeleteSwipe}
+            onSaveEditedMessage={stableHandleSaveEditedMessage}
+            onRemoveMessageAttachment={stableHandleRemoveMessageAttachment}
+            onDeleteMessage={stableHandleDeleteMessage}
+            onDeleteMessagesBatch={stableHandleDeleteMessagesBatch}
+            onCreateBranch={stableHandleCreateBranchAtMessage}
             onNotify={pushComposerToast}
             composerToasts={composerToasts}
             onDismissComposerToast={dismissComposerToast}
-            draftMsg={draftMsg}
-            onChangeDraftMsg={setDraftMsg}
-            pendingAttachments={pendingAttachments}
-            onAddAttachments={handleAddAttachments}
-            onRemoveAttachment={handleRemoveAttachment}
-            onSendMessage={handleSend}
+            onSendMessage={stableHandleSend}
             isGenerating={isGenerating}
             onStopGeneration={handleStopGeneration}
             consoleStream={consoleStream}
@@ -7029,52 +7159,49 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             }
           />
         )}
-      </main>
+    </>
+  );
 
-      {/* 3. RIGHT TOME (Selected Scenario, Prompts, Media, Extensions) — Full Height Right Side */}
-      {rightOpen && (
-        <aside
-          id="right-nav-panel"
-          className={`bb-tome bb-tome--right ${idleFade ? 'bb-tome--idle-fade' : ''}`}
-          style={{ width: effectiveRightWidth }}
-        >
-          <TomeResizeCurtain
-            side="right"
-            width={effectiveRightWidth}
-            minWidth={MIN_TOME_WIDTH}
-            maxWidth={maxTomeWidth}
-            defaultWidth={DEFAULT_TOME_WIDTH}
-            onChangeWidth={setRightWidth}
-          />
-
-          <BookmarkRibbons
-            tabs={RIGHT_TABS}
-            activeId={rightTab}
-            onChange={setRightTab}
-          />
-
-          <OverlayScrollArea
-            className="bb-tome__body-wrap"
-            viewportClassName="bb-tome__body"
-            disabled={rightTab === 'selected'}
-          >
+  const rightTomeContent = (
+    <>
             {rightTab === 'selected' &&
               (sheetExpanded ? (
-                <AdvancedDefinitionsPanel
-                  card={matchedActiveCardFull}
-                  isDirty={isActiveCardDirty}
-                  saving={cardSaving}
-                  onChangeCardField={characterSheetSharedProps.onChangeCardField}
-                  onSaveCard={handleSaveCardToPng}
-                  onDiscardChanges={handleDiscardCardChanges}
-                  onCollapseExpand={characterSheetSharedProps.onToggleExpand}
-                />
+                <Suspense
+                  fallback={
+                    <ProgressIndicator
+                      variant="linear"
+                      size="sm"
+                      overlay="top"
+                      ariaLabel="Loading advanced definitions"
+                    />
+                  }
+                >
+                  <LazyAdvancedDefinitionsPanel
+                    card={matchedActiveCardFull}
+                    isDirty={isActiveCardDirty}
+                    saving={cardSaving}
+                    onChangeCardField={characterSheetSharedProps.onChangeCardField}
+                    onSaveCard={handleSaveCardToPng}
+                    onDiscardChanges={handleDiscardCardChanges}
+                    onCollapseExpand={characterSheetSharedProps.onToggleExpand}
+                  />
+                </Suspense>
               ) : (
                 <CharacterSheet {...characterSheetSharedProps} isExpanded={false} />
               ))}
 
             {rightTab === 'aiconfig' && (
-              <PresetVaultInspector
+              <Suspense
+                fallback={
+                  <ProgressIndicator
+                    variant="linear"
+                    size="sm"
+                    overlay="top"
+                    ariaLabel="Loading prompt inspector"
+                  />
+                }
+              >
+                <LazyPresetVaultInspector
                 mode="aiconfig"
                 openaiPresets={openaiPresets}
                 activePresets={activePresets}
@@ -7150,7 +7277,8 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                   )
                 }
                 onSelectCharacter={handleSelectCard}
-              />
+                />
+              </Suspense>
             )}
 
             {rightTab === 'media' && (
@@ -7166,82 +7294,103 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             )}
 
             {rightTab === 'extensions' && (
-              <div className="bb-rc-plugins-stack">
-                <StImporterTomePanel
-                  collapsible
-                  defaultOpen={false}
-                  importer={stImporter}
-                />
-                <RecapTomePanel
-                  collapsible
-                  defaultOpen={false}
-                  recap={messageRecap}
-                  tokenContext={promptTokenContext}
-                  savedChatTokens={chatHistoryTokenBreakdown.savedTokens}
-                />
-                <RefusalCatcherManager
-                  collapsible
-                  defaultOpen={false}
-                  enabled={refusalCatcher.enabled}
-                  delayMs={refusalCatcher.delayMs}
-                  bannedPhrases={refusalCatcher.bannedPhrases}
-                  onToggleEnabled={refusalCatcher.handleToggleEnabled}
-                  onAddPhrase={refusalCatcher.handleAddPhrase}
-                  onRemovePhrase={refusalCatcher.handleRemovePhrase}
-                  onReplacePhrases={refusalCatcher.handleReplacePhrases}
-                  fallbackEnabled={refusalCatcher.fallbackEnabled}
-                  fallbackConnectionId={refusalCatcher.fallbackConnectionId}
-                  fallbackModelId={refusalCatcher.fallbackModelId}
-                  onToggleFallbackEnabled={refusalCatcher.handleToggleFallbackEnabled}
-                  onSelectFallbackTarget={refusalCatcher.handleSelectFallbackTarget}
-                  connections={apiHubState?.connections || []}
-                  customFamilies={apiHubState?.customFamilies || []}
-                  onUpdateConnection={handleUpdateHubProvider}
-                  onFetchConnectionModels={handleFetchHubModels}
-                  onDeleteConnection={handleDeleteCustomHubConn}
-                  onRevealConnectionKey={handleRevealHubKey}
-                  onPingConnections={handlePingHubConnections}
-                  onFetchTelemetry={handleFetchHubTelemetry}
-                  onAddCustomFamily={handleAddHubCustomFamily}
-                  onDeleteCustomFamily={handleDeleteHubCustomFamily}
-                  onOpenAddConnection={() => setApiModalOpen(true)}
-                />
-                <RegexTomePanel
-                  collapsible
-                  defaultOpen={false}
-                  workspace={regexWorkspace}
-                  hasActiveScenario={hasActiveScenario}
-                  activeCharacterName={activeCharacter?.name || ''}
-                  activePresetName={activePresets?.openai || 'Default'}
-                  personaName={activePersonaObj?.name || personaName || 'User'}
-                  latestMessageText={
-                    messages.length > 0 ? String(messages[messages.length - 1]?.text || '') : ''
-                  }
-                  onNotify={(message, tone = 'info') => pushToast({ message, tone })}
-                />
-              </div>
+              <Suspense
+                fallback={
+                  <ProgressIndicator
+                    variant="linear"
+                    size="sm"
+                    overlay="top"
+                    ariaLabel="Loading extensions"
+                  />
+                }
+              >
+                <div className="bb-rc-plugins-stack">
+                  <LazyStImporterTomePanel
+                    collapsible
+                    defaultOpen={false}
+                    importer={stImporter}
+                  />
+                  <LazyRecapTomePanel
+                    collapsible
+                    defaultOpen={false}
+                    recap={messageRecap}
+                    tokenContext={promptTokenContext}
+                    savedChatTokens={chatHistoryTokenBreakdown.savedTokens}
+                  />
+                  <LazyRefusalCatcherManager
+                    collapsible
+                    defaultOpen={false}
+                    enabled={refusalCatcher.enabled}
+                    delayMs={refusalCatcher.delayMs}
+                    bannedPhrases={refusalCatcher.bannedPhrases}
+                    onToggleEnabled={refusalCatcher.handleToggleEnabled}
+                    onAddPhrase={refusalCatcher.handleAddPhrase}
+                    onRemovePhrase={refusalCatcher.handleRemovePhrase}
+                    onReplacePhrases={refusalCatcher.handleReplacePhrases}
+                    fallbackEnabled={refusalCatcher.fallbackEnabled}
+                    fallbackConnectionId={refusalCatcher.fallbackConnectionId}
+                    fallbackModelId={refusalCatcher.fallbackModelId}
+                    onToggleFallbackEnabled={refusalCatcher.handleToggleFallbackEnabled}
+                    onSelectFallbackTarget={refusalCatcher.handleSelectFallbackTarget}
+                    connections={apiHubState?.connections || []}
+                    customFamilies={apiHubState?.customFamilies || []}
+                    onUpdateConnection={handleUpdateHubProvider}
+                    onFetchConnectionModels={handleFetchHubModels}
+                    onDeleteConnection={handleDeleteCustomHubConn}
+                    onRevealConnectionKey={handleRevealHubKey}
+                    onPingConnections={handlePingHubConnections}
+                    onFetchTelemetry={handleFetchHubTelemetry}
+                    onAddCustomFamily={handleAddHubCustomFamily}
+                    onDeleteCustomFamily={handleDeleteHubCustomFamily}
+                    onOpenAddConnection={() => setApiModalOpen(true)}
+                  />
+                  <LazyRegexTomePanel
+                    collapsible
+                    defaultOpen={false}
+                    workspace={regexWorkspace}
+                    hasActiveScenario={hasActiveScenario}
+                    activeCharacterName={activeCharacter?.name || ''}
+                    activePresetName={activePresets?.openai || 'Default'}
+                    personaName={activePersonaObj?.name || personaName || 'User'}
+                    latestMessageText={
+                      messages.length > 0 ? String(messages[messages.length - 1]?.text || '') : ''
+                    }
+                    onNotify={(message, tone = 'info') => pushToast({ message, tone })}
+                  />
+                </div>
+              </Suspense>
             )}
-          </OverlayScrollArea>
-        </aside>
-      )}
-      {/* 3. Popup Windows (Modals) */}
-      <WelcomeModal
-        open={welcomeModalOpen && !bootSplashOpen && viewMode === 'tavern'}
-        onClose={markOnboardingDismissed}
-        onStartEmpty={markOnboardingDismissed}
-        onCreatePersona={() => {
-          markOnboardingDismissed();
-          handleOpenCreatePersonaModal();
-        }}
-        importer={stImporter}
-      />
+    </>
+  );
 
-      <ApiHubModal
-        open={apiModalOpen}
-        hubState={apiHubState}
-        onClose={() => setApiModalOpen(false)}
-        onCreateCustomProvider={handleCreateCustomHubConn}
-      />
+  const overlaysContent = (
+    <>
+      {/* 3. Popup Windows (Modals) */}
+      {welcomeModalOpen && !bootSplashOpen && viewMode === 'tavern' && (
+        <Suspense fallback={null}>
+          <LazyWelcomeModal
+            open
+            onClose={markOnboardingDismissed}
+            onStartEmpty={markOnboardingDismissed}
+            onCreatePersona={() => {
+              markOnboardingDismissed();
+              handleOpenCreatePersonaModal();
+            }}
+            importer={stImporter}
+          />
+        </Suspense>
+      )}
+
+      {apiModalOpen && (
+        <Suspense fallback={null}>
+          <LazyApiHubModal
+            open
+            hubState={apiHubState}
+            onClose={() => setApiModalOpen(false)}
+            onCreateCustomProvider={handleCreateCustomHubConn}
+          />
+        </Suspense>
+      )}
 
       <Modal
         open={qrModalOpen}
@@ -7782,7 +7931,35 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         stepLabel={bootStage.stepLabel}
         lowGpu={lowGpu}
       />
-    </div>
+    </>
+  );
+
+  return (
+    <WorkspaceLayout
+      idleFade={idleFade}
+      minTomeWidth={MIN_TOME_WIDTH}
+      maxTomeWidth={maxTomeWidth}
+      defaultTomeWidth={DEFAULT_TOME_WIDTH}
+      leftOpen={leftOpen}
+      leftWidth={effectiveLeftWidth}
+      onChangeLeftWidth={setLeftWidth}
+      leftTabs={LEFT_TABS}
+      leftTab={leftTab}
+      onChangeLeftTab={setLeftTab}
+      leftScrollDisabled={leftTab === 'characters' || leftTab === 'chats'}
+      leftContent={leftTomeContent}
+      rightOpen={rightOpen}
+      rightWidth={effectiveRightWidth}
+      onChangeRightWidth={setRightWidth}
+      rightTabs={RIGHT_TABS}
+      rightTab={rightTab}
+      onChangeRightTab={setRightTab}
+      rightScrollDisabled={rightTab === 'selected'}
+      rightContent={rightTomeContent}
+      overlays={overlaysContent}
+    >
+      {centerContent}
+    </WorkspaceLayout>
   );
 }
 

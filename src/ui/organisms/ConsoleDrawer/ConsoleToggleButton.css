@@ -1,0 +1,42 @@
+/* --- Console Toggle Trigger Button (Right of ConnectionModelPicker in Composer) --- */
+.bb-console-toggle-btn {
+  position: relative;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 6px;
+  margin: 0;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  font-family: var(--bb-font-heading);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  transition: color 140ms ease, opacity 140ms ease;
+}
+
+.bb-console-toggle-btn--icon-only {
+  width: 30px;
+  padding: 0;
+}
+
+.bb-console-toggle-btn:hover {
+  background: transparent;
+  border: none;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}
+
+.bb-console-toggle-btn.is-active {
+  background: transparent;
+  border: none;
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+}

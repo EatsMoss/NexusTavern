@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      '@app': path.resolve(__dirname, 'src/app'),
       '@ui': path.resolve(__dirname, 'src/ui'),
       '@core': path.resolve(__dirname, 'src/core'),
       '@features': path.resolve(__dirname, 'src/features'),
@@ -40,5 +41,46 @@ export default defineConfig({
     outDir: 'dist',
     target: 'es2020',
     sourcemap: false,
+    rollupOptions: {
+      treeshake: {
+        moduleSideEffects: (id) => id.endsWith('.css'),
+      },
+      output: {
+        manualChunks(id) {
+          const norm = id.replace(/\\/g, '/');
+          if (norm.includes('/node_modules/')) {
+            if (
+              norm.includes('/node_modules/react/') ||
+              norm.includes('/node_modules/react-dom/') ||
+              norm.includes('/node_modules/scheduler/')
+            ) {
+              return 'vendor-react';
+            }
+            return 'vendor-utils';
+          }
+          if (norm.includes('/src/ui/atoms/')) {
+            return 'ui-atoms';
+          }
+          if (norm.includes('/src/ui/molecules/') && !norm.includes('emojiCatalog')) {
+            return 'ui-molecules';
+          }
+          if (
+            (norm.includes('/src/features/characters/CharacterSheet/') &&
+              !norm.includes('IntroEditorSheet') &&
+              !norm.includes('AdvancedDefinitionsPanel')) ||
+            norm.includes('/src/features/characters/CharacterGallery') ||
+            norm.includes('/src/features/characters/CharacterTome') ||
+            norm.includes('/src/features/characters/PinnedSection') ||
+            norm.includes('/src/features/characters/FolderPopover')
+          ) {
+            return 'feature-characters';
+          }
+          if (norm.includes('/src/features/chat/')) {
+            return 'feature-chat';
+          }
+          return undefined;
+        },
+      },
+    },
   },
 });

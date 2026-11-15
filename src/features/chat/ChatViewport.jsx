@@ -1,4 +1,13 @@
-import React, { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useState,
+  useRef,
+  useLayoutEffect,
+  useEffect,
+  useCallback,
+  useMemo,
+  lazy,
+  Suspense,
+} from 'react';
 import {
   Icon,
   BrandLogo,
@@ -11,21 +20,28 @@ import {
   Modal,
   PearlescentShader,
   ChatMessageCard,
-  TimelineTree,
   ScrollIndicator,
-  ConnectionModelPicker,
-  PersonaPicker,
   EmojiPicker,
-  AttachmentTray,
   ToastStack,
-  ConsoleDrawer,
-  ConsoleToggleButton,
 } from '@ui/index.js';
 import { useViewport } from '@core/hooks/useViewport.js';
 import { buildTimelineForest } from '@core/chats/timelineForest.js';
 import { postClientConsoleLog } from '@core/system/consoleApi.js';
 import { useConsoleStream } from './useConsoleStream.js';
+import { ChatComposer } from './ChatComposer.jsx';
 import './ChatViewport.css';
+
+const LazyTimelineTree = lazy(() =>
+  import('@ui/organisms/TimelineTree/TimelineTree.jsx').then((m) => ({
+    default: m.TimelineTree,
+  })),
+);
+
+const LazyConsoleDrawer = lazy(() =>
+  import('@ui/organisms/ConsoleDrawer/ConsoleDrawer.jsx').then((m) => ({
+    default: m.ConsoleDrawer,
+  })),
+);
 
 function parseEmbeddedChatTimestamp(fileName = '') {
   const m = String(fileName).match(
@@ -124,20 +140,10 @@ function parseChatTitleAndBranch(fileName = '') {
 
 const CHAT_LIST_BATCH_SIZE = 30;
 const CHAT_LIST_BOTTOM_THRESHOLD_PX = 160;
-const ENTER_TO_SEND_STORAGE_KEY = 'nexustavern_enter_to_send_v1';
-
-function loadEnterToSendPref() {
-  try {
-    const raw = localStorage.getItem(ENTER_TO_SEND_STORAGE_KEY);
-    if (raw === null) return true;
-    return raw !== 'false';
-  } catch {
-    return true;
-  }
-}
 
 export function ChatViewport({
   streamRef,
+  composerRef,
   isDemoCard = false,
   chatListOpen = false,
   timelinesOpen = false,
@@ -214,11 +220,6 @@ export function ChatViewport({
   onNotify,
   composerToasts = [],
   onDismissComposerToast,
-  draftMsg = '',
-  onChangeDraftMsg,
-  pendingAttachments = [],
-  onAddAttachments,
-  onRemoveAttachment,
   onSendMessage,
   isGenerating = false,
   onStopGeneration,
@@ -232,13 +233,12 @@ export function ChatViewport({
   const { isMobile } = useViewport();
   const internalStreamRef = useRef(null);
   const resolvedStreamRef = streamRef || internalStreamRef;
+  const internalComposerRef = useRef(null);
+  const resolvedComposerRef = composerRef || internalComposerRef;
   const streamTrackRef = useRef(null);
   const chatListScrollRef = useRef(null);
   const chatListLoadGateRef = useRef(false);
-  const textareaRef = useRef(null);
   const composerEmojiBtnRef = useRef(null);
-  const attachFileInputRef = useRef(null);
-  const composerSelectionRef = useRef(null);
 
   const [composerEmojiOpen, setComposerEmojiOpen] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
@@ -250,8 +250,6 @@ export function ChatViewport({
     clearLogs: clearConsoleLogs,
   } = activeConsoleStream;
   const prevLoggedChatKeyRef = useRef('');
-  const [composerDragOver, setComposerDragOver] = useState(false);
-  const composerDragCounterRef = useRef(0);
   const [visibleChatsLimit, setVisibleChatsLimit] = useState(CHAT_LIST_BATCH_SIZE);
   const [chatMultiSelectActive, setChatMultiSelectActive] = useState(false);
   const [selectedChatFiles, setSelectedChatFiles] = useState([]);
@@ -269,7 +267,6 @@ export function ChatViewport({
   });
   const [msgDeleteConfirm, setMsgDeleteConfirm] = useState(null); // number[] | null
   const [deletingMsgs, setDeletingMsgs] = useState(false);
-  const [enterToSend, setEnterToSend] = useState(() => loadEnterToSendPref());
   const [branchingAtIndex, setBranchingAtIndex] = useState(null);
   const branchSettleTimerRef = useRef(null);
   const branchSlideAnchorRef = useRef(null);
@@ -781,172 +778,39 @@ export function ChatViewport({
     setScrolledUnderBottom(false);
   }, [resolvedStreamRef]);
 
-  useLayoutEffect(() => {
-    if (!draftMsg && textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-  }, [draftMsg]);
+  const handleCloseComposerEmoji = useCallback(() => {
+    setComposerEmojiOpen(false);
+  }, []);
 
-  const captureComposerSelection = useCallback(() => {
-    const ta = textareaRef.current;
-    if (ta && document.activeElement === ta) {
-      const sel = {
-        start: ta.selectionStart ?? draftMsg.length,
-        end: ta.selectionEnd ?? draftMsg.length,
-      };
-      composerSelectionRef.current = sel;
-      return sel;
-    }
-    if (composerSelectionRef.current) {
-      return {
-        start: Math.min(composerSelectionRef.current.start, draftMsg.length),
-        end: Math.min(composerSelectionRef.current.end, draftMsg.length),
-      };
-    }
-    return { start: draftMsg.length, end: draftMsg.length };
-  }, [draftMsg.length]);
-
-  const handleTextareaChange = (e) => {
-    const val = e.target.value;
-    composerSelectionRef.current = {
-      start: e.target.selectionStart ?? val.length,
-      end: e.target.selectionEnd ?? val.length,
-    };
-    if (onChangeDraftMsg) {
-      onChangeDraftMsg(val);
-    }
-    const ta = textareaRef.current;
-    if (ta) {
-      ta.style.height = 'auto';
-      ta.style.height = `${Math.min(160, ta.scrollHeight)}px`;
-    }
-  };
+  const handleToggleComposerEmoji = useCallback(() => {
+    setComposerEmojiOpen((prev) => {
+      if (!prev) {
+        resolvedComposerRef.current?.captureSelection?.();
+        if (isMobile) {
+          resolvedComposerRef.current?.blurInput?.();
+          setConsoleOpen(false);
+        }
+        return true;
+      }
+      if (isMobile) {
+        window.requestAnimationFrame(() => {
+          resolvedComposerRef.current?.focusKeyboard?.();
+        });
+      }
+      return false;
+    });
+  }, [isMobile, resolvedComposerRef]);
 
   const handleInsertComposerEmoji = useCallback(
     (emoji) => {
-      const { start, end } = captureComposerSelection();
-      const next = `${draftMsg.slice(0, start)}${emoji}${draftMsg.slice(end)}`;
-      const cursor = start + emoji.length;
-      composerSelectionRef.current = { start: cursor, end: cursor };
-      onChangeDraftMsg?.(next);
-
-      window.requestAnimationFrame(() => {
-        const ta = textareaRef.current;
-        if (!ta) return;
-        ta.style.height = 'auto';
-        ta.style.height = `${Math.min(160, ta.scrollHeight)}px`;
-        const searchActive =
-          document.activeElement &&
-          document.activeElement.classList?.contains('bb-emoji-picker__search-input');
-        if (!isMobile && !searchActive) {
-          ta.focus();
-          ta.setSelectionRange(cursor, cursor);
-        }
-      });
+      resolvedComposerRef.current?.insertEmoji?.(emoji);
     },
-    [captureComposerSelection, draftMsg, isMobile, onChangeDraftMsg],
+    [resolvedComposerRef],
   );
 
   const handleFocusComposerKeyboard = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const sel = composerSelectionRef.current || {
-      start: draftMsg.length,
-      end: draftMsg.length,
-    };
-    const start = Math.min(sel.start, draftMsg.length);
-    const end = Math.min(sel.end, draftMsg.length);
-    ta.focus();
-    ta.setSelectionRange(start, end);
-  }, [draftMsg.length]);
-
-  const handleFileInputChange = (e) => {
-    const files = e.target.files;
-    if (files && files.length > 0 && onAddAttachments) {
-      onAddAttachments(files);
-    }
-    e.target.value = '';
-  };
-
-  const handleTextareaPaste = (e) => {
-    if (!hasActiveScenario || !onAddAttachments) return;
-    const items = e.clipboardData?.items;
-    const files = [];
-    if (items && items.length > 0) {
-      for (let i = 0; i < items.length; i += 1) {
-        const item = items[i];
-        if (item.kind === 'file') {
-          const file = item.getAsFile();
-          if (file) files.push(file);
-        }
-      }
-    } else if (e.clipboardData?.files?.length > 0) {
-      files.push(...Array.from(e.clipboardData.files));
-    }
-    if (files.length > 0) {
-      // Only prevent default if clipboard contains no plain text alongside the pasted file/screenshot
-      const plainText = e.clipboardData?.getData('text/plain') || '';
-      if (!plainText) {
-        e.preventDefault();
-      }
-      onAddAttachments(files);
-    }
-  };
-
-  const hasDraggedFiles = (e) =>
-    Array.from(e.dataTransfer?.types || []).includes('Files');
-
-  const handleComposerDragEnter = (e) => {
-    if (!hasActiveScenario || !onAddAttachments || !hasDraggedFiles(e)) return;
-    e.preventDefault();
-    composerDragCounterRef.current += 1;
-    setComposerDragOver(true);
-  };
-
-  const handleComposerDragOver = (e) => {
-    if (!hasActiveScenario || !onAddAttachments || !hasDraggedFiles(e)) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    if (!composerDragOver) setComposerDragOver(true);
-  };
-
-  const handleComposerDragLeave = (e) => {
-    if (!hasDraggedFiles(e)) return;
-    composerDragCounterRef.current = Math.max(0, composerDragCounterRef.current - 1);
-    if (composerDragCounterRef.current === 0) {
-      setComposerDragOver(false);
-    }
-  };
-
-  const handleComposerDrop = (e) => {
-    composerDragCounterRef.current = 0;
-    setComposerDragOver(false);
-    if (!hasActiveScenario || !onAddAttachments) return;
-    const dropped = e.dataTransfer?.files;
-    if (dropped && dropped.length > 0) {
-      e.preventDefault();
-      e.stopPropagation();
-      onAddAttachments(dropped);
-    }
-  };
-
-  const handleToggleComposerEmoji = () => {
-    if (!composerEmojiOpen) {
-      captureComposerSelection();
-      if (isMobile) {
-        textareaRef.current?.blur();
-        setConsoleOpen(false);
-      }
-      setComposerEmojiOpen(true);
-    } else {
-      setComposerEmojiOpen(false);
-      if (isMobile) {
-        window.requestAnimationFrame(() => {
-          handleFocusComposerKeyboard();
-        });
-      }
-    }
-  };
+    resolvedComposerRef.current?.focusKeyboard?.();
+  }, [resolvedComposerRef]);
 
   const handleToggleConsole = useCallback(() => {
     const streamEl = resolvedStreamRef.current;
@@ -956,7 +820,7 @@ export function ChatViewport({
 
     setConsoleOpen((prev) => {
       const next = !prev;
-      if (next && isMobile && composerEmojiOpen) {
+      if (next && isMobile) {
         setComposerEmojiOpen(false);
       }
       if (next && wasNearBottom && streamEl) {
@@ -968,7 +832,7 @@ export function ChatViewport({
       }
       return next;
     });
-  }, [isMobile, composerEmojiOpen, resolvedStreamRef]);
+  }, [isMobile, resolvedStreamRef]);
 
   useEffect(() => {
     if (!hasActiveScenario || !activeChatFile || switchingScenario) return;
@@ -987,41 +851,6 @@ export function ChatViewport({
       summary: `Scenario: ${characterName || 'Character'}`,
     }).catch(() => {});
   }, [hasActiveScenario, activeChatFile, characterName, switchingScenario]);
-
-  const handleToggleEnterToSend = useCallback(() => {
-    setEnterToSend((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(ENTER_TO_SEND_STORAGE_KEY, String(next));
-      } catch {
-        // ignore
-      }
-      return next;
-    });
-  }, []);
-
-  const handleTextareaKeyDown = (e) => {
-    if (e.key === 'Escape' && isGenerating && onStopGeneration) {
-      e.preventDefault();
-      onStopGeneration();
-      return;
-    }
-    if (e.key === 'Enter') {
-      const shouldSend = enterToSend
-        ? !e.shiftKey
-        : Boolean(e.ctrlKey || e.metaKey);
-      if (shouldSend) {
-        e.preventDefault();
-        if (isGenerating) return;
-        if (onSendMessage) {
-          onSendMessage(e);
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-          }
-        }
-      }
-    }
-  };
 
   useEffect(() => {
     if (!isGenerating || !onStopGeneration) return undefined;
@@ -1096,20 +925,6 @@ export function ChatViewport({
     onSwipeMessage,
     onGenerateSwipe,
   ]);
-
-  const handleFormSubmit = (e) => {
-    if (isGenerating) {
-      e.preventDefault();
-      if (onStopGeneration) onStopGeneration();
-      return;
-    }
-    if (onSendMessage) {
-      onSendMessage(e);
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
-    }
-  };
 
   const sortedChatFiles = useMemo(() => {
     if (!Array.isArray(chatFiles) || chatFiles.length === 0) return [];
@@ -1293,12 +1108,24 @@ export function ChatViewport({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [msgMultiSelectActive, msgDeleteConfirm, handleExitMsgMultiSelect]);
 
+  const isGeneratingRef = useRef(isGenerating);
+  isGeneratingRef.current = isGenerating;
+
   const handleEnterMsgMultiSelect = useCallback((mIdx) => {
-    if (!Number.isInteger(mIdx)) return;
+    if (isGeneratingRef.current || !Number.isInteger(mIdx)) return;
     setMsgMultiSelectActive(true);
     setSelectedMsgIndices([mIdx]);
     setLastMsgSelectClick({ index: mIdx, selected: true });
   }, []);
+
+  const handleDeleteSingleMessage = useCallback(
+    (mIdx) => {
+      if (onDeleteMessage) {
+        onDeleteMessage(mIdx, false);
+      }
+    },
+    [onDeleteMessage],
+  );
 
   const handleToggleMsgMultiSelect = useCallback(
     (mIdx, { shiftKey = false } = {}) => {
@@ -1491,22 +1318,33 @@ export function ChatViewport({
           }}
           aria-hidden={!timelinesOpen}
         >
-          <TimelineTree
-            chats={allTimelineChats}
-            activeChatFile={activeChatFile}
-            focusRequest={focusedTimelineRequest}
-            onFocusChange={onTimelineFocusChange}
-            loading={loadingTimelines}
-            characterName={characterName}
-            characterAvatarUrl={characterAvatarUrl}
-            characterInitials={characterInitials}
-            defaultPersonaName={personaName}
-            defaultPersonaAvatarUrl={personaAvatarUrl}
-            shaderStyle={shaderStyle}
-            shaderIntensity={shaderIntensity}
-            lowGpu={lowGpu}
-            onSelectChatFile={onSelectChatFile}
-          />
+          <Suspense
+            fallback={
+              <ProgressIndicator
+                variant="linear"
+                size="sm"
+                overlay="top"
+                ariaLabel="Loading timeline graph"
+              />
+            }
+          >
+            <LazyTimelineTree
+              chats={allTimelineChats}
+              activeChatFile={activeChatFile}
+              focusRequest={focusedTimelineRequest}
+              onFocusChange={onTimelineFocusChange}
+              loading={loadingTimelines}
+              characterName={characterName}
+              characterAvatarUrl={characterAvatarUrl}
+              characterInitials={characterInitials}
+              defaultPersonaName={personaName}
+              defaultPersonaAvatarUrl={personaAvatarUrl}
+              shaderStyle={shaderStyle}
+              shaderIntensity={shaderIntensity}
+              lowGpu={lowGpu}
+              onSelectChatFile={onSelectChatFile}
+            />
+          </Suspense>
         </div>
       )}
 
@@ -1595,27 +1433,27 @@ export function ChatViewport({
         ) : (
         messages.map((mes, idx) => {
           const isLast = idx === messages.length - 1;
-          const bodyText =
-            mes.swipes && !activeChatFile
-              ? mes.swipes[demoSwipeIdx % mes.swipes.length]
-              : mes.text;
-          const totalSwipes =
-            mes.swipes && !activeChatFile
-              ? mes.swipes.length
-              : mes.swipeCount || 1;
-          const currentSwipeIdx =
-            mes.swipes && !activeChatFile
-              ? demoSwipeIdx % mes.swipes.length
-              : mes.swipeId || 0;
+          const isDemoSwipes = Boolean(mes.swipes && !activeChatFile);
+          const resolvedIdx = mes.index !== undefined ? mes.index : idx;
+          const totalSwipes = isDemoSwipes ? mes.swipes.length : mes.swipeCount || 1;
+          const currentSwipeIdx = isDemoSwipes
+            ? demoSwipeIdx % mes.swipes.length
+            : mes.swipeId || 0;
           const hasActions = Boolean(activeChatFile && mes.index !== undefined);
 
-          const normalizedMessage = {
-            ...mes,
-            index: mes.index !== undefined ? mes.index : idx,
-            text: bodyText,
-            swipeId: currentSwipeIdx,
-            swipeCount: totalSwipes,
-          };
+          const normalizedMessage =
+            !isDemoSwipes &&
+            mes.index === resolvedIdx &&
+            (mes.swipeId ?? 0) === currentSwipeIdx &&
+            (mes.swipeCount ?? 1) === totalSwipes
+              ? mes
+              : {
+                  ...mes,
+                  index: resolvedIdx,
+                  text: isDemoSwipes ? mes.swipes[currentSwipeIdx] : mes.text,
+                  swipeId: currentSwipeIdx,
+                  swipeCount: totalSwipes,
+                };
 
           const messageDepth = Math.max(0, messages.length - 1 - idx);
           const cardElement = (
@@ -1636,11 +1474,7 @@ export function ChatViewport({
               onDeleteSwipe={hasActions ? onDeleteSwipe : undefined}
               onSaveEdit={hasActions ? onSaveEditedMessage : undefined}
               onRemoveAttachment={onRemoveMessageAttachment}
-              onDelete={
-                hasActions && onDeleteMessage
-                  ? (mIdx) => onDeleteMessage(mIdx, false)
-                  : undefined
-              }
+              onDelete={hasActions && onDeleteMessage ? handleDeleteSingleMessage : undefined}
               onCreateBranch={
                 onCreateBranch ? handleTriggerCreateBranch : undefined
               }
@@ -1653,7 +1487,7 @@ export function ChatViewport({
               multiSelectActive={msgMultiSelectActive && hasActions}
               multiSelected={selectedMsgSet.has(normalizedMessage.index)}
               onEnterMultiSelect={
-                hasActions && (onDeleteMessagesBatch || onDeleteMessage) && !isGenerating
+                hasActions && (onDeleteMessagesBatch || onDeleteMessage)
                   ? handleEnterMsgMultiSelect
                   : undefined
               }
@@ -1747,229 +1581,67 @@ export function ChatViewport({
         />
       </div>
 
-      <form
-        className={`bb-chat-viewport__composer ${
-          composerDragOver ? 'is-drag-over' : ''
-        }`.trim()}
-        onSubmit={handleFormSubmit}
-        onDragEnter={handleComposerDragEnter}
-        onDragOver={handleComposerDragOver}
-        onDragLeave={handleComposerDragLeave}
-        onDrop={handleComposerDrop}
-      >
-        <input
-          ref={attachFileInputRef}
-          type="file"
-          multiple
-          hidden
-          aria-hidden="true"
-          tabIndex={-1}
-          onChange={handleFileInputChange}
-        />
-        {composerDragOver && (
-          <div className="bb-chat-viewport__drop-hint" aria-hidden="true">
-            <Icon name="paperclip" size={16} />
-            <span>Drop files or images to attach</span>
-          </div>
-        )}
-        <AttachmentTray items={pendingAttachments} onRemove={onRemoveAttachment} />
-        <div className="bb-chat-viewport__composer-row">
-          <Button
-            type="button"
-            variant="b2"
-            size="lg"
-            borderless
-            active={pendingAttachments.length > 0}
-            disabled={!hasActiveScenario}
-            icon="paperclip"
-            title="Attach files or images (or paste / drag & drop)"
-            aria-label="Attach files or images"
-            className="bb-chat-viewport__composer-icon-btn"
-            onClick={() => attachFileInputRef.current?.click()}
-          />
-          <div className="bb-chat-viewport__input-stage">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={draftMsg}
-              disabled={!hasActiveScenario}
-              onChange={handleTextareaChange}
-              onPaste={handleTextareaPaste}
-              onSelect={captureComposerSelection}
-              onKeyUp={captureComposerSelection}
-              onMouseUp={captureComposerSelection}
-              onFocus={() => {
-                if (isMobile && composerEmojiOpen) {
-                  setComposerEmojiOpen(false);
-                }
-              }}
-              onKeyDown={handleTextareaKeyDown}
-              placeholder=""
-              aria-label={`Write a message to ${characterName}`}
-              className="bb-chat-viewport__textarea bb-scrollbar--hidden"
-            />
-            <ScrollIndicator
-              scrollRef={textareaRef}
-              variant="compact"
-              watchValue={draftMsg}
-            />
-            {!draftMsg && (
-              <div className="bb-chat-viewport__placeholder" aria-hidden="true">
-                <span className="bb-chat-viewport__placeholder-text">
-                  {!hasActiveScenario
-                    ? 'Select or create a scenario card to begin...'
-                    : isGenerating
-                      ? `${characterName} is responding... (Press Esc or Stop to halt)`
-                      : enterToSend
-                        ? `Write a message to ${characterName}... (Enter to send, Shift+Enter for new line)`
-                        : `Write a message to ${characterName}... (Ctrl+Enter to send, Enter for new line)`}
-                </span>
-                {!isGenerating && (
-                  <button
-                    type="button"
-                    className={`bb-chat-viewport__send-mode-btn ${
-                      !enterToSend ? 'is-newline-mode' : ''
-                    }`.trim()}
-                    title={
-                      enterToSend
-                        ? 'Enter to send is ON • Click to switch Enter to new line'
-                        : 'Enter to send is OFF (Enter = new line, Ctrl+Enter = send) • Click to enable Enter to send'
-                    }
-                    aria-label="Toggle Enter to send"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={handleToggleEnterToSend}
-                  >
-                    <Icon name="shuffle" size={13} />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="bb-chat-viewport__composer-actions">
-            <Button
-              ref={composerEmojiBtnRef}
-              type="button"
-              variant="b2"
-              size="lg"
-              borderless
-              active={composerEmojiOpen}
-              disabled={!hasActiveScenario}
-              icon={isMobile && composerEmojiOpen ? 'keyboard' : 'smile'}
-              title={
-                isMobile && composerEmojiOpen
-                  ? 'Switch back to keyboard'
-                  : 'Insert emoji'
-              }
-              aria-label={
-                isMobile && composerEmojiOpen
-                  ? 'Switch back to keyboard'
-                  : 'Insert emoji'
-              }
-              className="bb-chat-viewport__composer-icon-btn"
-              onMouseDown={(e) => {
-                // Keep caret offsets intact before toggling
-                captureComposerSelection();
-                if (!isMobile) e.preventDefault();
-              }}
-              onClick={handleToggleComposerEmoji}
-            />
-            {isGenerating ? (
-              <Button
-                key="composer-stop"
-                type="button"
-                variant="b2"
-                size="lg"
-                borderless
-                icon="stop"
-                title="Stop generation (Esc)"
-                aria-label="Stop generation"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onStopGeneration?.();
-                }}
-              />
-            ) : (
-              <Button
-                key="composer-send"
-                type="submit"
-                variant="b2"
-                size="lg"
-                borderless
-                disabled={!hasActiveScenario}
-                icon="send"
-                title={
-                  draftMsg.trim() || pendingAttachments.length > 0
-                    ? 'Send message (Enter)'
-                    : `Generate ${characterName}'s reply`
-                }
-                aria-label="Send message"
-              />
-            )}
-          </div>
-        </div>
-
-        <div className="bb-chat-viewport__composer-chips">
-          <div className="bb-chat-viewport__composer-chips-left">
-            <ConnectionModelPicker
-              connections={hubConnections}
-              customFamilies={hubCustomFamilies}
-              activeConnectionId={activeProviderId}
-              activeModelId={activeModelId}
-              activeModelName={activeModelName || modelLabel}
-              placement="top"
-              onSelectConnection={onSelectHubModel}
-              onUpdateConnection={onUpdateHubConnection}
-              onFetchConnectionModels={onFetchHubModels}
-              onDeleteConnection={onDeleteHubConnection}
-              onRevealConnectionKey={onRevealHubKey}
-              onPingConnections={onPingHubConnections}
-              onFetchTelemetry={onFetchHubTelemetry}
-              onAddCustomFamily={onAddHubCustomFamily}
-              onDeleteCustomFamily={onDeleteHubCustomFamily}
-              onOpenAddConnection={onClickModelBadge}
-            />
-
-            <ConsoleToggleButton
-              open={consoleOpen}
-              onClick={handleToggleConsole}
-              title={
-                consoleOpen
-                  ? 'Hide live output console'
-                  : 'Open live output console (prompts, LLM outputs & workspace logs)'
-              }
-            />
-          </div>
-
-          <PersonaPicker
-            personas={personas}
-            activePersonaAvatar={activePersonaAvatar}
-            personaName={personaName}
-            personaAvatarUrl={personaAvatarUrl}
-            cards={cards}
-            groups={groups}
-            activeCharacter={activeCharacter}
-            hasUserMessages={hasUserMessages}
-            userMessageCount={userMessageCount}
-            disabled={isGenerating}
-            onSelectPersona={onSelectPersona}
-            onConfirmReplacePersonaInChat={onConfirmReplacePersonaInChat}
-            onToggleBindActiveCharacter={onToggleBindPersonaToActiveCard}
-            onOpenManageModal={onOpenManagePersonaModal || onClickPersonaBadge}
-            onOpenCreateModal={onOpenCreatePersonaModal || onClickPersonaBadge}
-            onDuplicatePersona={onDuplicatePersona}
-            onDeletePersona={onDeletePersona}
-          />
-        </div>
-      </form>
-
-      <ConsoleDrawer
-        open={consoleOpen && !chatListOpen && !timelinesOpen}
-        entries={consoleEntries}
-        connected={consoleConnected}
-        onClear={clearConsoleLogs}
-        onClose={() => setConsoleOpen(false)}
+      <ChatComposer
+        ref={resolvedComposerRef}
+        hasActiveScenario={hasActiveScenario}
+        isGenerating={isGenerating}
+        switchingScenario={switchingScenario}
+        loadingChat={loadingChat}
+        characterName={characterName}
+        isMobile={isMobile}
+        emojiOpen={composerEmojiOpen}
+        emojiBtnRef={composerEmojiBtnRef}
+        onToggleEmoji={handleToggleComposerEmoji}
+        onCloseEmoji={handleCloseComposerEmoji}
+        consoleOpen={consoleOpen}
+        onToggleConsole={handleToggleConsole}
+        onSendMessage={onSendMessage}
+        onStopGeneration={onStopGeneration}
+        modelLabel={modelLabel}
+        hubConnections={hubConnections}
+        hubCustomFamilies={hubCustomFamilies}
+        activeProviderId={activeProviderId}
+        activeModelId={activeModelId}
+        activeModelName={activeModelName}
+        onSelectHubModel={onSelectHubModel}
+        onUpdateHubConnection={onUpdateHubConnection}
+        onFetchHubModels={onFetchHubModels}
+        onDeleteHubConnection={onDeleteHubConnection}
+        onRevealHubKey={onRevealHubKey}
+        onPingHubConnections={onPingHubConnections}
+        onFetchHubTelemetry={onFetchHubTelemetry}
+        onAddHubCustomFamily={onAddHubCustomFamily}
+        onDeleteHubCustomFamily={onDeleteHubCustomFamily}
+        onClickModelBadge={onClickModelBadge}
+        personas={personas}
+        activePersonaAvatar={activePersonaAvatar}
+        personaName={personaName}
+        personaAvatarUrl={personaAvatarUrl}
+        cards={cards}
+        groups={groups}
+        activeCharacter={activeCharacter}
+        hasUserMessages={hasUserMessages}
+        userMessageCount={userMessageCount}
+        onSelectPersona={onSelectPersona}
+        onConfirmReplacePersonaInChat={onConfirmReplacePersonaInChat}
+        onToggleBindPersonaToActiveCard={onToggleBindPersonaToActiveCard}
+        onOpenManagePersonaModal={onOpenManagePersonaModal}
+        onOpenCreatePersonaModal={onOpenCreatePersonaModal}
+        onDuplicatePersona={onDuplicatePersona}
+        onDeletePersona={onDeletePersona}
+        onClickPersonaBadge={onClickPersonaBadge}
       />
+      {consoleOpen && !chatListOpen && !timelinesOpen && (
+        <Suspense fallback={null}>
+          <LazyConsoleDrawer
+            open
+            entries={consoleEntries}
+            connected={consoleConnected}
+            onClear={clearConsoleLogs}
+            onClose={() => setConsoleOpen(false)}
+          />
+        </Suspense>
+      )}
 
       <EmojiPicker
         open={composerEmojiOpen}

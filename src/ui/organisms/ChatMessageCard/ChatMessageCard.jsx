@@ -3,7 +3,9 @@ import React, {
   useEffect,
   useLayoutEffect,
   useRef,
+  useCallback,
   useSyncExternalStore,
+  memo,
 } from 'react';
 import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { Button } from '../../atoms/Button/Button.jsx';
@@ -88,7 +90,7 @@ function formatTimerBadge(durationMs, tokens) {
   return `${secStr}s`;
 }
 
-export function ChatMessageCard({
+function ChatMessageCardInner({
   message,
   chatScopeKey = '',
   depth = 0,
@@ -472,11 +474,15 @@ export function ChatMessageCard({
     setIsEditing(false);
   };
 
-  const handleQuickSaveRecap = async (nextRecapText) => {
-    if (!onSaveEdit) return false;
-    const updatedRawText = replaceRecapBlockInRawText(message?.text || '', nextRecapText);
-    return onSaveEdit(message.index, updatedRawText, false, message?.reasoning || '');
-  };
+  const latestSaveRecapCtxRef = useRef({ message, onSaveEdit });
+  latestSaveRecapCtxRef.current = { message, onSaveEdit };
+
+  const handleQuickSaveRecap = useCallback(async (nextRecapText) => {
+    const { message: curMsg, onSaveEdit: curSave } = latestSaveRecapCtxRef.current;
+    if (!curSave || !curMsg) return false;
+    const updatedRawText = replaceRecapBlockInRawText(curMsg.text || '', nextRecapText);
+    return curSave(curMsg.index, updatedRawText, false, curMsg.reasoning || '');
+  }, []);
 
   const kebabItems = [
     {
@@ -1046,4 +1052,64 @@ export function ChatMessageCard({
     </article>
   );
 }
+
+function areMessagesEquivalent(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.id === b.id &&
+    a.index === b.index &&
+    a.text === b.text &&
+    a.reasoning === b.reasoning &&
+    a.reasoningDurationMs === b.reasoningDurationMs &&
+    Boolean(a.isStreaming) === Boolean(b.isStreaming) &&
+    (a.streamPhase || null) === (b.streamPhase || null) &&
+    Boolean(a.streamStalled) === Boolean(b.streamStalled) &&
+    (a.swipeId ?? 0) === (b.swipeId ?? 0) &&
+    (a.swipeCount ?? 1) === (b.swipeCount ?? 1) &&
+    a.tokens === b.tokens &&
+    a.durationMs === b.durationMs &&
+    a.api === b.api &&
+    a.model === b.model &&
+    a.fallbackInfo === b.fallbackInfo &&
+    a.sender === b.sender &&
+    a.time === b.time &&
+    Boolean(a.isUser) === Boolean(b.isUser) &&
+    a.userAvatarUrl === b.userAvatarUrl &&
+    Boolean(a.userAvatarMissing) === Boolean(b.userAvatarMissing) &&
+    a.attachments === b.attachments
+  );
+}
+
+function areChatMessageCardPropsEqual(prev, next) {
+  return (
+    areMessagesEquivalent(prev.message, next.message) &&
+    prev.chatScopeKey === next.chatScopeKey &&
+    prev.depth === next.depth &&
+    prev.isLast === next.isLast &&
+    prev.dimmed === next.dimmed &&
+    prev.userName === next.userName &&
+    prev.userAvatarUrl === next.userAvatarUrl &&
+    prev.charName === next.charName &&
+    prev.charAvatarUrl === next.charAvatarUrl &&
+    prev.charInitials === next.charInitials &&
+    prev.parentChatLabel === next.parentChatLabel &&
+    prev.multiSelectActive === next.multiSelectActive &&
+    prev.multiSelected === next.multiSelected &&
+    prev.recapCompressDepth === next.recapCompressDepth &&
+    prev.onSwipe === next.onSwipe &&
+    prev.onGenerateSwipe === next.onGenerateSwipe &&
+    prev.onContinue === next.onContinue &&
+    prev.onDeleteSwipe === next.onDeleteSwipe &&
+    prev.onSaveEdit === next.onSaveEdit &&
+    prev.onRemoveAttachment === next.onRemoveAttachment &&
+    prev.onDelete === next.onDelete &&
+    prev.onCreateBranch === next.onCreateBranch &&
+    prev.onReturnToParentChat === next.onReturnToParentChat &&
+    prev.onEnterMultiSelect === next.onEnterMultiSelect &&
+    prev.onToggleMultiSelect === next.onToggleMultiSelect
+  );
+}
+
+export const ChatMessageCard = memo(ChatMessageCardInner, areChatMessageCardPropsEqual);
 

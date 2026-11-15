@@ -49,7 +49,7 @@ export function WelcomeModal({
       subtitle={
         step === 'import'
           ? 'Select your SillyTavern folder to migrate backgrounds, characters, personas, regex & chats'
-          : 'Your library is clean — create your persona or bring your SillyTavern collection'
+          : 'Your library is clean — bring your SillyTavern collection or create a new persona'
       }
       icon={step === 'import' ? 'download' : 'sparkles'}
       width={step === 'import' ? 580 : 540}
@@ -106,18 +106,18 @@ export function WelcomeModal({
               type="button"
               role="listitem"
               className="bb-welcome-card"
-              onClick={() => onCreatePersona?.()}
+              onClick={handleOpenImportStep}
             >
               <span className="bb-welcome-card__icon-box bb-welcome-card__icon-box--primary" aria-hidden="true">
-                <Icon name="user" size={22} />
+                <Icon name="download" size={22} />
               </span>
               <div className="bb-welcome-card__body">
                 <div className="bb-welcome-card__title-row">
-                  <span className="bb-welcome-card__title">Create Your Persona</span>
+                  <span className="bb-welcome-card__title">Full Import from SillyTavern</span>
                   <span className="bb-welcome-card__pill">Recommended</span>
                 </div>
                 <span className="bb-welcome-card__desc">
-                  Set up your player name, portrait, and character description for roleplay sessions.
+                  Import your characters, tags &amp; groups, personas, chat histories, backgrounds, and global regex rules in one pass.
                 </span>
               </div>
               <span className="bb-welcome-card__arrow" aria-hidden="true">
@@ -129,18 +129,18 @@ export function WelcomeModal({
               type="button"
               role="listitem"
               className="bb-welcome-card"
-              onClick={handleOpenImportStep}
+              onClick={() => onCreatePersona?.()}
             >
               <span className="bb-welcome-card__icon-box bb-welcome-card__icon-box--secondary" aria-hidden="true">
-                <Icon name="download" size={22} />
+                <Icon name="user" size={22} />
               </span>
               <div className="bb-welcome-card__body">
                 <div className="bb-welcome-card__title-row">
-                  <span className="bb-welcome-card__title">Full Import from SillyTavern</span>
-                  <span className="bb-welcome-card__pill bb-welcome-card__pill--muted">All 5 Categories</span>
+                  <span className="bb-welcome-card__title">Create Your Persona</span>
+                  <span className="bb-welcome-card__pill bb-welcome-card__pill--muted">For New Users</span>
                 </div>
                 <span className="bb-welcome-card__desc">
-                  Import your characters, tags &amp; groups, personas, chat histories, backgrounds, and global regex rules in one pass.
+                  Starting fresh? Set up a new player name, portrait, and character description for roleplay sessions.
                 </span>
               </div>
               <span className="bb-welcome-card__arrow" aria-hidden="true">

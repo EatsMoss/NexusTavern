@@ -333,8 +333,8 @@ export function PinnedSection({
                 onToggleMultiSelect={onToggleMultiSelect}
                 onSelect={onSelect}
                 onOpen={onOpen}
-                onTogglePin={(id) => onTogglePin?.(id, false)}
-                kebabItems={kebabItemsFor ? kebabItemsFor(card) : []}
+                onTogglePin={onTogglePin}
+                kebabItemsFor={kebabItemsFor}
               />
 
               {/* Live 2x2 folder morph preview when dragging another card onto the center of this card */}

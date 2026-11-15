@@ -10,6 +10,7 @@ import './KebabMenu.css';
  */
 export function KebabMenu({
   items = [],
+  getItems = null,
   icon = 'moreVert',
   size = 'sm',
   align = 'right',
@@ -56,13 +57,19 @@ export function KebabMenu({
     });
   }, [align]);
 
+  const resolvedItems =
+    typeof getItems === 'function' ? (open ? getItems() || [] : null) : items;
+  const visibleItems = resolvedItems
+    ? resolvedItems.filter((item) => item && !item.hidden)
+    : [];
+
   useLayoutEffect(() => {
     if (!open) {
       setCoords((prev) => (prev.ready ? { top: 0, left: 0, ready: false } : prev));
       return;
     }
     updatePosition();
-  }, [open, items.length, updatePosition]);
+  }, [open, visibleItems.length, updatePosition]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -99,8 +106,8 @@ export function KebabMenu({
     };
   }, [open]);
 
-  const visibleItems = items.filter((item) => item && !item.hidden);
-  if (visibleItems.length === 0) return null;
+  if (!getItems && visibleItems.length === 0) return null;
+  if (open && visibleItems.length === 0) return null;
 
   return (
     <div

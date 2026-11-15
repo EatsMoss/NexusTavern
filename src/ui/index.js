@@ -91,43 +91,26 @@ export {
 export { MarkdownEditor } from './organisms/MarkdownEditor/MarkdownEditor.jsx';
 export { PinnedLayout } from './organisms/PinnedLayout/PinnedLayout.jsx';
 export { Modal } from './organisms/Modal/Modal.jsx';
-export { WelcomeModal } from './organisms/WelcomeModal/WelcomeModal.jsx';
 export { UnsavedChangesModal } from './organisms/UnsavedChangesModal/UnsavedChangesModal.jsx';
 export {
   TopBar,
   formatTopBarChatTitle,
   TOPBAR_CHAT_TITLE_MAX_CHARS,
 } from './organisms/TopBar/TopBar.jsx';
-export { PresetVaultInspector } from './organisms/PresetVaultInspector/PresetVaultInspector.jsx';
 export { ChatMessageCard } from './organisms/ChatMessageCard/ChatMessageCard.jsx';
 export { MultiSelectBar } from './organisms/MultiSelectBar/MultiSelectBar.jsx';
-export { TimelineTree } from './organisms/TimelineTree/TimelineTree.jsx';
 export { TimelineBranchList } from './organisms/TimelineBranchList/TimelineBranchList.jsx';
-export { PromptManager } from './organisms/PromptManager/PromptManager.jsx';
-export { PromptEditorSheet } from './organisms/PromptManager/PromptEditorSheet.jsx';
 export {
   resolvePromptEditorTarget,
   applyEditedPromptToOrdered,
   applyEditedGroupToOrdered,
 } from './organisms/PromptManager/promptGroupsModel.js';
-export { RegexManager } from './organisms/RegexManager/RegexManager.jsx';
-export { RegexEditorModal } from './organisms/RegexManager/RegexEditorModal.jsx';
-export { RefusalCatcherManager } from './organisms/RefusalCatcherManager/RefusalCatcherManager.jsx';
-export { MessageRecapManager } from './organisms/MessageRecapManager/MessageRecapManager.jsx';
-export {
-  StImporterManager,
-  ST_IMPORT_CATEGORIES,
-} from './organisms/StImporterManager/StImporterManager.jsx';
 export {
   SplashScreen,
   APP_VERSION,
 } from './organisms/SplashScreen/SplashScreen.jsx';
-export {
-  ConsoleDrawer,
-  ConsoleToggleButton,
-} from './organisms/ConsoleDrawer/ConsoleDrawer.jsx';
-
-export { AppShell } from './layouts/AppShell/AppShell.jsx';
+export { ConsoleToggleButton } from './organisms/ConsoleDrawer/ConsoleToggleButton.jsx';
+export { WorkspaceLayout } from './layouts/WorkspaceLayout/WorkspaceLayout.jsx';
 
 
 

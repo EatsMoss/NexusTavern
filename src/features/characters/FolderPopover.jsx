@@ -42,6 +42,14 @@ export function FolderPopover({
   const resolvedPopoverGridRef = externalPopoverGridRef || internalPopoverGridRef;
   const sentinelRef = useRef(null);
 
+  const handleMemberOpen = useCallback(
+    (id) => {
+      onOpen?.(id);
+      onClose?.();
+    },
+    [onOpen, onClose],
+  );
+
   const [popoverCoords, setPopoverCoords] = useState({
     top: 0,
     left: 0,
@@ -342,11 +350,8 @@ export function FolderPopover({
                   multiSelected={multiSelectedSet.has(member.id)}
                   onToggleMultiSelect={onToggleMultiSelect}
                   onSelect={onSelect}
-                  onOpen={(id) => {
-                    onOpen?.(id);
-                    onClose?.();
-                  }}
-                  kebabItems={kebabItemsFor ? kebabItemsFor(member) : []}
+                  onOpen={handleMemberOpen}
+                  kebabItemsFor={kebabItemsFor}
                 />
                 {onRemoveCardFromFolder && (
                   <button

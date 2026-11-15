@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { TypingDots } from '../../atoms/TypingDots/TypingDots.jsx';
 import { OverlayScrollArea } from '../../atoms/OverlayScrollArea/OverlayScrollArea.jsx';
@@ -357,7 +357,7 @@ function renderStreamingSanitizedHtml(sanitizedHtml = '', appendTailDots = false
   return out;
 }
 
-export function MessageDecorator({
+export const MessageDecorator = memo(function MessageDecorator({
   text = '',
   reasoning = '',
   reasoningDurationMs = null,
@@ -741,4 +741,4 @@ export function MessageDecorator({
       )}
     </div>
   );
-}
+});

@@ -225,7 +225,18 @@ export function CharacterGallery({
   );
 
   const slicedGroups = useMemo(
-    () => visibleGroups.slice(0, renderedLimit),
+    () =>
+      visibleGroups.slice(0, renderedLimit).map((group) => ({
+        id: group.id,
+        name: group.name,
+        subtitle: group.subtitle || '',
+        chatsCount: group.chatsCount ?? 0,
+        latestChatPreview: group.latestChatPreview || '',
+        memberCount: group.memberCount ?? group.members?.length ?? 0,
+        thumbnailUrl: group.avatarUrl,
+        pinned: group.pinned,
+        isGroup: true,
+      })),
     [visibleGroups, renderedLimit],
   );
 
@@ -515,32 +526,21 @@ export function CharacterGallery({
           className={isListMode ? 'bb-char-gallery__list' : 'bb-char-gallery__grid'}
           style={isListMode ? undefined : gridStyle}
         >
-          {slicedGroups.map((group) => {
-            const groupItem = {
-              id: group.id,
-              name: group.name,
-              subtitle: group.subtitle || '',
-              chatsCount: group.chatsCount ?? 0,
-              latestChatPreview: group.latestChatPreview || '',
-              memberCount: group.memberCount ?? group.members?.length ?? 0,
-              thumbnailUrl: group.avatarUrl,
-              pinned: group.pinned,
-              isGroup: true,
-            };
+          {slicedGroups.map((groupItem) => {
             const CardComponent = isListMode ? CharacterCardRow : CharacterCardTile;
             return (
               <CardComponent
-                key={group.id}
+                key={groupItem.id}
                 item={groupItem}
                 userName={userName}
                 showPinBadge={true}
-                selected={group.id === selectedId}
+                selected={groupItem.id === selectedId}
                 multiSelectActive={multiSelectActive}
-                multiSelected={multiSelectedSet.has(group.id)}
+                multiSelected={multiSelectedSet.has(groupItem.id)}
                 onToggleMultiSelect={onToggleMultiSelect}
                 onSelect={onSelect}
                 onOpen={onOpen}
-                kebabItems={kebabItemsFor ? kebabItemsFor(groupItem) : []}
+                kebabItemsFor={kebabItemsFor}
               />
             );
           })}
@@ -726,7 +726,7 @@ export function CharacterGallery({
                     onToggleMultiSelect={onToggleMultiSelect}
                     onSelect={onSelect}
                     onOpen={onOpen}
-                    kebabItems={kebabItemsFor ? kebabItemsFor(card) : []}
+                    kebabItemsFor={kebabItemsFor}
                   />
                 ) : (
                   <CharacterCardTile
@@ -739,7 +739,7 @@ export function CharacterGallery({
                     onSelect={onSelect}
                     onOpen={onOpen}
                     onTogglePin={onTogglePin}
-                    kebabItems={kebabItemsFor ? kebabItemsFor(card) : []}
+                    kebabItemsFor={kebabItemsFor}
                   />
                 )}
               </div>

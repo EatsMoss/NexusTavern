@@ -65,14 +65,45 @@ function bytesToBase64(bytes) {
   return window.btoa(binString);
 }
 
+const utf8Encoder = new TextEncoder();
+const utf8Decoder = new TextDecoder('utf-8');
+
+let cachedAuthKeyHex = null;
 let cachedAuthIdHex = null;
+let cachedAuthIdPromise = null;
+
+let cachedAesKeyHex = null;
+let cachedAesKeyPromise = null;
 
 async function deriveAuthIdHex(masterKeyHex) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(`bb-auth-v1:${masterKeyHex}`);
-  const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-  cachedAuthIdHex = bytesToHex(new Uint8Array(hashBuffer));
-  return cachedAuthIdHex;
+  if (cachedAuthKeyHex === masterKeyHex) {
+    if (cachedAuthIdHex) return cachedAuthIdHex;
+    if (cachedAuthIdPromise) return cachedAuthIdPromise;
+  }
+
+  cachedAuthKeyHex = masterKeyHex;
+  cachedAuthIdHex = null;
+  const targetKeyHex = masterKeyHex;
+
+  const pending = window.crypto.subtle
+    .digest('SHA-256', utf8Encoder.encode(`bb-auth-v1:${targetKeyHex}`))
+    .then((hashBuffer) => {
+      const derived = bytesToHex(new Uint8Array(hashBuffer));
+      if (cachedAuthKeyHex === targetKeyHex) {
+        cachedAuthIdHex = derived;
+      }
+      return derived;
+    })
+    .catch((err) => {
+      if (cachedAuthIdPromise === pending) {
+        cachedAuthKeyHex = null;
+        cachedAuthIdPromise = null;
+      }
+      throw err;
+    });
+
+  cachedAuthIdPromise = pending;
+  return pending;
 }
 
 /**
@@ -88,21 +119,31 @@ export function getAuthorizedAssetUrl(url) {
   return `${url}${sep}auth=${cachedAuthIdHex}`;
 }
 
-async function importAesKey(masterKeyHex) {
+function importAesKey(masterKeyHex) {
+  if (cachedAesKeyHex === masterKeyHex && cachedAesKeyPromise) {
+    return cachedAesKeyPromise;
+  }
+
+  cachedAesKeyHex = masterKeyHex;
   const rawKey = hexToBytes(masterKeyHex);
-  return window.crypto.subtle.importKey(
-    'raw',
-    rawKey,
-    { name: 'AES-GCM' },
-    false,
-    ['encrypt', 'decrypt'],
-  );
+  const pending = window.crypto.subtle
+    .importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
+    .catch((err) => {
+      if (cachedAesKeyPromise === pending) {
+        cachedAesKeyHex = null;
+        cachedAesKeyPromise = null;
+      }
+      throw err;
+    });
+
+  cachedAesKeyPromise = pending;
+  return pending;
 }
 
 async function encryptPayloadClient(payload, masterKeyHex) {
   const aesKey = await importAesKey(masterKeyHex);
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
-  const encoded = new TextEncoder().encode(JSON.stringify(payload));
+  const encoded = utf8Encoder.encode(JSON.stringify(payload));
   const cipherBuffer = await window.crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     aesKey,
@@ -126,7 +167,7 @@ async function decryptPayloadClient(envelope, masterKeyHex) {
     aesKey,
     cipherBytes,
   );
-  const text = new TextDecoder().decode(plainBuffer);
+  const text = utf8Decoder.decode(plainBuffer);
   return JSON.parse(text);
 }
 

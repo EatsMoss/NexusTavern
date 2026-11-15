@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageRecapManager } from '@ui/index.js';
+import { MessageRecapManager } from '@ui/organisms/MessageRecapManager/MessageRecapManager.jsx';
 
 /**
  * RecapTomePanel — Right Tome `Extensions` tab panel backed by `useMessageRecap`.

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StImporterManager } from '@ui/index.js';
+import { StImporterManager } from '@ui/organisms/StImporterManager/StImporterManager.jsx';
 
 /**
  * StImporterTomePanel — Right Tome `Plugins` card backed by `useStImporter`.

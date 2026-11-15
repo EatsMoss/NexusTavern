@@ -1,5 +1,5 @@
 import React from 'react';
-import { RegexManager } from '@ui/index.js';
+import { RegexManager } from '@ui/organisms/RegexManager/RegexManager.jsx';
 
 /**
  * RegexTomePanel — Right Tome `Plugins` tab panel backed by `useRegexWorkspace`.
