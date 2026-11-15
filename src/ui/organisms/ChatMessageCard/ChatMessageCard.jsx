@@ -106,6 +106,8 @@ export function ChatMessageCard({
   onDelete,
   onTruncateBranch,
   onCreateBranch,
+  onReturnToParentChat,
+  parentChatLabel = '',
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(message?.text || '');
@@ -363,11 +365,16 @@ export function ChatMessageCard({
   const canGenerateNextSwipe =
     canSwipe && !isGreetingMsg && Boolean(onGenerateSwipe);
   const isAtLastSwipe = currentSwipeIdx >= totalSwipes - 1;
+  const canReturnToParentChat = isLast && Boolean(onReturnToParentChat);
+  const returnToParentTitle = parentChatLabel
+    ? `Return to parent chat (${parentChatLabel})`
+    : 'Return to parent chat';
   const canCreateBranch = Boolean(onCreateBranch);
   const canEdit = Boolean(onSaveEdit);
   const canUserTriggerReply = isLast && isUser && Boolean(onGenerateSwipe);
   const showSwipeBar =
     canSwipe ||
+    canReturnToParentChat ||
     canCreateBranch ||
     canEdit ||
     canUserTriggerReply;
@@ -867,20 +874,20 @@ export function ChatMessageCard({
                       />
                     )}
 
-                    {canGenerateNextSwipe && (
+                    {canReturnToParentChat && (
                       <Button
                         variant="b2"
                         size="md"
                         className="bb-chat-msg-card__ctrl-btn"
-                        icon={<Icon name="refresh" size={16} />}
+                        icon={<Icon name="undo" size={17} />}
                         disabled={isStreaming}
-                        title="Regenerate (new swipe)"
-                        aria-label="Regenerate (new swipe)"
-                        onClick={() => onGenerateSwipe(message)}
+                        title={returnToParentTitle}
+                        aria-label={returnToParentTitle}
+                        onClick={() => onReturnToParentChat()}
                       />
                     )}
 
-                    {canSwipe && (onContinue || canGenerateNextSwipe) && (
+                    {canSwipe && (onContinue || canReturnToParentChat) && (
                       <span className="bb-chat-msg-card__ctrl-sep" aria-hidden="true" />
                     )}
 
@@ -927,9 +934,10 @@ export function ChatMessageCard({
                         />
                       </>
                     )}
-                    {canSwipe && (canCreateBranch || canEdit) && (
-                      <span className="bb-chat-msg-card__ctrl-sep" aria-hidden="true" />
-                    )}
+                    {(canSwipe || canUserTriggerReply || canReturnToParentChat) &&
+                      (canCreateBranch || canEdit) && (
+                        <span className="bb-chat-msg-card__ctrl-sep" aria-hidden="true" />
+                      )}
                     {canCreateBranch && (
                       <Button
                         variant="b2"

@@ -303,6 +303,8 @@ export function OrganismsShowcase() {
                 }
               }}
               onCreateBranch={() => {}}
+              onReturnToParentChat={() => {}}
+              parentChatLabel="Root Chat"
               onSaveEdit={(_, nextText) => setMdText(nextText)}
             />
           </FolderCard>

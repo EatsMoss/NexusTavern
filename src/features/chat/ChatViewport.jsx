@@ -20,6 +20,7 @@ import {
   ToastStack,
 } from '@ui/index.js';
 import { useViewport } from '@core/hooks/useViewport.js';
+import { buildTimelineForest } from '@core/chats/timelineForest.js';
 import './ChatViewport.css';
 
 function parseEmbeddedChatTimestamp(fileName = '') {
@@ -1229,6 +1230,31 @@ export function ChatViewport({
 
   const allTimelineChats = timelineChats.length > 0 ? timelineChats : chatFiles;
 
+  const parentChatInfo = useMemo(() => {
+    if (!activeChatFile || !Array.isArray(allTimelineChats) || allTimelineChats.length === 0) {
+      return null;
+    }
+    const forest = buildTimelineForest(allTimelineChats);
+    const currentNode =
+      forest.byFile.get(activeChatFile) ||
+      Array.from(forest.byFile.values()).find(
+        (n) => String(n.fileName || '').toLowerCase() === activeChatFile.toLowerCase(),
+      );
+    if (!currentNode || !currentNode.parentFile) return null;
+    const parentNode = forest.byFile.get(currentNode.parentFile);
+    if (!parentNode) return null;
+    const label = parentNode.branchLabel || parentNode.baseTitle || parentNode.fileName;
+    return {
+      fileName: parentNode.fileName,
+      label,
+    };
+  }, [activeChatFile, allTimelineChats]);
+
+  const handleReturnToParentChat = useCallback(() => {
+    if (!parentChatInfo?.fileName || !onSelectChatFile) return;
+    onSelectChatFile(parentChatInfo.fileName);
+  }, [parentChatInfo, onSelectChatFile]);
+
   useEffect(() => {
     if (chatListOpen || timelinesOpen) {
       setComposerEmojiOpen(false);
@@ -1412,6 +1438,12 @@ export function ChatViewport({
               onCreateBranch={
                 onCreateBranch ? handleTriggerCreateBranch : undefined
               }
+              onReturnToParentChat={
+                isLast && parentChatInfo && onSelectChatFile
+                  ? handleReturnToParentChat
+                  : undefined
+              }
+              parentChatLabel={parentChatInfo?.label || ''}
             />
           );
 
