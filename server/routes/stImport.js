@@ -9,6 +9,7 @@ import {
   getStImportJobSnapshot,
   cancelStImportJob,
 } from '../services/stImporter.js';
+import { recordConsoleLog } from '../services/consoleLogger.js';
 
 export const stImportRouter = Router();
 
@@ -108,6 +109,13 @@ stImportRouter.post('/start', ensureHostOnly, (req, res) => {
       profile,
       categories,
       conflictMode,
+    });
+    recordConsoleLog({
+      category: 'system',
+      level: 'info',
+      scope: 'ST Importer',
+      title: `Started SillyTavern import job`,
+      summary: `Profile: ${profile || 'default-user'} • Conflict mode: ${conflictMode || 'skip'}`,
     });
     res.json({
       ok: true,

@@ -119,6 +119,10 @@ export {
   SplashScreen,
   APP_VERSION,
 } from './organisms/SplashScreen/SplashScreen.jsx';
+export {
+  ConsoleDrawer,
+  ConsoleToggleButton,
+} from './organisms/ConsoleDrawer/ConsoleDrawer.jsx';
 
 export { AppShell } from './layouts/AppShell/AppShell.jsx';
 

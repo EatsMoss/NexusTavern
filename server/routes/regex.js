@@ -12,6 +12,7 @@ import {
   readPresetRegexScripts,
 } from '../services/regexStore.js';
 import { normalizeRegexScript } from '../../src/core/regex/regexEngine.js';
+import { recordConsoleLog } from '../services/consoleLogger.js';
 
 export const regexRouter = Router();
 
@@ -40,6 +41,12 @@ regexRouter.patch('/master', async (req, res) => {
       return res.status(400).json({ ok: false, error: '`masterEnabled` boolean is required' });
     }
     const masterEnabled = await setGlobalRegexMasterEnabled(req.body.masterEnabled);
+    recordConsoleLog({
+      category: 'change',
+      level: 'info',
+      scope: 'Regex Studio',
+      title: `Regex master switch turned ${masterEnabled ? 'ON' : 'OFF'}`,
+    });
     return res.json({ ok: true, masterEnabled });
   } catch (err) {
     return res.status(400).json({ ok: false, error: err.message });
@@ -59,10 +66,23 @@ regexRouter.put('/scripts', async (req, res) => {
 
     if (scope === 'global') {
       const saved = await saveGlobalRegexScripts(scripts, { masterEnabled });
+      recordConsoleLog({
+        category: 'change',
+        level: 'info',
+        scope: 'Regex Studio',
+        title: `Updated Global Regex scripts (${saved.length} total)`,
+      });
       return res.json({ ok: true, scope: 'global', scripts: saved });
     }
     if (scope === 'card') {
       const result = await saveCardRegexScripts(targetId, scripts);
+      recordConsoleLog({
+        category: 'change',
+        level: 'info',
+        scope: 'Regex Studio',
+        title: `Updated Scenario Regex scripts (${result.scripts.length} total)`,
+        summary: targetId,
+      });
       return res.json({
         ok: true,
         scope: 'card',
@@ -73,6 +93,13 @@ regexRouter.put('/scripts', async (req, res) => {
     }
     if (scope === 'preset') {
       const result = await savePresetRegexScripts(targetId, scripts);
+      recordConsoleLog({
+        category: 'change',
+        level: 'info',
+        scope: 'Regex Studio',
+        title: `Updated Preset Regex scripts (${result.scripts.length} total)`,
+        summary: targetId,
+      });
       return res.json({
         ok: true,
         scope: 'preset',

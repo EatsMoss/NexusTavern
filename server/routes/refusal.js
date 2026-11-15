@@ -5,6 +5,7 @@ import {
   appendRefusalPhrase,
   deleteRefusalPhrase,
 } from '../services/refusalStore.js';
+import { recordConsoleLog } from '../services/consoleLogger.js';
 
 export const refusalRouter = Router();
 
@@ -28,6 +29,13 @@ refusalRouter.get('/', (_req, res) => {
 refusalRouter.put('/', async (req, res) => {
   try {
     const config = await saveRefusalCatcherConfig(req.body || {});
+    recordConsoleLog({
+      category: 'change',
+      level: 'info',
+      scope: 'Refusal Catcher',
+      title: `Updated Refusal Catcher configuration`,
+      summary: `Enabled: ${config.enabled ? 'ON' : 'OFF'} • Fallback: ${config.fallbackEnabled ? 'ON' : 'OFF'} • Phrases: ${config.bannedPhrases?.length || 0}`,
+    });
     res.json({ ok: true, config });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });

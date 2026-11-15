@@ -325,6 +325,18 @@
   border-top: 1px solid var(--bb-page-border-soft, var(--md-sys-color-outline-variant));
 }
 
+.bb-chat-viewport__composer-chips-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.bb-chat-viewport.is-console-open > .bb-chat-viewport__composer {
+  margin-bottom: 6px;
+}
+
 .bb-chat-viewport__composer:focus-within {
   border-color: var(--bb-accent-border, var(--md-sys-color-primary));
 }
@@ -862,7 +874,8 @@
 }
 
 .bb-chat-viewport.is-timelines-active > .bb-chat-viewport__stage,
-.bb-chat-viewport.is-timelines-active > .bb-chat-viewport__composer {
+.bb-chat-viewport.is-timelines-active > .bb-chat-viewport__composer,
+.bb-chat-viewport.is-timelines-active > .bb-console-drawer {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;

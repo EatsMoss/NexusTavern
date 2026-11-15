@@ -15,6 +15,7 @@ import { testAndFetchProviderModels } from '../services/modelFetcher.js';
 import { compileChatPrompt } from '../services/promptCompiler.js';
 import { streamChatGeneration } from '../services/llmStreamer.js';
 import { encryptJsonPayload } from '../utils/auth.js';
+import { recordConsoleLog } from '../services/consoleLogger.js';
 
 export const apiHubRouter = Router();
 
@@ -41,6 +42,16 @@ apiHubRouter.post('/select', async (req, res) => {
     const { connectionId, providerId, modelId } = req.body || {};
     const targetId = connectionId || providerId;
     const state = await selectActiveHubModel(targetId, modelId ?? null);
+    recordConsoleLog({
+      category: 'change',
+      level: 'info',
+      scope: 'Model Picker',
+      title: `Switched active target to ${state.activeProviderName || targetId} → ${state.activeModelName || state.activeModelId}`,
+      badges: [
+        ...(state.activeProviderName ? [{ label: state.activeProviderName, tone: 'neutral' }] : []),
+        ...(state.activeModelName ? [{ label: state.activeModelName, tone: 'accent' }] : []),
+      ],
+    });
     res.json({ ok: true, ...state });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
@@ -95,7 +106,18 @@ apiHubRouter.post('/custom', handleCreateConnection);
  */
 async function handlePatchConnection(req, res) {
   try {
-    const state = await updateHubConnection(req.params.id, req.body || {});
+    const body = req.body || {};
+    const state = await updateHubConnection(req.params.id, body);
+    const conn = (state.connections || []).find((c) => c.id === req.params.id);
+    const changedKeys = Object.keys(body).filter((k) => k !== 'apiKey' && k !== 'addKeys');
+    if (body.apiKey || body.addKeys) changedKeys.push('keychain');
+    recordConsoleLog({
+      category: 'change',
+      level: 'info',
+      scope: 'API Hub',
+      title: `Updated connection "${conn?.name || req.params.id}"`,
+      summary: changedKeys.length > 0 ? `Modified: ${changedKeys.join(', ')}` : '',
+    });
     res.json({ ok: true, ...state });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
@@ -142,6 +164,14 @@ async function handleFetchModels(req, res) {
     }
 
     const result = await testAndFetchProviderModels(connectionId);
+    const conn = (result.hub?.connections || []).find((c) => c.id === connectionId);
+    recordConsoleLog({
+      category: 'system',
+      level: 'success',
+      scope: 'API Hub',
+      title: `Fetched ${result.fetchedCount} models from "${conn?.name || connectionId}"`,
+      badges: [{ label: `${result.elapsedMs}ms`, tone: 'ok' }],
+    });
     res.json({
       ok: true,
       fetchedCount: result.fetchedCount,

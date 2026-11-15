@@ -18,9 +18,13 @@ import {
   EmojiPicker,
   AttachmentTray,
   ToastStack,
+  ConsoleDrawer,
+  ConsoleToggleButton,
 } from '@ui/index.js';
 import { useViewport } from '@core/hooks/useViewport.js';
 import { buildTimelineForest } from '@core/chats/timelineForest.js';
+import { postClientConsoleLog } from '@core/system/consoleApi.js';
+import { useConsoleStream } from './useConsoleStream.js';
 import './ChatViewport.css';
 
 function parseEmbeddedChatTimestamp(fileName = '') {
@@ -235,6 +239,13 @@ export function ChatViewport({
   const composerSelectionRef = useRef(null);
 
   const [composerEmojiOpen, setComposerEmojiOpen] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const {
+    entries: consoleEntries,
+    connected: consoleConnected,
+    clearLogs: clearConsoleLogs,
+  } = useConsoleStream();
+  const prevLoggedChatKeyRef = useRef('');
   const [composerDragOver, setComposerDragOver] = useState(false);
   const composerDragCounterRef = useRef(0);
   const [visibleChatsLimit, setVisibleChatsLimit] = useState(CHAT_LIST_BATCH_SIZE);
@@ -920,6 +931,7 @@ export function ChatViewport({
       captureComposerSelection();
       if (isMobile) {
         textareaRef.current?.blur();
+        setConsoleOpen(false);
       }
       setComposerEmojiOpen(true);
     } else {
@@ -931,6 +943,46 @@ export function ChatViewport({
       }
     }
   };
+
+  const handleToggleConsole = useCallback(() => {
+    const streamEl = resolvedStreamRef.current;
+    const wasNearBottom = streamEl
+      ? streamEl.scrollHeight - streamEl.scrollTop - streamEl.clientHeight < 72
+      : false;
+
+    setConsoleOpen((prev) => {
+      const next = !prev;
+      if (next && isMobile && composerEmojiOpen) {
+        setComposerEmojiOpen(false);
+      }
+      if (next && wasNearBottom && streamEl) {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            streamEl.scrollTop = streamEl.scrollHeight;
+          });
+        });
+      }
+      return next;
+    });
+  }, [isMobile, composerEmojiOpen, resolvedStreamRef]);
+
+  useEffect(() => {
+    if (!hasActiveScenario || !activeChatFile || switchingScenario) return;
+    const key = `${characterName || 'Scenario'}::${activeChatFile}`;
+    if (!prevLoggedChatKeyRef.current) {
+      prevLoggedChatKeyRef.current = key;
+      return;
+    }
+    if (prevLoggedChatKeyRef.current === key) return;
+    prevLoggedChatKeyRef.current = key;
+    postClientConsoleLog({
+      category: 'change',
+      level: 'info',
+      scope: 'Workspace',
+      title: `Opened chat "${activeChatFile}"`,
+      summary: `Scenario: ${characterName || 'Character'}`,
+    }).catch(() => {});
+  }, [hasActiveScenario, activeChatFile, characterName, switchingScenario]);
 
   const handleToggleEnterToSend = useCallback(() => {
     setEnterToSend((prev) => {
@@ -1418,7 +1470,7 @@ export function ChatViewport({
       id="sheld"
       className={`bb-chat-viewport ${timelinesOpen ? 'is-timelines-active' : ''} ${
         isMobile && composerEmojiOpen ? 'is-emoji-tray-open' : ''
-      }`.trim()}
+      } ${consoleOpen && !chatListOpen && !timelinesOpen ? 'is-console-open' : ''}`.trim()}
     >
       {timelinesMounted && (
         <div
@@ -1852,24 +1904,36 @@ export function ChatViewport({
         </div>
 
         <div className="bb-chat-viewport__composer-chips">
-          <ConnectionModelPicker
-            connections={hubConnections}
-            customFamilies={hubCustomFamilies}
-            activeConnectionId={activeProviderId}
-            activeModelId={activeModelId}
-            activeModelName={activeModelName || modelLabel}
-            placement="top"
-            onSelectConnection={onSelectHubModel}
-            onUpdateConnection={onUpdateHubConnection}
-            onFetchConnectionModels={onFetchHubModels}
-            onDeleteConnection={onDeleteHubConnection}
-            onRevealConnectionKey={onRevealHubKey}
-            onPingConnections={onPingHubConnections}
-            onFetchTelemetry={onFetchHubTelemetry}
-            onAddCustomFamily={onAddHubCustomFamily}
-            onDeleteCustomFamily={onDeleteHubCustomFamily}
-            onOpenAddConnection={onClickModelBadge}
-          />
+          <div className="bb-chat-viewport__composer-chips-left">
+            <ConnectionModelPicker
+              connections={hubConnections}
+              customFamilies={hubCustomFamilies}
+              activeConnectionId={activeProviderId}
+              activeModelId={activeModelId}
+              activeModelName={activeModelName || modelLabel}
+              placement="top"
+              onSelectConnection={onSelectHubModel}
+              onUpdateConnection={onUpdateHubConnection}
+              onFetchConnectionModels={onFetchHubModels}
+              onDeleteConnection={onDeleteHubConnection}
+              onRevealConnectionKey={onRevealHubKey}
+              onPingConnections={onPingHubConnections}
+              onFetchTelemetry={onFetchHubTelemetry}
+              onAddCustomFamily={onAddHubCustomFamily}
+              onDeleteCustomFamily={onDeleteHubCustomFamily}
+              onOpenAddConnection={onClickModelBadge}
+            />
+
+            <ConsoleToggleButton
+              open={consoleOpen}
+              onClick={handleToggleConsole}
+              title={
+                consoleOpen
+                  ? 'Hide live output console'
+                  : 'Open live output console (prompts, LLM outputs & workspace logs)'
+              }
+            />
+          </div>
 
           <PersonaPicker
             personas={personas}
@@ -1892,6 +1956,14 @@ export function ChatViewport({
           />
         </div>
       </form>
+
+      <ConsoleDrawer
+        open={consoleOpen && !chatListOpen && !timelinesOpen}
+        entries={consoleEntries}
+        connected={consoleConnected}
+        onClear={clearConsoleLogs}
+        onClose={() => setConsoleOpen(false)}
+      />
 
       <EmojiPicker
         open={composerEmojiOpen}

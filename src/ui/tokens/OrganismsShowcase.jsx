@@ -13,6 +13,8 @@ import {
   PromptEditorSheet,
   RefusalCatcherManager,
   StImporterManager,
+  ConsoleDrawer,
+  ConsoleToggleButton,
 } from '@ui/index.js';
 import { DEFAULT_BANNED_PHRASES } from '@core/refusal/refusalEngine.js';
 
@@ -402,6 +404,101 @@ export function OrganismsShowcase() {
               },
             }}
           />
+
+          <FolderCard
+            title="ConsoleDrawer & ConsoleToggleButton (SillyTavern-Parity Output Console)"
+            subtitle="M3 Solid Sheet docked console with separated Prompt / Output / Change / System cards"
+            icon="terminal"
+            actions={<ConsoleToggleButton open label="Console" onClick={() => {}} />}
+          >
+            <ConsoleDrawer
+              open
+              embedded
+              resizable={false}
+              defaultHeight={280}
+              entries={[
+                {
+                  id: 'demo_1',
+                  seq: 1,
+                  timestamp: '2026-11-15T12:00:01.120Z',
+                  category: 'change',
+                  level: 'info',
+                  scope: 'Model Picker',
+                  title: 'Switched active target to RP Proxy → Claude 3.7 Sonnet',
+                  badges: [{ label: 'Claude 3.7 Sonnet', tone: 'accent' }],
+                },
+                {
+                  id: 'demo_2',
+                  seq: 2,
+                  timestamp: '2026-11-15T12:00:04.450Z',
+                  category: 'prompt',
+                  level: 'info',
+                  scope: 'LLM Request',
+                  title: 'Generating REPLY via RP Proxy → Claude 3.7 Sonnet',
+                  summary: '2 wire turns (~612 tok) • Preset "NexusTavern Literary Prose v3"',
+                  badges: [
+                    { label: 'REPLY', tone: 'accent' },
+                    { label: 'ANTHROPIC', tone: 'neutral' },
+                    { label: '~612 tok', tone: 'neutral' },
+                  ],
+                  details: {
+                    endpoint: 'https://proxy.example/anthropic/v1/messages',
+                    protocol: 'anthropic',
+                    character: 'Elowen Vane',
+                    user: 'Alden Thorne',
+                    presetName: 'NexusTavern Literary Prose v3',
+                    totalTokens: 612,
+                    wireSamplers: { temperature: 0.95, max_tokens: 2048 },
+                    messages: [
+                      {
+                        index: 0,
+                        role: 'system',
+                        content: 'Write atmospheric third-person prose as Elowen Vane.',
+                        tokens: 14,
+                        chars: 52,
+                        images: 0,
+                      },
+                      {
+                        index: 1,
+                        role: 'user',
+                        content: 'Alden stepped across the rain-slick threshold.',
+                        tokens: 12,
+                        chars: 46,
+                        images: 0,
+                      },
+                    ],
+                  },
+                },
+                {
+                  id: 'demo_3',
+                  seq: 3,
+                  timestamp: '2026-11-15T12:00:08.910Z',
+                  category: 'output',
+                  level: 'success',
+                  scope: 'LLM Output',
+                  title: 'Completed REPLY from RP Proxy → Claude 3.7 Sonnet',
+                  summary: '~94 tok in 4.46s (21.1 tok/s) • Saved to "Elowen Vane - Branch #2.jsonl"',
+                  badges: [
+                    { label: 'OK', tone: 'ok' },
+                    { label: '~94 tok', tone: 'neutral' },
+                    { label: '21.1 t/s', tone: 'accent' },
+                  ],
+                  details: {
+                    status: 'completed',
+                    modelName: 'Claude 3.7 Sonnet',
+                    ttftMs: 620,
+                    durationMs: 4460,
+                    outputTokens: 94,
+                    responseTokens: 94,
+                    tokensPerSec: 21.1,
+                    response:
+                      '*Elowen lowered the brass lantern, watching rain drip from the hem of his cloak.*\n"You brought the ledger, then."',
+                    savedFile: 'Elowen Vane - Branch #2.jsonl',
+                  },
+                },
+              ]}
+            />
+          </FolderCard>
         </div>
 
         {/* Right column: PinnedLayout with 2x2 Folders, Splitter & Drag-and-Drop */}

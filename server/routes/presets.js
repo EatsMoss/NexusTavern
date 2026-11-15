@@ -20,6 +20,7 @@ import {
   setSecretValue,
   deleteSecretValue,
 } from '../services/secretsStore.js';
+import { recordConsoleLog } from '../services/consoleLogger.js';
 
 export const presetsRouter = Router();
 
@@ -53,7 +54,27 @@ presetsRouter.get('/overview', (_req, res) => {
  */
 presetsRouter.patch('/settings', async (req, res) => {
   try {
-    const updated = await updateConnectionAndPresetSettings(req.body || {});
+    const body = req.body || {};
+    const updated = await updateConnectionAndPresetSettings(body);
+    if (body.activePresets) {
+      const pairs = Object.entries(body.activePresets)
+        .map(([cat, name]) => `${cat}="${name}"`)
+        .join(', ');
+      recordConsoleLog({
+        category: 'change',
+        level: 'info',
+        scope: 'Presets',
+        title: `Switched active preset`,
+        summary: pairs,
+      });
+    } else {
+      recordConsoleLog({
+        category: 'change',
+        level: 'info',
+        scope: 'Presets',
+        title: 'Updated preset & scenario binding settings',
+      });
+    }
     res.json({
       ok: true,
       ...updated,
@@ -160,6 +181,14 @@ presetsRouter.put('/:category/:name', async (req, res) => {
       req.params.name,
       req.body || {},
     );
+    recordConsoleLog({
+      category: 'change',
+      level: 'success',
+      scope: 'Presets',
+      title: `Saved preset "${req.params.name}"`,
+      summary: `Category: ${req.params.category}`,
+      badges: [{ label: req.params.category.toUpperCase(), tone: 'accent' }],
+    });
     res.json({
       ok: true,
       preset: saved,

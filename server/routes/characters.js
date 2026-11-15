@@ -49,6 +49,7 @@ import {
   duplicateCharacterPresetBindings,
   removeCharacterPresetBindings,
 } from '../services/presetStore.js';
+import { recordConsoleLog } from '../services/consoleLogger.js';
 
 export const charactersRouter = Router();
 
@@ -80,6 +81,13 @@ charactersRouter.post('/', async (req, res) => {
   try {
     const card = await createCharacterCard(req.body || {});
     const tagData = listTags();
+    recordConsoleLog({
+      category: 'change',
+      level: 'success',
+      scope: 'Scenario',
+      title: `Created scenario card "${card?.name || card?.avatar}"`,
+      summary: card?.avatar || '',
+    });
     res.json({ ok: true, card, ...tagData });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -96,6 +104,13 @@ charactersRouter.post('/import', async (req, res) => {
     const importEmbeddedTags = req.body?.importEmbeddedTags !== false;
     const imported = await importCharacterCards(items, { importEmbeddedTags });
     const tagData = listTags();
+    recordConsoleLog({
+      category: 'change',
+      level: 'success',
+      scope: 'Scenario',
+      title: `Imported ${imported.length} scenario card(s)`,
+      summary: imported.map((c) => c.name || c.avatar).slice(0, 6).join(', '),
+    });
     res.json({
       ok: true,
       count: imported.length,
@@ -328,6 +343,13 @@ charactersRouter.get('/:avatar', (req, res) => {
 charactersRouter.put('/:avatar', async (req, res) => {
   try {
     const updatedCard = await saveCharacterCard(req.params.avatar, req.body || {});
+    recordConsoleLog({
+      category: 'change',
+      level: 'success',
+      scope: 'Scenario',
+      title: `Saved scenario card "${updatedCard?.name || req.params.avatar}"`,
+      summary: `File: ${req.params.avatar}`,
+    });
     res.json({ ok: true, card: updatedCard });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

@@ -8,6 +8,7 @@ import {
   deletePersona,
   selectActivePersona,
 } from '../services/cardStore.js';
+import { recordConsoleLog } from '../services/consoleLogger.js';
 
 export const personasRouter = Router();
 
@@ -34,6 +35,12 @@ personasRouter.get('/', async (_req, res) => {
 personasRouter.post('/', async (req, res) => {
   try {
     const data = await createPersona(req.body || {});
+    recordConsoleLog({
+      category: 'change',
+      level: 'success',
+      scope: 'Personas',
+      title: `Created persona "${req.body?.name || data?.persona?.name || 'New Persona'}"`,
+    });
     res.json({
       ok: true,
       ...data,
@@ -54,6 +61,14 @@ personasRouter.post('/select', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Missing persona avatar filename' });
     }
     const data = await selectActivePersona(avatar);
+    const selectedObj = (data?.personas || []).find((p) => p.avatar === avatar);
+    recordConsoleLog({
+      category: 'change',
+      level: 'info',
+      scope: 'Personas',
+      title: `Switched active persona to "${selectedObj?.name || avatar}"`,
+      summary: avatar,
+    });
     res.json({
       ok: true,
       ...data,
@@ -70,6 +85,13 @@ personasRouter.post('/select', async (req, res) => {
 personasRouter.put('/:avatar', async (req, res) => {
   try {
     const data = await savePersona(req.params.avatar, req.body || {});
+    recordConsoleLog({
+      category: 'change',
+      level: 'success',
+      scope: 'Personas',
+      title: `Saved persona "${req.body?.name || req.params.avatar}"`,
+      summary: req.params.avatar,
+    });
     res.json({
       ok: true,
       ...data,

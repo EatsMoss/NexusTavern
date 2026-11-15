@@ -230,10 +230,10 @@ export function PresetSamplersTab({
 
         <Slider
           label="Context Size (Tokens)"
-          value={Number(oaiData.openai_max_context ?? 16384)}
+          value={Math.min(2000000, Number(oaiData.openai_max_context ?? 16384))}
           min={512}
-          max={oaiData.max_context_unlocked ? 10000000 : 200000}
-          inputMax={10000000}
+          max={oaiData.max_context_unlocked ? 2000000 : 200000}
+          inputMax={2000000}
           step={512}
           defaultValue={16384}
           unit="tok"
@@ -248,20 +248,27 @@ export function PresetSamplersTab({
         />
         <Slider
           label="Max Response Length (Tokens)"
-          value={Number(oaiData.openai_max_tokens ?? 1000)}
+          value={Math.min(256000, Number(oaiData.openai_max_tokens ?? 1000))}
           min={32}
-          max={oaiData.max_context_unlocked ? 1000000 : 131072}
-          inputMax={10000000}
+          max={oaiData.max_context_unlocked ? 256000 : 131072}
+          inputMax={256000}
           step={32}
           defaultValue={1024}
           unit="tok"
-          onChange={(val) => patchOaiField?.({ openai_max_tokens: val })}
+          onChange={(val) =>
+            patchOaiField?.({
+              openai_max_tokens: val,
+              ...(val > 131072 && !oaiData.max_context_unlocked
+                ? { max_context_unlocked: true }
+                : {}),
+            })
+          }
         />
         <Switch
           checked={Boolean(oaiData.max_context_unlocked ?? false)}
           onChange={(val) => patchOaiField?.({ max_context_unlocked: val })}
           label="Unlocked Context Size"
-          description="Expand context slider track up to 10,000,000 tokens"
+          description="Expand context slider up to 2,000,000 tokens and max output up to 256,000 tokens"
         />
         <Switch
           checked={Boolean(oaiData.stream_openai ?? true)}

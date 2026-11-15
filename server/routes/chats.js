@@ -21,6 +21,7 @@ import {
   importCharacterChats,
 } from '../services/chatStore.js';
 import { saveSession } from '../services/sessionStore.js';
+import { recordConsoleLog } from '../services/consoleLogger.js';
 
 export const chatsRouter = Router();
 
@@ -84,6 +85,14 @@ chatsRouter.post('/:avatar/new', async (req, res) => {
       introPortraitUrl,
     });
     const elapsedMs = Number((performance.now() - startMs).toFixed(2));
+    recordConsoleLog({
+      category: 'change',
+      level: 'info',
+      scope: 'Chat',
+      title: `Created new chat "${windowData.fileName}"`,
+      summary: `Scenario: ${req.params.avatar} • Intro #${Number(greetingIndex) + 1}`,
+      badges: [{ label: `${elapsedMs}ms`, tone: 'neutral' }],
+    });
     res.json({ ok: true, elapsedMs, ...windowData });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -101,6 +110,14 @@ chatsRouter.post('/:avatar/branch', async (req, res) => {
       upToMessageIndex,
     });
     const elapsedMs = Number((performance.now() - startMs).toFixed(2));
+    recordConsoleLog({
+      category: 'change',
+      level: 'info',
+      scope: 'Chat',
+      title: `Created timeline branch "${windowData.fileName}"`,
+      summary: `From "${file}"${upToMessageIndex !== null ? ` at message #${Number(upToMessageIndex) + 1}` : ''}`,
+      badges: [{ label: 'BRANCH', tone: 'accent' }],
+    });
     res.json({ ok: true, elapsedMs, ...windowData });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -169,6 +186,13 @@ chatsRouter.delete('/:avatar', (req, res) => {
     }
     const result = deleteCharacterChatFiles(req.params.avatar, filesList);
     const elapsedMs = Number((performance.now() - startMs).toFixed(2));
+    recordConsoleLog({
+      category: 'change',
+      level: 'warn',
+      scope: 'Chat',
+      title: `Deleted ${filesList.length} chat file(s)`,
+      summary: `${req.params.avatar}: ${filesList.join(', ')}`,
+    });
     res.json({ ok: true, elapsedMs, ...result });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -199,6 +223,13 @@ chatsRouter.post('/:avatar/messages', async (req, res) => {
     }
     const result = await appendChatMessage(req.params.avatar, file, messagePayload);
     const elapsedMs = Number((performance.now() - startMs).toFixed(2));
+    recordConsoleLog({
+      category: 'change',
+      level: 'info',
+      scope: 'Chat',
+      title: `Appended ${messagePayload.is_user !== false ? 'user' : 'assistant'} message (#${result.totalMessages || '?'})`,
+      summary: `"${file}" (${String(messagePayload.mes || '').slice(0, 90)}${String(messagePayload.mes || '').length > 90 ? '…' : ''})`,
+    });
     res.json({ ok: true, elapsedMs, ...result });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -240,6 +271,13 @@ chatsRouter.patch('/:avatar/messages/:index', async (req, res) => {
       patch,
     );
     const elapsedMs = Number((performance.now() - startMs).toFixed(2));
+    recordConsoleLog({
+      category: 'change',
+      level: 'info',
+      scope: 'Chat',
+      title: `Edited message #${Number(req.params.index) + 1} in "${file}"`,
+      summary: `Scenario: ${req.params.avatar}`,
+    });
     res.json({ ok: true, elapsedMs, ...result });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -282,6 +320,13 @@ chatsRouter.post('/:avatar/messages/delete-batch', async (req, res) => {
       isGroup: Boolean(isGroup),
     });
     const elapsedMs = Number((performance.now() - startMs).toFixed(2));
+    recordConsoleLog({
+      category: 'change',
+      level: 'warn',
+      scope: 'Chat',
+      title: `Batch-deleted ${result.deletedCount} message(s) from "${file}"`,
+      summary: `Indices: ${indices.map((idx) => `#${Number(idx) + 1}`).join(', ')} • Backup saved`,
+    });
     res.json({ ok: true, elapsedMs, ...result });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
@@ -303,6 +348,13 @@ chatsRouter.delete('/:avatar/messages/:index', async (req, res) => {
       { truncateTail },
     );
     const elapsedMs = Number((performance.now() - startMs).toFixed(2));
+    recordConsoleLog({
+      category: 'change',
+      level: 'warn',
+      scope: 'Chat',
+      title: `${truncateTail ? 'Truncated chat from' : 'Deleted'} message #${Number(req.params.index) + 1}`,
+      summary: `"${file}" (${result.totalMessages} remaining)`,
+    });
     res.json({ ok: true, elapsedMs, ...result });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

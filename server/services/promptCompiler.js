@@ -413,8 +413,14 @@ export function compileChatPrompt({
       ? diskPreset.orderedPrompts
       : ST_DEFAULT_SYSTEM_PROMPTS.map((p) => ({ ...p, enabled: true }));
 
-  const maxContext = Math.max(512, Number(oaiData.openai_max_context) || 16384);
-  const maxTokens = Math.max(16, Number(oaiData.openai_max_tokens) || 1000);
+  const maxContext = Math.min(
+    2000000,
+    Math.max(512, Number(oaiData.openai_max_context) || 16384),
+  );
+  const maxTokens = Math.min(
+    256000,
+    Math.max(16, Number(oaiData.openai_max_tokens) || 1000),
+  );
   const tokenBudget = Math.max(256, maxContext - maxTokens);
 
   // 4. Build Macro Context

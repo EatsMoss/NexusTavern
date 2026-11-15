@@ -15,6 +15,7 @@ import { refusalRouter } from './routes/refusal.js';
 import { stImportRouter } from './routes/stImport.js';
 import { getLanAddresses } from './utils/network.js';
 import { securityGuard } from './utils/auth.js';
+import { recordConsoleLog } from './services/consoleLogger.js';
 import {
   DEFAULT_USER_DIR,
   DIST_DIR,
@@ -119,6 +120,21 @@ app.listen(PORT, HOST, () => {
   }
   console.log(`  User Data:  ${DEFAULT_USER_DIR}`);
   console.log(`==================================================\n`);
+
+  recordConsoleLog({
+    category: 'system',
+    level: 'success',
+    scope: 'Server',
+    title: `NexusTavern Server Core ready on port ${PORT}`,
+    summary: `User data directory: ${DEFAULT_USER_DIR}`,
+    badges: [
+      { label: `Port ${PORT}`, tone: 'ok' },
+      ...(lanList.length > 0
+        ? [{ label: `LAN ${lanList[0].address}`, tone: 'neutral' }]
+        : []),
+    ],
+    silentTerminal: true,
+  });
 
   if (process.argv.includes('--open')) {
     openBrowser(`http://localhost:${PORT}`);

@@ -15,6 +15,13 @@ import {
 import { resolveModelCapabilities } from './modelCapabilities.js';
 import { resolveActiveRegexScriptsServer } from './regexStore.js';
 import { readRefusalCatcherConfig } from './refusalStore.js';
+import { estimateTokens } from './macroResolver.js';
+import {
+  recordConsoleLog,
+  maskUrlSecrets,
+  extractWireMessagesForLog,
+  extractWireSamplersForLog,
+} from './consoleLogger.js';
 import {
   applyRegexPipeline,
   REGEX_PLACEMENT,
@@ -1098,6 +1105,51 @@ async function executeSingleTargetAttempt({
     protocol: target.protocol,
   });
 
+  const wireMessages = extractWireMessagesForLog(target.protocol, payload);
+  const wireSamplers = extractWireSamplersForLog(payload);
+  const wireTotalTokens = wireMessages.reduce((sum, m) => sum + (m.tokens || 0), 0);
+  const compiledBlocks = Array.isArray(compiled.messages)
+    ? compiled.messages.map((m, idx) => ({
+        index: idx,
+        role: m.role || 'system',
+        label: m.label || m.source || `Block #${idx + 1}`,
+        source: m.source || '',
+        tokens: m.tokens || estimateTokens(m.content || ''),
+        chars: String(m.content || '').length,
+        images: Array.isArray(m.images) ? m.images.length : 0,
+      }))
+    : [];
+
+  recordConsoleLog({
+    category: 'prompt',
+    level: 'info',
+    scope: 'LLM Request',
+    title: `Generating ${normalizedMode.toUpperCase()} via ${target.connectionName} → ${target.modelName}`,
+    summary: `${wireMessages.length} wire turns (~${wireTotalTokens} tok) • Preset "${compiled.presetName || 'Default'}"`,
+    badges: [
+      { label: normalizedMode.toUpperCase(), tone: 'accent' },
+      { label: target.protocol.toUpperCase(), tone: 'neutral' },
+      { label: `~${wireTotalTokens} tok`, tone: 'neutral' },
+    ],
+    details: {
+      endpoint: maskUrlSecrets(target.endpointUrl || ''),
+      protocol: target.protocol,
+      connectionName: target.connectionName,
+      modelId: target.upstreamModelId,
+      modelName: target.modelName,
+      mode: normalizedMode,
+      character: compiled.charName,
+      user: compiled.userName,
+      presetName: compiled.presetName || 'Default',
+      totalTokens: wireTotalTokens,
+      promptStats: compiled.stats || null,
+      wireSamplers,
+      compiledBlocks,
+      messages: wireMessages,
+      rawPayload: payload,
+    },
+  });
+
   const prefillPrefix =
     target.protocol === 'anthropic' &&
     caps.allowTrailingAssistant &&
@@ -1148,6 +1200,29 @@ async function executeSingleTargetAttempt({
   } catch (err) {
     if (signal) signal.removeEventListener('abort', forwardExternalAbort);
     if (err?.name === 'AbortError' || signal?.aborted) {
+      const waitMs = Math.max(1, Math.round(performance.now() - connectStartMs));
+      recordConsoleLog({
+        category: 'output',
+        level: 'warn',
+        scope: 'LLM Output',
+        title: `Generation stopped before first token (${target.modelName})`,
+        summary: `Aborted by user after ${waitMs}ms while waiting for ${target.connectionName}`,
+        badges: [
+          { label: 'STOPPED', tone: 'warn' },
+          { label: `${waitMs}ms`, tone: 'neutral' },
+        ],
+        details: {
+          status: 'stopped',
+          connectionName: target.connectionName,
+          modelName: target.modelName,
+          mode: normalizedMode,
+          durationMs: waitMs,
+          ttftMs: null,
+          outputTokens: 0,
+          reasoning: '',
+          response: '',
+        },
+      });
       return {
         abortedBeforeStart: true,
         abortedPayload: {
@@ -1179,6 +1254,7 @@ async function executeSingleTargetAttempt({
 
   const genStartedIso = new Date().toISOString();
   const genStartMs = performance.now();
+  let firstChunkMs = null;
   let reasoningStartMs = null;
   let reasoningEndMs = null;
   let generatedText = prefillPrefix;
@@ -1278,6 +1354,9 @@ async function executeSingleTargetAttempt({
 
   const emitReasoning = (rDelta) => {
     if (!rDelta || caughtRefusal) return;
+    if (firstChunkMs === null) {
+      firstChunkMs = Math.max(1, Math.round(performance.now() - connectStartMs));
+    }
     if (reasoningStartMs === null) reasoningStartMs = performance.now();
     reasoningEndMs = performance.now();
     generatedReasoning += rDelta;
@@ -1304,6 +1383,9 @@ async function executeSingleTargetAttempt({
 
   const emitText = (tDelta) => {
     if (!tDelta || caughtRefusal) return;
+    if (firstChunkMs === null) {
+      firstChunkMs = Math.max(1, Math.round(performance.now() - connectStartMs));
+    }
     if (reasoningStartMs !== null && reasoningEndMs === null) {
       reasoningEndMs = performance.now();
     }
@@ -1474,6 +1556,7 @@ async function executeSingleTargetAttempt({
     genStartedIso,
     genFinishedIso,
     durationMs,
+    ttftMs: firstChunkMs,
     reasoningDurationMs,
   };
 }
@@ -1557,6 +1640,30 @@ export async function streamChatGeneration({
       Boolean(refusalConfig.fallbackConnectionId || refusalConfig.fallbackModelId);
 
     if (!canFallback) {
+      recordConsoleLog({
+        category: 'error',
+        level: 'error',
+        scope: 'LLM Error',
+        title: primaryErr?.refusalDetected
+          ? `Refusal intercepted on ${primaryTarget.modelName}`
+          : `Generation failed on ${primaryTarget.connectionName} → ${primaryTarget.modelName}`,
+        summary: primaryErr?.message || 'Upstream generation failed',
+        badges: [
+          ...(primaryErr?.httpStatus ? [{ label: `HTTP ${primaryErr.httpStatus}`, tone: 'danger' }] : []),
+          ...(primaryErr?.refusalDetected ? [{ label: 'REFUSAL', tone: 'warn' }] : []),
+        ],
+        details: {
+          connectionName: primaryTarget.connectionName,
+          modelName: primaryTarget.modelName,
+          httpStatus: primaryErr?.httpStatus || null,
+          errorBody: primaryErr?.bodyJson || null,
+          meta: primaryErr?.matchedPhrase
+            ? { matchedPhrase: primaryErr.matchedPhrase }
+            : primaryErr?.matchedFilter
+              ? { matchedFilter: primaryErr.matchedFilter }
+              : null,
+        },
+      });
       throw primaryErr;
     }
 
@@ -1569,6 +1676,25 @@ export async function streamChatGeneration({
       primaryTarget,
       fallbackTarget,
       primaryErr,
+    });
+
+    recordConsoleLog({
+      category: 'system',
+      level: 'warn',
+      scope: 'Refusal Catcher',
+      title: `Refusal intercepted on ${primaryTarget.modelName} → Redirecting to ${fallbackTarget.modelName}`,
+      summary: primaryErr?.message || 'Redirecting to uncensored fallback target',
+      badges: [
+        { label: 'FALLBACK', tone: 'warn' },
+        { label: fallbackTarget.modelName, tone: 'accent' },
+      ],
+      details: {
+        fromConnection: primaryTarget.connectionName,
+        fromModel: primaryTarget.modelName,
+        toConnection: fallbackTarget.connectionName,
+        toModel: fallbackTarget.modelName,
+        reason: primaryErr?.message || '',
+      },
     });
 
     onEvent({
@@ -1600,8 +1726,29 @@ export async function streamChatGeneration({
         );
         allErr.refusalDetected = true;
         allErr.allModelsRefused = true;
+        recordConsoleLog({
+          category: 'error',
+          level: 'error',
+          scope: 'Refusal Catcher',
+          title: `Both primary (${primaryTarget.modelName}) and fallback (${fallbackTarget.modelName}) refused`,
+          summary: allErr.message,
+          badges: [{ label: 'ALL REFUSED', tone: 'danger' }],
+        });
         throw allErr;
       }
+      recordConsoleLog({
+        category: 'error',
+        level: 'error',
+        scope: 'LLM Error',
+        title: `Fallback generation failed on ${fallbackTarget.connectionName} → ${fallbackTarget.modelName}`,
+        summary: fallbackErr?.message || 'Fallback target failed',
+        details: {
+          connectionName: fallbackTarget.connectionName,
+          modelName: fallbackTarget.modelName,
+          httpStatus: fallbackErr?.httpStatus || null,
+          errorBody: fallbackErr?.bodyJson || null,
+        },
+      });
       throw fallbackErr;
     }
   }
@@ -1618,6 +1765,7 @@ export async function streamChatGeneration({
     genStartedIso,
     genFinishedIso,
     durationMs,
+    ttftMs,
     reasoningDurationMs,
   } = attemptResult;
 
@@ -1658,6 +1806,14 @@ export async function streamChatGeneration({
   if (!stoppedByUser && !finalCleanText.trim()) {
     const emptyErr = new Error(formatEmptyResponseErrorMessage());
     emptyErr.emptyResponse = true;
+    recordConsoleLog({
+      category: 'error',
+      level: 'error',
+      scope: 'LLM Error',
+      title: `Empty response returned by ${activeTarget.modelName}`,
+      summary: emptyErr.message,
+      badges: [{ label: 'EMPTY', tone: 'danger' }],
+    });
     throw emptyErr;
   }
 
@@ -1676,6 +1832,47 @@ export async function streamChatGeneration({
     durationMs,
     target: activeTarget,
     fallbackInfo,
+  });
+
+  const responseTokens = estimateTokens(finalCleanText);
+  const reasoningTokens = finalCleanReasoning ? estimateTokens(finalCleanReasoning) : 0;
+  const outputTokens = responseTokens + reasoningTokens;
+  const tokensPerSec =
+    durationMs > 0 && outputTokens > 0
+      ? Number(((outputTokens / durationMs) * 1000).toFixed(1))
+      : null;
+
+  recordConsoleLog({
+    category: 'output',
+    level: stoppedByUser ? 'warn' : 'success',
+    scope: 'LLM Output',
+    title: `${stoppedByUser ? 'Stopped' : 'Completed'} ${normalizedMode.toUpperCase()} from ${activeTarget.connectionName} → ${activeTarget.modelName}`,
+    summary: `~${outputTokens} tok in ${(durationMs / 1000).toFixed(2)}s${
+      tokensPerSec ? ` (${tokensPerSec} tok/s)` : ''
+    }${chatFileName ? ` • Saved to "${chatFileName}"` : ''}`,
+    badges: [
+      { label: stoppedByUser ? 'STOPPED' : 'OK', tone: stoppedByUser ? 'warn' : 'ok' },
+      { label: `~${outputTokens} tok`, tone: 'neutral' },
+      { label: `${durationMs}ms`, tone: 'neutral' },
+      ...(tokensPerSec ? [{ label: `${tokensPerSec} t/s`, tone: 'accent' }] : []),
+    ],
+    details: {
+      status: stoppedByUser ? 'stopped' : 'completed',
+      connectionName: activeTarget.connectionName,
+      modelName: activeTarget.modelName,
+      mode: normalizedMode,
+      ttftMs: ttftMs || null,
+      durationMs,
+      reasoningDurationMs: reasoningDurationMs || null,
+      responseTokens,
+      reasoningTokens,
+      outputTokens,
+      tokensPerSec,
+      reasoning: finalCleanReasoning,
+      response: finalCleanText,
+      savedFile: chatFileName || null,
+      fallbackInfo: fallbackInfo || null,
+    },
   });
 
   const donePayload = {

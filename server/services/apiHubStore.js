@@ -33,6 +33,7 @@ import {
   enrichModelWithTelemetry,
   probeSingleConnectionTelemetry,
 } from './proxyTelemetry.js';
+import { recordConsoleLog } from './consoleLogger.js';
 
 export const NEXUSTAVERN_META_DIR = path.join(DEFAULT_USER_DIR, '.nexustavern');
 export const API_HUB_FILE_PATH = path.join(NEXUSTAVERN_META_DIR, 'api-hub.json');
@@ -625,6 +626,18 @@ export async function executeWithConnectionKeyFailover(connectionId, executorFn,
         storeKey.status = verdict.markDead ? 'dead' : 'cooldown';
         storeKey.statusReason = verdict.reason;
         mutatedStore = true;
+        const hasBackup = verdict.shouldTryNextKey && i < candidates.length - 1;
+        recordConsoleLog({
+          category: 'system',
+          level: 'warn',
+          scope: 'Keychain',
+          title: `API key ${storeKey.label || `#${i + 1}`} marked ${storeKey.status.toUpperCase()} on "${conn.name}"`,
+          summary: `${verdict.reason}${hasBackup ? ' • Failing over to next backup key' : ''}`,
+          badges: [
+            { label: storeKey.status.toUpperCase(), tone: verdict.markDead ? 'danger' : 'warn' },
+            ...(hasBackup ? [{ label: 'FAILOVER', tone: 'accent' }] : []),
+          ],
+        });
       }
 
       if (verdict.shouldTryNextKey && i < candidates.length - 1) {
