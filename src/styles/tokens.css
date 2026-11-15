@@ -1,0 +1,327 @@
+/* ==========================================================================
+   NEXUSTAVERN — PURE MATERIAL DESIGN 3 (M3) DESIGN TOKENS
+   ========================================================================== */
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* 1. M3 Surface & Tonal Container Hierarchy (Ashen Slate & Indigo Pearl) */
+  --md-sys-color-background: #111115;
+  --md-sys-color-on-background: #e4e4ec;
+
+  --md-sys-color-surface: #131317;
+  --md-sys-color-surface-dim: #111115;
+  --md-sys-color-surface-bright: #343440;
+
+  --md-sys-color-surface-container-lowest: #121216;
+  --md-sys-color-surface-container-low: #15151a;
+  --md-sys-color-surface-container: #1a1a1f;
+  --md-sys-color-surface-container-high: #222228;
+  --md-sys-color-surface-container-highest: #2e2e38;
+  /* User message bubbles sit one step above the recessed wells, below cards */
+  --md-sys-color-surface-container-low-user: #202029;
+
+  --md-sys-color-on-surface: #ececf4;
+  --md-sys-color-on-surface-variant: #c6c6d4;
+  --md-sys-color-on-surface-muted: #8a8a9e;
+
+  /* 2. M3 Primary (#6D6D83 Slate) & Accent/Secondary (#6575B3 Indigo) Roles */
+  --md-sys-color-primary: #6575b3;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #2b3354;
+  --md-sys-color-on-primary-container: #dce2ff;
+
+  --md-sys-color-secondary: #6d6d83;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #2e2e3a;
+  --md-sys-color-on-secondary-container: #dfdeee;
+
+  --md-sys-color-tertiary: #8294c4;
+  --md-sys-color-on-tertiary: #141d38;
+  --md-sys-color-tertiary-container: #293659;
+  --md-sys-color-on-tertiary-container: #d8e2ff;
+
+  /* 3. M3 Outline & Divider Roles */
+  --md-sys-color-outline: #6d6d83;
+  --md-sys-color-outline-variant: #3b3b48;
+
+  /* 4. M3 Semantic Status Roles */
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
+
+  --md-sys-color-success: #8fd4a0;
+  --md-sys-color-on-success: #0d381b;
+  --md-sys-color-success-container: #1f502d;
+  --md-sys-color-on-success-container: #abeeb9;
+
+  --md-sys-color-warning: #f5bf6b;
+  --md-sys-color-on-warning: #412900;
+  --md-sys-color-warning-container: #5d3d00;
+  --md-sys-color-on-warning-container: #ffdea8;
+
+  /* 5. WebGL Pearlescent Shader Color Bridges */
+  --bb-shader-base: #131317;
+  --bb-shader-pearl-a: #6575b3;
+  --bb-shader-pearl-b: #6d6d83;
+  --bb-shader-pearl-c: #92a0d6;
+  --bb-shader-vignette: #131317;
+
+  /* 6. M3 Elevation Shadows (Dark) — flat layers, no inner highlights */
+  --md-sys-elevation-0: none;
+  --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.22);
+  --md-sys-elevation-2: 0 2px 6px rgba(0, 0, 0, 0.26);
+  --md-sys-elevation-3: 0 4px 10px rgba(0, 0, 0, 0.30);
+  --md-sys-elevation-4: 0 6px 16px rgba(0, 0, 0, 0.34);
+  --md-sys-elevation-5: 0 8px 22px rgba(0, 0, 0, 0.38);
+
+  /* 7. Scrollbar & Airy Surface Gradients (NexusTavern style) */
+  --bb-scrollbar-thumb: rgba(56, 56, 66, 0.72);
+  --bb-scrollbar-thumb-hover: rgba(78, 78, 92, 0.86);
+  --bb-scrollbar-track: transparent;
+  /* Surface for controls floating above imagery (selection badges) */
+  --bb-overlay-chip-bg: rgba(20, 20, 26, 0.82);
+  --bb-btn-grad: linear-gradient(180deg, #202026 0%, #1c1c21 100%);
+  --bb-btn-hover-grad: linear-gradient(180deg, #2b2934 0%, #26252c 100%);
+  --bb-btn-flat-bg: #2f2f37;
+  --bb-btn-flat-hover-bg: #3b3e49;
+  --bb-btn-soft-bg: #2a303f;
+  --bb-btn-soft-hover-bg: #333a4d;
+  --bb-accent-grad: linear-gradient(180deg, #7686c4 0%, #5868a6 100%);
+  --bb-tonal-grad: linear-gradient(180deg, #292c3b 0%, #232632 100%);
+  --bb-card-grad: linear-gradient(180deg, rgba(23, 23, 28, 0.92) 0%, rgba(19, 19, 23, 0.95) 100%);
+  --bb-rim-light: rgba(255, 255, 255, 0.10);
+
+  /* 8. Solid M3 Menu & Bottom Sheet Tonal Surfaces (100% Opaque) */
+  --bb-sheet-bg: #1e1e25;
+  --bb-sheet-header-bg: #18181e;
+  --bb-sheet-well-bg: #131318;
+  --bb-sheet-item-hover: #282832;
+  --bb-sheet-item-selected: #2d3452;
+}
+
+/* ==========================================================================
+   M3 LIGHT THEME (Luminous Pastel Parchment — Zero Grey)
+   ========================================================================== */
+[data-theme='light'] {
+  color-scheme: light;
+
+  --md-sys-color-background: #f4f4fa;
+  --md-sys-color-on-background: #1d1d2b;
+
+  --md-sys-color-surface: #f8f8fc;
+  --md-sys-color-surface-dim: #eaeaf4;
+  --md-sys-color-surface-bright: #ffffff;
+
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f7f7fc;
+  --md-sys-color-surface-container: #fcfcff;
+  --md-sys-color-surface-container-high: #eef0fa;
+  --md-sys-color-surface-container-highest: #e6e8f6;
+  /* User message bubbles sit one step above the recessed wells, below cards */
+  --md-sys-color-surface-container-low-user: #fafaff;
+
+  --md-sys-color-on-surface: #1b1c2a;
+  --md-sys-color-on-surface-variant: #3b3d52;
+  --md-sys-color-on-surface-muted: #6c6f8a;
+
+  --md-sys-color-primary: #5262a1;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #e2e6fb;
+  --md-sys-color-on-primary-container: #1f284d;
+
+  --md-sys-color-secondary: #5c5e78;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #e8e9f5;
+  --md-sys-color-on-secondary-container: #1d1e2c;
+
+  --md-sys-color-tertiary: #4c669e;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #dce4f9;
+  --md-sys-color-on-tertiary-container: #142242;
+
+  --md-sys-color-outline: #b4b7cf;
+  --md-sys-color-outline-variant: rgba(140, 144, 176, 0.28);
+
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
+
+  --md-sys-color-success: #286a3a;
+  --md-sys-color-on-success: #ffffff;
+  --md-sys-color-success-container: #adf2bb;
+  --md-sys-color-on-success-container: #002109;
+
+  --md-sys-color-warning: #7c5800;
+  --md-sys-color-on-warning: #ffffff;
+  --md-sys-color-warning-container: #ffdea8;
+  --md-sys-color-on-warning-container: #271900;
+
+  --bb-shader-base: #fafaff;
+  --bb-shader-pearl-a: #95a4e0;
+  --bb-shader-pearl-b: #b8bce6;
+  --bb-shader-pearl-c: #d4b8e8;
+  --bb-shader-vignette: #f7f7fc;
+
+  --bb-btn-grad: linear-gradient(180deg, #ffffff 0%, #f3f4fb 100%);
+  --bb-btn-hover-grad: linear-gradient(180deg, #ffffff 0%, #e7eaf8 100%);
+  --bb-btn-flat-bg: #f7f7fc;
+  --bb-btn-flat-hover-bg: #eef1fb;
+  --bb-btn-soft-bg: #e6eaf6;
+  --bb-btn-soft-hover-bg: #dde3f3;
+  --bb-accent-grad: linear-gradient(180deg, #6878b8 0%, #5262a1 100%);
+  --bb-tonal-grad: linear-gradient(180deg, #eef1fd 0%, #e0e5fa 100%);
+  --bb-card-grad: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(246, 247, 253, 0.90) 100%);
+  --bb-rim-light: rgba(255, 255, 255, 0.90);
+
+  --md-sys-elevation-0: none;
+  --md-sys-elevation-1: 0 1px 3px rgba(82, 98, 161, 0.06);
+  --md-sys-elevation-2: 0 3px 8px rgba(82, 98, 161, 0.08);
+  --md-sys-elevation-3: 0 5px 14px rgba(82, 98, 161, 0.10);
+  --md-sys-elevation-4: 0 8px 20px rgba(82, 98, 161, 0.12);
+  --md-sys-elevation-5: 0 10px 26px rgba(82, 98, 161, 0.14);
+
+  --bb-scrollbar-thumb: rgba(74, 76, 88, 0.28);
+  --bb-scrollbar-thumb-hover: rgba(54, 56, 66, 0.48);
+  --bb-scrollbar-track: transparent;
+  /* Surface for controls floating above imagery (selection badges) */
+  --bb-overlay-chip-bg: rgba(255, 255, 255, 0.92);
+
+  /* Solid M3 Menu & Bottom Sheet Tonal Surfaces (100% Opaque) */
+  --bb-sheet-bg: #fcfcff;
+  --bb-sheet-header-bg: #f4f5fc;
+  --bb-sheet-well-bg: #eef0fa;
+  --bb-sheet-item-hover: #eef1fb;
+  --bb-sheet-item-selected: #e2e6fb;
+}
+
+/* ==========================================================================
+   M3 SHARED GEOMETRY, MOTION, SHAPES, SPACING & TYPOGRAPHY TOKENS
+   ========================================================================== */
+:root {
+  --md-sys-state-hover-opacity: 0.08;
+  --md-sys-state-focus-opacity: 0.12;
+  --md-sys-state-pressed-opacity: 0.12;
+  --md-sys-state-dragged-opacity: 0.16;
+  --md-sys-state-disabled-container-opacity: 0.12;
+  --md-sys-state-disabled-content-opacity: 0.38;
+
+  --md-sys-shape-corner-none: 0px;
+  --md-sys-shape-corner-xs: 6px;
+  --md-sys-shape-corner-sm: 11px;
+  --md-sys-shape-corner-md: 16px;
+  --md-sys-shape-corner-lg: 20px;
+  --md-sys-shape-corner-xl: 28px;
+  --md-sys-shape-corner-full: 9999px;
+
+  /* Control geometry: every clickable control shares one corner radius */
+  --bb-control-radius: 8px;
+  /* Search fields use the M3 full corner shape, text fields stay rounded-rect */
+  --bb-input-radius: 8px;
+  --bb-search-radius: 9999px;
+  /* Recessed wells (inputs, tracks) — flat, no inner highlight */
+  --bb-inset-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.10);
+
+  /* Scrollbar geometry: one thickness for every scroll container */
+  --bb-scrollbar-size: 10px;
+  --bb-scrollbar-radius: 9999px;
+
+  --bb-space-0: 0px;
+  --bb-space-1: 4px;
+  --bb-space-2: 8px;
+  --bb-space-3: 12px;
+  --bb-space-4: 16px;
+  --bb-space-5: 20px;
+  --bb-space-6: 24px;
+  --bb-space-8: 32px;
+  --bb-space-10: 40px;
+  --bb-space-12: 48px;
+
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-decelerate: cubic-bezier(0, 0, 0, 1);
+  --md-sys-motion-duration-short: 150ms;
+  --md-sys-motion-duration-medium: 250ms;
+  --md-sys-motion-duration-long: 400ms;
+
+  --bb-font-heading: 'PT Serif', Georgia, 'Times New Roman', serif;
+  --bb-font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --bb-font-mono: 'LXGW WenKai Mono TC', 'JetBrains Mono', 'Consolas', monospace;
+  --bb-font-scale: 1;
+
+  /* Six type steps — every component reads one of these, never a raw px */
+  --bb-display-size: calc(24px * var(--bb-font-scale));
+  --bb-headline-size: calc(20px * var(--bb-font-scale));
+  --bb-title-size: calc(16px * var(--bb-font-scale));
+  --bb-body-size: calc(14px * var(--bb-font-scale));
+  --bb-label-size: calc(12px * var(--bb-font-scale));
+  --bb-caption-size: calc(11px * var(--bb-font-scale));
+  --bb-mono-size: calc(12px * var(--bb-font-scale));
+
+  /* Legacy aliases kept in sync with the six steps above */
+  --bb-t1-size: var(--bb-title-size);
+  --bb-t2-size: var(--bb-body-size);
+  --bb-t3-size: var(--bb-label-size);
+
+  /* Unified M3 Control & List Scale (Desktop -> Mobile Touch) */
+  --bb-control-height-sm: 28px;
+  --bb-control-height-md: 34px;
+  --bb-control-height-lg: 40px;
+  --bb-search-height: 38px;
+  --bb-list-row-height: 42px;
+  --bb-list-row-2line-height: 56px;
+
+  /* Chat reading column — the single source of truth for the message stream,
+     composer and top bar width. Any surface that must align with the chat
+     (e.g. the expanded scenario sheet) reads these instead of hard-coding px. */
+  --bb-chat-column-gutter: 18px;
+  --bb-chat-column-max: 784px;
+  --bb-chat-column-width: calc(100% - var(--bb-chat-column-gutter) * 2);
+
+  /* Aliases for Step 1.2 compatibility */
+  --bb-bg-deep: var(--md-sys-color-background);
+  --bb-bg-surface: var(--md-sys-color-surface-container-low);
+  --bb-bg-card: var(--md-sys-color-surface-container);
+  --bb-border: var(--md-sys-color-outline-variant);
+  --bb-border-accent: var(--md-sys-color-outline);
+  --bb-text-primary: var(--md-sys-color-on-surface);
+  --bb-text-secondary: var(--md-sys-color-on-surface-variant);
+  --bb-text-muted: var(--md-sys-color-on-surface-muted);
+  --bb-accent: var(--md-sys-color-primary);
+  --bb-success: var(--md-sys-color-success);
+  --bb-danger: var(--md-sys-color-error);
+  --bb-radius-sm: var(--md-sys-shape-corner-sm);
+  --bb-radius-md: var(--md-sys-shape-corner-md);
+  --bb-font-serif: var(--bb-font-heading);
+  --bb-font-sans: var(--bb-font-body);
+}
+
+[data-gpu-mode='low'] {
+  --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --md-sys-elevation-2: 0 2px 4px rgba(0, 0, 0, 0.20);
+  --md-sys-elevation-3: 0 3px 6px rgba(0, 0, 0, 0.22);
+  --md-sys-elevation-4: 0 3px 8px rgba(0, 0, 0, 0.24);
+  --md-sys-elevation-5: 0 4px 10px rgba(0, 0, 0, 0.26);
+}
+
+[data-gpu-mode='low'] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Smartphone M3 Touch Scale — automatically enlarges interactive targets */
+@media (max-width: 640px) {
+  :root {
+    --bb-control-height-sm: 32px;
+    --bb-control-height-md: 38px;
+    --bb-control-height-lg: 44px;
+    --bb-search-height: 44px;
+    --bb-list-row-height: 48px;
+    --bb-list-row-2line-height: 62px;
+  }
+}
+
+

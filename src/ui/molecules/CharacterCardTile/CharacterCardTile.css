@@ -1,0 +1,133 @@
+/* ==========================================================================
+   NEXUSTAVERN UI CHARACTER CARD TILE (right tome gallery)
+   Presentation only; selection and drag state live in the gallery feature.
+   ========================================================================== */
+
+.bb-char-tile {
+  position: relative;
+  display: block;
+  min-width: 0;
+  /* The tile IS the ratio: no footer may stretch it. */
+  aspect-ratio: var(--bb-char-aspect, 2 / 3);
+  border-radius: 8px;
+  background-color: var(--bb-page-card-bg);
+  border: 1px solid var(--bb-page-border);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.12s ease, background-color 0.12s ease,
+    transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.bb-char-tile:hover {
+  background-color: var(--bb-page-card-hover);
+  border-color: var(--bb-page-border-strong);
+  box-shadow: var(--md-sys-elevation-2, 0 2px 6px rgba(0, 0, 0, 0.22));
+}
+
+.bb-char-tile.is-selected {
+  border-color: var(--bb-accent-color);
+  box-shadow: 0 0 0 1px var(--bb-accent-border);
+}
+
+.bb-char-tile.is-multi-selected {
+  border-color: var(--bb-accent-bright);
+  background-color: var(--bb-accent-surface-top);
+}
+
+.bb-char-tile.is-dragging {
+  opacity: 0.5;
+  transform: scale(0.97);
+}
+
+.bb-char-tile__portrait {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--bb-page-input-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-char-tile__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.bb-char-tile__initials {
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-t1-size);
+  font-weight: 700;
+  color: var(--bb-ink-muted);
+}
+
+.bb-char-tile__pin {
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.65);
+  color: var(--bb-accent-bright);
+  pointer-events: none;
+}
+
+.bb-char-tile__check {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 6;
+  pointer-events: none;
+  transition: transform 0.14s ease;
+}
+
+.bb-char-tile__check.is-checked {
+  transform: scale(1.05);
+}
+
+/* Name overlays the bottom of the portrait so the tile keeps its ratio. */
+.bb-char-tile__name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px 6px 5px;
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-caption-size);
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.55) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.bb-char-tile__actions {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 8;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.bb-char-tile:hover .bb-char-tile__actions,
+.bb-char-tile__actions:focus-within,
+.bb-char-tile__actions:has(.bb-kebab-menu.is-open) {
+  opacity: 1;
+}

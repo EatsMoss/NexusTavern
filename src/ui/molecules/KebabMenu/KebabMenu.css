@@ -1,0 +1,114 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — KEBAB MENU MOLECULE (M3 POPOVER MENU)
+   ========================================================================== */
+
+.bb-kebab-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.bb-kebab-menu__trigger.bb-btn {
+  width: var(--bb-control-height-sm);
+  height: var(--bb-control-height-sm);
+  min-width: var(--bb-control-height-sm);
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--bb-btn-border);
+  background: var(--bb-btn-flat-bg, var(--bb-page-input-bg));
+  color: var(--bb-ink-main);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-kebab-menu__trigger.bb-btn:hover,
+.bb-kebab-menu.is-open .bb-kebab-menu__trigger.bb-btn {
+  background: var(--bb-btn-flat-hover-bg, var(--bb-page-card-hover));
+  border-color: var(--bb-accent-border);
+  color: var(--bb-ink-heading);
+}
+
+.bb-kebab-menu__popover {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  width: max-content;
+  min-width: 176px;
+  max-width: 268px;
+  z-index: 9990;
+  padding: 6px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-bg, #1e1e25);
+  box-shadow: var(--md-sys-elevation-5, 0 12px 32px rgba(0, 0, 0, 0.48));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-sizing: border-box;
+}
+
+.bb-kebab-menu__item {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  font-family: var(--bb-font-body);
+  font-size: calc(13.5px * var(--bb-font-scale, 1));
+  font-weight: 500;
+  text-align: left;
+  min-height: 38px;
+  padding: 6px 12px;
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.bb-kebab-menu__item:hover:not(:disabled) {
+  background: var(--bb-sheet-item-hover, var(--md-sys-color-surface-container-highest));
+  border-color: var(--bb-page-border);
+  color: var(--bb-ink-hover, var(--md-sys-color-on-surface));
+}
+
+.bb-kebab-menu__item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bb-kebab-menu__item-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+}
+
+.bb-kebab-menu__item:hover:not(:disabled) .bb-kebab-menu__item-icon {
+  color: inherit;
+}
+
+.bb-kebab-menu__item--danger {
+  color: var(--bb-danger-ink, var(--md-sys-color-error));
+}
+
+.bb-kebab-menu__item--danger .bb-kebab-menu__item-icon {
+  color: var(--bb-danger-ink, var(--md-sys-color-error));
+}
+
+.bb-kebab-menu__item--danger:hover:not(:disabled) {
+  background: var(--bb-danger-surface);
+  color: var(--bb-danger-ink);
+}
+
+@media (max-width: 640px) {
+  .bb-kebab-menu__popover {
+    min-width: 204px;
+    padding: 7px;
+  }
+
+  .bb-kebab-menu__item {
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+}

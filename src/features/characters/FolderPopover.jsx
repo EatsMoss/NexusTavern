@@ -1,0 +1,392 @@
+import React, {
+  useMemo,
+  useRef,
+  useState,
+  useLayoutEffect,
+  useEffect,
+  useCallback,
+} from 'react';
+import { createPortal } from 'react-dom';
+import { Icon } from '@ui/atoms/Icon/Icon.jsx';
+import { ScrollIndicator } from '@ui/atoms/ScrollIndicator/ScrollIndicator.jsx';
+import { CharacterCardTile } from '@ui/molecules/CharacterCardTile/CharacterCardTile.jsx';
+import { computeSlotDisplacement, computeDropSlotBox } from './PinnedSection.jsx';
+
+const FOLDER_INITIAL_CHUNK = 24;
+const FOLDER_CHUNK_STEP = 24;
+
+export function FolderPopover({
+  activeFolder = null,
+  triggerKey = '',
+  anchorSectionRef,
+  anchorHeaderRef,
+  popoverRef: externalPopoverRef,
+  popoverGridRef: externalPopoverGridRef,
+  gridStyle,
+  selectedId,
+  multiSelectActive = false,
+  multiSelectedIds = [],
+  onToggleMultiSelect,
+  onSelect,
+  onOpen,
+  onClose,
+  onRenameFolder,
+  onRemoveCardFromFolder,
+  onStartPointerDrag,
+  kebabItemsFor,
+  dragState = null,
+}) {
+  const internalPopoverRef = useRef(null);
+  const resolvedPopoverRef = externalPopoverRef || internalPopoverRef;
+  const internalPopoverGridRef = useRef(null);
+  const resolvedPopoverGridRef = externalPopoverGridRef || internalPopoverGridRef;
+  const sentinelRef = useRef(null);
+
+  const [popoverCoords, setPopoverCoords] = useState({
+    top: 0,
+    left: 0,
+    width: 320,
+    maxHeight: 520,
+    ready: false,
+  });
+
+  const members = activeFolder?.items || [];
+  const isUserFolder = activeFolder?.type === 'folder';
+
+  const [renderedLimit, setRenderedLimit] = useState(FOLDER_INITIAL_CHUNK);
+
+  useEffect(() => {
+    setRenderedLimit(FOLDER_INITIAL_CHUNK);
+  }, [activeFolder?.id]);
+
+  const visibleMembers = useMemo(
+    () => (isUserFolder ? members : members.slice(0, renderedLimit)),
+    [isUserFolder, members, renderedLimit],
+  );
+
+  const hasMoreMembers = !isUserFolder && visibleMembers.length < members.length;
+
+  const multiSelectedSet = useMemo(
+    () => new Set(multiSelectedIds || []),
+    [multiSelectedIds],
+  );
+
+  const updatePopoverPosition = useCallback(() => {
+    const sectionEl = anchorSectionRef?.current;
+    if (!sectionEl || typeof window === 'undefined') return;
+
+    const sRect = sectionEl.getBoundingClientRect();
+    const hRect = anchorHeaderRef?.current?.getBoundingClientRect();
+    const vh = window.innerHeight || 800;
+    const vw = window.innerWidth || 1280;
+
+    const left = Math.max(8, Math.round(sRect.left + 4));
+    const width = Math.max(180, Math.min(Math.round(sRect.width - 8), vw - left - 8));
+    let top = hRect ? Math.round(hRect.bottom + 4) : Math.round(sRect.top + 28);
+
+    const popEl = resolvedPopoverRef.current;
+    if (popEl) {
+      popEl.style.width = `${width}px`;
+      popEl.style.maxHeight = 'none';
+      const naturalH = popEl.offsetHeight;
+      if (top + naturalH > vh - 12) {
+        top = Math.max(12, vh - naturalH - 12);
+      }
+    }
+
+    const maxHeight = Math.max(180, vh - top - 12);
+    if (popEl) {
+      popEl.style.maxHeight = `${maxHeight}px`;
+    }
+
+    setPopoverCoords((prev) => {
+      if (
+        prev.ready &&
+        prev.top === top &&
+        prev.left === left &&
+        prev.width === width &&
+        prev.maxHeight === maxHeight
+      ) {
+        return prev;
+      }
+      return { top, left, width, maxHeight, ready: true };
+    });
+  }, [anchorSectionRef, anchorHeaderRef, resolvedPopoverRef]);
+
+  useLayoutEffect(() => {
+    if (!activeFolder) {
+      setPopoverCoords((prev) => (prev.ready ? { ...prev, ready: false } : prev));
+      return undefined;
+    }
+    updatePopoverPosition();
+
+    const sectionEl = anchorSectionRef?.current;
+    const ro =
+      typeof ResizeObserver !== 'undefined' && sectionEl
+        ? new ResizeObserver(() => updatePopoverPosition())
+        : null;
+    if (ro && sectionEl) ro.observe(sectionEl);
+
+    window.addEventListener('resize', updatePopoverPosition);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', updatePopoverPosition);
+    };
+  }, [activeFolder, visibleMembers.length, gridStyle, anchorSectionRef, updatePopoverPosition]);
+
+  useEffect(() => {
+    if (!activeFolder || !hasMoreMembers) return undefined;
+    const scrollEl = resolvedPopoverGridRef.current;
+    const node = sentinelRef.current;
+    if (!scrollEl || !node) return undefined;
+
+    if (scrollEl.clientHeight > 0 && scrollEl.scrollHeight <= scrollEl.clientHeight + 24) {
+      const rafId = requestAnimationFrame(() => {
+        setRenderedLimit((prev) => Math.min(members.length, prev + FOLDER_CHUNK_STEP));
+      });
+      return () => cancelAnimationFrame(rafId);
+    }
+
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setRenderedLimit((prev) => Math.min(members.length, prev + FOLDER_CHUNK_STEP));
+        }
+      },
+      {
+        root: scrollEl,
+        rootMargin: '160px 0px',
+      },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [activeFolder, hasMoreMembers, members.length, renderedLimit, resolvedPopoverGridRef]);
+
+  useEffect(() => {
+    if (!activeFolder || typeof document === 'undefined') return undefined;
+
+    const closeFolderSafely = () => {
+      const popEl = resolvedPopoverRef.current;
+      if (
+        popEl &&
+        document.activeElement &&
+        popEl.contains(document.activeElement) &&
+        typeof document.activeElement.blur === 'function'
+      ) {
+        document.activeElement.blur();
+      }
+      onClose?.();
+    };
+
+    const handleDocPointerDown = (e) => {
+      const target = e.target;
+      const popEl = resolvedPopoverRef.current;
+      if (popEl && popEl.contains(target)) {
+        return;
+      }
+      if (
+        target?.closest?.('.bb-kebab-menu__popover') &&
+        popEl?.querySelector?.('.bb-kebab-menu.is-open')
+      ) {
+        return;
+      }
+      if (target?.closest?.('.bb-modal-backdrop')) {
+        return;
+      }
+      if (triggerKey) {
+        const clickedTrigger = target?.closest?.('[data-bb-folder-trigger-key]');
+        if (
+          clickedTrigger &&
+          clickedTrigger.getAttribute('data-bb-folder-trigger-key') === triggerKey
+        ) {
+          return;
+        }
+      }
+      closeFolderSafely();
+    };
+
+    const handleDocKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (document.querySelector('.bb-kebab-menu__popover, .bb-modal-backdrop')) return;
+        e.stopPropagation();
+        closeFolderSafely();
+      }
+    };
+
+    document.addEventListener('pointerdown', handleDocPointerDown, true);
+    document.addEventListener('keydown', handleDocKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handleDocPointerDown, true);
+      document.removeEventListener('keydown', handleDocKeyDown);
+    };
+  }, [activeFolder, triggerKey, onClose, resolvedPopoverRef]);
+
+  if (!activeFolder || typeof document === 'undefined') return null;
+
+  const popoverHover =
+    isUserFolder && dragState?.active && dragState.hover?.scope === 'popover'
+      ? dragState.hover
+      : null;
+  const popoverDropSlotBox = isUserFolder
+    ? computeDropSlotBox(popoverHover, dragState?.popoverMetrics)
+    : null;
+
+  return createPortal(
+    <div
+      ref={resolvedPopoverRef}
+      className="bb-pinned-folder-popover"
+      style={{
+        ...gridStyle,
+        top: `${popoverCoords.top}px`,
+        left: `${popoverCoords.left}px`,
+        width: `${popoverCoords.width}px`,
+        maxHeight: `${popoverCoords.maxHeight}px`,
+        visibility: popoverCoords.ready ? 'visible' : 'hidden',
+      }}
+    >
+      <div className="bb-folder-popover-header">
+        <Icon
+          name={activeFolder.type === 'tag-folder' ? 'tags' : 'folder'}
+          size={14}
+          style={{ color: 'var(--bb-ink-accent)', flexShrink: 0 }}
+        />
+        <input
+          type="text"
+          className="bb-folder-title-input"
+          aria-label="Folder name"
+          defaultValue={activeFolder.name}
+          key={`${activeFolder.id}:${activeFolder.name}`}
+          onBlur={(e) => onRenameFolder?.(activeFolder.id, e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.currentTarget.blur();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              onClose?.();
+            }
+          }}
+        />
+        <span className="bb-char-section-hint" style={{ flexShrink: 0 }}>
+          {members.length}
+        </span>
+        <button
+          type="button"
+          className="bb-folder-popover-close"
+          title="Close folder"
+          aria-label="Close folder"
+          onClick={() => onClose?.()}
+        >
+          <Icon name="close" size={13} />
+        </button>
+      </div>
+
+      <div className="bb-folder-popover-grid-wrap">
+        <div
+          className="bb-folder-popover-grid bb-scrollbar--hidden"
+          ref={resolvedPopoverGridRef}
+        >
+          {popoverDropSlotBox && (
+            <div
+              className="bb-pinned-drop-slot-indicator"
+              style={{
+                left: `${popoverDropSlotBox.left}px`,
+                top: `${popoverDropSlotBox.top}px`,
+                width: `${popoverDropSlotBox.width}px`,
+                height: `${popoverDropSlotBox.height}px`,
+              }}
+            />
+          )}
+
+          {visibleMembers.map((member, mIndex) => {
+            const isPopoverSource =
+              dragState?.active &&
+              dragState.sourceOrigin === 'folder-popover' &&
+              dragState.draggedCard?.id === member.id;
+
+            const memberDisplacement = isUserFolder
+              ? computeSlotDisplacement(mIndex, popoverHover, dragState?.popoverMetrics)
+              : undefined;
+
+            return (
+              <div
+                key={member.id}
+                data-bb-popover-slot={mIndex}
+                style={memberDisplacement}
+                className={`bb-pinned-slot ${isPopoverSource ? 'is-dragging-source' : ''}`}
+                onPointerDown={(e) => {
+                  if (
+                    e.target.closest(
+                      '.bb-folder-member-remove, .bb-char-tile__actions, .bb-kebab-menu',
+                    )
+                  ) {
+                    return;
+                  }
+                  if (multiSelectActive || e.ctrlKey || e.metaKey || e.shiftKey) return;
+                  onStartPointerDrag?.(e, {
+                    sourceOrigin: 'folder-popover',
+                    sourceType: 'item',
+                    sourceIndex: mIndex,
+                    sourceFolderId: activeFolder.id,
+                    sourceFolderType: activeFolder.type,
+                    card: member,
+                  });
+                }}
+              >
+                <CharacterCardTile
+                  item={member}
+                  showPinBadge={activeFolder.type === 'tag-folder'}
+                  selected={member.id === selectedId}
+                  multiSelectActive={multiSelectActive}
+                  multiSelected={multiSelectedSet.has(member.id)}
+                  onToggleMultiSelect={onToggleMultiSelect}
+                  onSelect={onSelect}
+                  onOpen={(id) => {
+                    onOpen?.(id);
+                    onClose?.();
+                  }}
+                  kebabItems={kebabItemsFor ? kebabItemsFor(member) : []}
+                />
+                {onRemoveCardFromFolder && (
+                  <button
+                    type="button"
+                    className="bb-folder-member-remove"
+                    title={
+                      activeFolder.type === 'tag-folder'
+                        ? `Remove tag "${activeFolder.name}"`
+                        : 'Move out of folder'
+                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveCardFromFolder(activeFolder.id, member.id, false);
+                    }}
+                  >
+                    <Icon name="close" size={11} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {hasMoreMembers && (
+            <div
+              ref={sentinelRef}
+              style={{ gridColumn: '1 / -1', height: 4 }}
+              aria-hidden="true"
+            />
+          )}
+
+          {members.length === 0 && (
+            <div className="bb-pinned-empty">This folder is empty.</div>
+          )}
+        </div>
+        <ScrollIndicator
+          scrollRef={resolvedPopoverGridRef}
+          className="bb-scroll-indicator--panel"
+        />
+      </div>
+    </div>,
+    document.body,
+  );
+}

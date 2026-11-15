@@ -1,0 +1,105 @@
+/* ==========================================================================
+   NEXUSTAVERN UI CARD (.bb-cust-card from 07-customization-and-themes.css)
+   Light, clean container without heavy separate header fill
+   ========================================================================== */
+
+.bb-m3-folder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--bb-control-radius, 8px);
+  background-color: var(--bb-sheet-bg, var(--bb-page-card-bg));
+  border: 1px solid var(--bb-page-border);
+  box-shadow: var(--md-sys-elevation-1);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+[data-theme='light'] .bb-m3-folder {
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-m3-folder__header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--bb-page-border);
+  min-width: 0;
+  user-select: none;
+}
+
+.bb-m3-folder:not(.bb-m3-folder--open) > .bb-m3-folder__header {
+  padding-bottom: 0;
+  border-bottom-color: transparent;
+}
+
+.bb-m3-folder--collapsible > .bb-m3-folder__header {
+  cursor: pointer;
+}
+
+.bb-m3-folder--collapsible > .bb-m3-folder__header:hover .bb-m3-folder__title,
+.bb-m3-folder--collapsible > .bb-m3-folder__header:hover .bb-m3-folder__chevron {
+  color: var(--bb-ink-hover);
+}
+
+.bb-m3-folder__title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bb-m3-folder__title-group > div {
+  min-width: 0;
+}
+
+.bb-m3-folder__icon {
+  color: var(--bb-ink-accent);
+  flex-shrink: 0;
+}
+
+.bb-m3-folder__title {
+  font-family: var(--bb-font-heading);
+  font-size: calc(14.5px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--bb-ink-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.14s ease;
+}
+
+.bb-m3-folder__subtitle {
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size);
+  color: var(--bb-ink-muted);
+  margin-top: 1px;
+}
+
+.bb-m3-folder__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.bb-m3-folder__chevron {
+  color: var(--bb-ink-muted);
+  transition: transform 0.18s ease, color 0.14s ease;
+}
+
+.bb-m3-folder:not(.bb-m3-folder--open) .bb-m3-folder__chevron {
+  transform: rotate(-90deg);
+}
+
+.bb-m3-folder__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+

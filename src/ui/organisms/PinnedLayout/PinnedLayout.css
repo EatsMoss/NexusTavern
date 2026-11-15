@@ -1,0 +1,356 @@
+/* ==========================================================================
+   NEXUSTAVERN UI PINNED LAYOUT (04-characters-and-scenarios.css & 10-card-menus)
+   - Pinned section with cards & 2x2 tag folders
+   - Draggable splitter bar (.bb-char-splitter)
+   - All section with column/ratio switchers, tag filters & kebab menu
+   ========================================================================== */
+
+.bb-pinned-layout {
+  --bb-char-cols: 4;
+  --bb-char-aspect: 2 / 3;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 4px;
+  user-select: none;
+}
+
+.bb-char-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 2px 6px 2px;
+  border-bottom: 1px solid var(--bb-page-border);
+}
+
+.bb-char-section-title {
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-t2-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bb-ink-heading);
+}
+
+.bb-card-size-toolbar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.bb-all-sort-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid);
+  background: var(--bb-page-input-bg);
+}
+
+.bb-sort-filter-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--bb-ink-muted);
+  font-family: var(--bb-font-heading);
+  font-size: calc(10.5px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 7px;
+  border-radius: var(--bb-control-radius, 8px);
+  cursor: pointer;
+  line-height: 1;
+  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+
+.bb-sort-filter-btn:hover:not(.active) {
+  color: var(--bb-ink-main);
+  background: var(--bb-page-input-hover);
+}
+
+.bb-sort-filter-btn.active {
+  background: var(--bb-btn-soft-bg, var(--bb-accent-surface-top));
+  border-color: var(--bb-accent-border);
+  color: var(--bb-ink-hover);
+}
+
+/* Pinned Section & Drop Target */
+.bb-pinned-section {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  overflow-y: auto;
+  transition: border-color 0.14s ease, background-color 0.14s ease;
+}
+
+.bb-pinned-section.is-drop-target {
+  border-color: var(--bb-accent-border);
+  background-color: var(--bb-page-input-hover);
+}
+
+.bb-pinned-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--bb-char-cols, 4), minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0;
+}
+
+.bb-pinned-empty {
+  grid-column: 1 / -1;
+  padding: 12px 10px;
+  border-radius: 6px;
+  border: 1px dashed var(--bb-page-border-mid);
+  background: var(--bb-page-input-bg);
+  color: var(--bb-ink-muted);
+  font-size: var(--bb-caption-size);
+  text-align: center;
+}
+
+/* Pinned & All Tile Cards */
+.bb-pinned-tile {
+  position: relative;
+  cursor: pointer;
+}
+
+.bb-pinned-tile-card {
+  position: relative;
+  display: block;
+  min-width: 0;
+  aspect-ratio: var(--bb-char-aspect, 2 / 3);
+  border-radius: 8px;
+  background-color: var(--bb-page-card-bg);
+  border: 1px solid var(--bb-page-border);
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.bb-pinned-tile:hover .bb-pinned-tile-card {
+  background-color: var(--bb-page-card-hover);
+  border-color: var(--bb-page-border-strong);
+}
+
+.bb-pinned-tile.is-selected .bb-pinned-tile-card {
+  background: var(--bb-btn-soft-bg, var(--bb-accent-surface-top));
+  border-color: var(--bb-accent-border);
+}
+
+.bb-pinned-avatar {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(165deg, var(--bb-page-card-hover) 0%, var(--bb-page-input-bg) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--bb-font-heading);
+  font-weight: 700;
+  font-size: var(--bb-headline-size);
+  letter-spacing: 0.04em;
+  color: var(--bb-ink-muted);
+}
+
+.bb-pinned-tile.is-selected .bb-pinned-avatar {
+  color: var(--bb-ink-heading);
+}
+
+/* 2x2 Folder Grid Preview inside Pinned Folder Tile */
+.bb-folder-mini-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  box-sizing: border-box;
+  background: var(--bb-page-input-bg);
+}
+
+.bb-folder-mini-cell {
+  border-radius: var(--bb-control-radius, 8px);
+  background: var(--bb-btn-soft-bg, var(--bb-accent-surface-top));
+  border: 1px solid var(--bb-page-border-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-caption-size);
+  font-weight: 700;
+  color: var(--bb-ink-heading);
+}
+
+.bb-pinned-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.bb-pinned-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px 6px 5px;
+  font-family: var(--bb-font-heading);
+  font-size: calc(11px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.84) 0%,
+    rgba(0, 0, 0, 0.56) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.bb-pinned-meta-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  padding: 1px 5px;
+  border-radius: var(--bb-control-radius, 8px);
+  background: var(--bb-page-input-bg);
+  border: 1px solid var(--bb-page-border-mid);
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  font-weight: 600;
+  color: var(--bb-ink-heading);
+}
+
+/* Hover Kebab Menu Button ("⋮") */
+.bb-kebab-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 9;
+  width: var(--bb-control-height-sm);
+  height: var(--bb-control-height-sm);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--bb-page-border-strong);
+  background: var(--bb-page-input-bg);
+  color: var(--bb-ink-main);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+
+.bb-pinned-tile:hover .bb-kebab-btn,
+.bb-kebab-btn.is-open {
+  opacity: 1;
+}
+
+.bb-kebab-popover {
+  position: absolute;
+  top: 30px;
+  right: 4px;
+  z-index: 30;
+  min-width: 118px;
+  padding: 4px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-strong);
+  background: var(--md-sys-color-background);
+  box-shadow: var(--md-sys-elevation-1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bb-kebab-item {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--bb-ink-main);
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size);
+  font-weight: 500;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: var(--bb-control-radius, 8px);
+  cursor: pointer;
+}
+
+.bb-kebab-item:hover {
+  background: var(--bb-page-card-hover);
+  color: var(--bb-ink-heading);
+}
+
+.bb-kebab-item.is-danger {
+  color: var(--bb-danger-ink);
+}
+
+.bb-kebab-item.is-danger:hover {
+  background: var(--bb-danger-surface);
+}
+
+/* Resizable Splitter Bar (.bb-char-splitter) */
+.bb-char-splitter {
+  height: 12px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  margin: 2px 0;
+  position: relative;
+}
+
+.bb-char-splitter::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 1px;
+  background: var(--bb-page-border-mid);
+}
+
+.bb-char-splitter-grip {
+  position: relative;
+  z-index: 1;
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bb-page-border-strong);
+  border: 1px solid var(--bb-page-bg);
+  transition: width 0.14s ease, background-color 0.14s ease;
+}
+
+.bb-char-splitter:hover .bb-char-splitter-grip {
+  width: 48px;
+  background: var(--bb-ink-heading);
+}
+
+/* Opened Folder Popover Strip */
+.bb-opened-folder-box {
+  margin: 4px 0 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bb-page-input-bg);
+  border: 1px solid var(--bb-accent-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

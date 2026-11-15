@@ -1,0 +1,460 @@
+/* ==========================================================================
+   NEXUSTAVERN PINNED SECTION (right tome — pinned cards, folders & smooth DnD)
+   ========================================================================== */
+
+.bb-pinned-section {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  padding: 2px 0 4px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.bb-pinned-section.is-drop-active {
+  background-color: rgba(125, 113, 98, 0.06);
+  box-shadow: inset 0 0 0 1px var(--bb-accent-border);
+}
+
+.bb-pinned-section.is-unpin-warning {
+  background-color: rgba(180, 60, 50, 0.08);
+  box-shadow:
+    inset 0 0 0 1px var(--bb-danger-hover-border, #c85a50),
+    var(--bb-inset-shadow);
+}
+
+.bb-char-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 2px 0 6px;
+  flex-shrink: 0;
+}
+
+.bb-char-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-t3-size);
+  font-weight: 700;
+  color: var(--bb-ink-heading);
+}
+
+.bb-char-section-hint {
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size);
+  color: var(--bb-ink-muted);
+}
+
+.bb-pinned-grid-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.bb-pinned-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--bb-char-cols, 5), minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+  width: 100%;
+  padding: 2px 0 6px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+
+.bb-pinned-empty {
+  grid-column: 1 / -1;
+  padding: 14px 10px;
+  border-radius: 6px;
+  border: 1px dashed var(--bb-page-border-mid);
+  color: var(--bb-ink-muted);
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size);
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Smooth animated slot wrapper for every tile in Pinned */
+.bb-pinned-slot {
+  position: relative;
+  z-index: 2;
+  border-radius: 8px;
+  will-change: transform;
+  transition:
+    transform 230ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.bb-pinned-slot.is-dragging-source {
+  z-index: 0;
+  opacity: 0.22;
+  transform: scale(0.92);
+  pointer-events: none;
+}
+
+.bb-pinned-slot.is-merge-target {
+  z-index: 6;
+  transform: scale(1.07);
+  box-shadow:
+    0 0 0 2.5px var(--bb-accent-color),
+    var(--md-sys-elevation-4);
+}
+
+/* Highlighted empty slot placeholder shown where cards spread apart */
+.bb-pinned-drop-slot-indicator {
+  position: absolute;
+  z-index: 1;
+  border-radius: 8px;
+  border: 2px dashed var(--bb-accent-border);
+  background: rgba(168, 156, 141, 0.1);
+  box-shadow: var(--bb-inset-shadow);
+  pointer-events: none;
+  transition:
+    left 210ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 210ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 210ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 210ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 140ms ease;
+}
+
+/* Tag folder tile: 2×2 preview of the first four members, matching card ratio (2:3 or 1:1) */
+.bb-pinned-folder {
+  position: relative;
+  display: block;
+  min-width: 0;
+  aspect-ratio: var(--bb-char-aspect, 2 / 3);
+  border-radius: 8px;
+  border: 1px solid var(--bb-page-border);
+  background-color: var(--bb-page-card-bg);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.12s ease, background-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.bb-pinned-folder:hover {
+  background-color: var(--bb-page-card-hover);
+  border-color: var(--bb-page-border-strong);
+  box-shadow: var(--md-sys-elevation-2, 0 2px 6px rgba(0, 0, 0, 0.22));
+}
+
+.bb-pinned-folder.is-drop-target {
+  border-color: var(--bb-accent-color);
+  background-color: var(--bb-accent-surface-top);
+  box-shadow: 0 0 0 2px var(--bb-accent-border);
+}
+
+.bb-folder-mini-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  padding: 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+  background-color: var(--bb-page-input-bg);
+}
+
+.bb-folder-mini-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: var(--bb-page-card-bg);
+  border: 1px solid var(--bb-page-border);
+  color: var(--bb-ink-muted);
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-caption-size);
+  font-weight: 700;
+}
+
+.bb-folder-mini-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Folder name overlays the bottom edge so the folder keeps its strict 2:3 or 1:1 ratio */
+.bb-pinned-folder__name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 6px 5px;
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-caption-size);
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.84) 0%,
+    rgba(0, 0, 0, 0.56) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.bb-pinned-folder__count {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  z-index: 4;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background-color: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  font-weight: 600;
+  line-height: 14px;
+  pointer-events: none;
+}
+
+.bb-pinned-folder__actions {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 8;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.bb-pinned-folder:hover .bb-pinned-folder__actions,
+.bb-pinned-folder__actions:focus-within,
+.bb-pinned-folder__actions:has(.bb-kebab-menu.is-open) {
+  opacity: 1;
+}
+
+.bb-pinned-folder.is-hidden {
+  opacity: 0.65;
+}
+
+.bb-folder-hidden-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bb-page-input-bg);
+  color: var(--bb-ink-muted);
+  pointer-events: none;
+}
+
+/* Live morph overlay when hovering a card over the center of another card to form a folder */
+.bb-temp-folder-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  border-radius: 7px;
+  overflow: hidden;
+  background-color: var(--bb-page-input-bg);
+  pointer-events: none;
+  animation: bbFolderPreviewPulse 0.16s ease-out forwards;
+}
+
+.bb-folder-mini-cell.is-preview-incoming {
+  border-color: var(--bb-accent-color);
+  box-shadow: 0 0 0 1px var(--bb-accent-border);
+  animation: bbFolderPreviewPulse 0.2s ease-out;
+}
+
+@keyframes bbFolderPreviewPulse {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Expanded Folder Popover Overlay (portaled M3 Solid Sheet, never clipped by Pinned height) */
+.bb-pinned-folder-popover {
+  position: fixed;
+  z-index: 250;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: auto;
+  padding: 10px;
+  border-radius: var(--bb-control-radius, 8px);
+  background-color: var(--bb-sheet-bg, var(--bb-page-bg));
+  border: 1px solid var(--bb-page-border-strong);
+  box-shadow: var(--md-sys-elevation-5, 0 12px 32px rgba(0, 0, 0, 0.48));
+  box-sizing: border-box;
+  overflow: hidden;
+  animation: bbFolderPreviewPulse 0.15s ease-out forwards;
+}
+
+.bb-folder-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.bb-folder-title-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--bb-control-height-md);
+  padding: 2px 8px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid);
+  background-color: var(--bb-page-input-bg);
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-t3-size);
+  font-weight: 700;
+  color: var(--bb-ink-heading);
+  outline: none;
+  transition: border-color 0.14s ease, background-color 0.14s ease;
+}
+
+.bb-folder-title-input:focus {
+  border-color: var(--bb-accent-border);
+  background-color: var(--bb-page-card-hover);
+}
+
+.bb-folder-popover-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--bb-control-height-md);
+  height: var(--bb-control-height-md);
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--bb-page-border-mid);
+  background-color: var(--bb-page-input-bg);
+  color: var(--bb-ink-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.bb-folder-popover-close:hover {
+  color: var(--bb-ink-heading);
+  border-color: var(--bb-page-border-strong);
+  background-color: var(--bb-page-card-hover);
+}
+
+.bb-folder-popover-grid-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+.bb-folder-popover-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--bb-char-cols, 5), minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  align-content: start;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.bb-folder-member-remove {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--bb-control-height-sm);
+  height: var(--bb-control-height-sm);
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--bb-page-border-mid);
+  background-color: rgba(17, 16, 13, 0.85);
+  color: var(--bb-ink-main);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.bb-pinned-slot:hover .bb-folder-member-remove {
+  opacity: 1;
+}
+
+.bb-folder-member-remove:hover {
+  background-color: var(--bb-danger-hover-bg, #5c2824);
+  border-color: var(--bb-danger-hover-border, #a84a42);
+  color: #fff;
+}
+
+/* Floating drag ghost following the pointer */
+.bb-pinned-drag-ghost {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  margin: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  transform: scale(1.06) translateY(-4px);
+  box-shadow:
+    var(--md-sys-elevation-4),
+    0 0 0 1.5px var(--bb-accent-border);
+  opacity: 0.94;
+  transition:
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.bb-pinned-drag-ghost.is-merging {
+  transform: scale(0.68) translateY(-6px);
+  opacity: 0.52;
+  box-shadow:
+    var(--md-sys-elevation-3),
+    0 0 0 2px var(--bb-accent-color);
+}
+
+/* Global cursor while dragging a tile or resizing the splitter */
+body.bb-char-resizing {
+  cursor: row-resize;
+  user-select: none;
+}
+
+body.bb-char-dragging,
+body.bb-char-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}

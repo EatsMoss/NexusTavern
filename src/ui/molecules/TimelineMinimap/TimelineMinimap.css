@@ -1,0 +1,166 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — TIMELINE MINIMAP MOLECULE (M3 SOLID OVERVIEW FRAME)
+   Shows simplified color-coded branching & length of all timelines in bottom-right.
+   Clicking any colored timeline centers and fits that entire timeline family.
+   ========================================================================== */
+
+.bb-tl-minimap {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 25;
+  width: 204px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 7px 7px;
+  box-sizing: border-box;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-bg, var(--bb-page-card-bg));
+  box-shadow: var(--md-sys-elevation-2);
+  user-select: none;
+  pointer-events: auto;
+}
+
+.bb-tl-minimap.is-collapsed {
+  width: auto;
+  padding: 5px 8px;
+}
+
+.bb-tl-minimap__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bb-tl-minimap__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-family: var(--bb-font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-tl-minimap__swatch {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.bb-tl-minimap__toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  border: none;
+  background: transparent;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.bb-tl-minimap__toggle:hover {
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  background: var(--bb-btn-flat-hover-bg, var(--md-sys-color-surface-container-high));
+}
+
+.bb-tl-minimap__stage {
+  position: relative;
+  width: 100%;
+  border-radius: 5px;
+  border: 1px solid var(--bb-page-border, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-lowest));
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+[data-theme='light'] .bb-tl-minimap__stage {
+  background: var(--md-sys-color-surface-container-low);
+}
+
+.bb-tl-minimap__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.bb-tl-minimap__family {
+  cursor: pointer;
+  transition: opacity 140ms ease;
+}
+
+.bb-tl-minimap__svg.has-hover .bb-tl-minimap__family:not(.is-hovered) {
+  opacity: 0.38;
+}
+
+.bb-tl-minimap__family-hit {
+  fill: transparent;
+}
+
+.bb-tl-minimap__edge {
+  fill: none;
+  stroke: var(--bb-tl-family-color, var(--md-sys-color-primary));
+  stroke-opacity: 0.72;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1.5px;
+}
+
+.bb-tl-minimap__family.is-hovered .bb-tl-minimap__edge,
+.bb-tl-minimap__family.is-active .bb-tl-minimap__edge {
+  stroke-opacity: 1;
+  stroke-width: 2.1px;
+}
+
+.bb-tl-minimap__node-track {
+  fill: var(--bb-tl-family-color, var(--md-sys-color-primary));
+  fill-opacity: 0.22;
+}
+
+.bb-tl-minimap__node-bar {
+  fill: var(--bb-tl-family-color, var(--md-sys-color-primary));
+  fill-opacity: 0.88;
+}
+
+.bb-tl-minimap__family.is-hovered .bb-tl-minimap__node-bar {
+  fill-opacity: 1;
+}
+
+.bb-tl-minimap__node-active-ring {
+  fill: none;
+  stroke: var(--md-sys-color-on-surface, #ffffff);
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1.5px;
+  pointer-events: none;
+}
+
+.bb-tl-minimap__viewport {
+  fill: color-mix(in srgb, var(--md-sys-color-primary, #6575b3) 14%, transparent);
+  stroke: var(--md-sys-color-on-surface, #ececf4);
+  stroke-opacity: 0.72;
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1.25px;
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .bb-tl-minimap {
+    display: none;
+  }
+}

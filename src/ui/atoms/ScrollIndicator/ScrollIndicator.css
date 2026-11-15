@@ -1,0 +1,100 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — OVERLAY SCROLL INDICATOR
+   Thin thumb painted above the content. Occupies no layout space, so the
+   scroll container keeps the same content width with or without overflow.
+   ========================================================================== */
+
+.bb-scroll-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 36px), 784px);
+  z-index: 26;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+/* Interactive strip hugging the right edge of the chat column only,
+   so it never intercepts clicks on message cards. */
+.bb-scroll-indicator__track {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.bb-scroll-indicator.is-visible {
+  opacity: 1;
+}
+
+.bb-scroll-indicator__thumb {
+  position: absolute;
+  right: 0;
+  width: 6px;
+  border-radius: var(--bb-scrollbar-radius, 9999px);
+  background: var(--bb-scrollbar-thumb);
+  box-shadow: var(--md-sys-elevation-1);
+  pointer-events: auto;
+  cursor: grab;
+  transition: background-color 160ms ease, width 140ms ease;
+}
+
+.bb-scroll-indicator__thumb:hover {
+  background: var(--bb-scrollbar-thumb-hover);
+}
+
+.bb-scroll-indicator.is-dragging .bb-scroll-indicator__thumb {
+  cursor: grabbing;
+  width: 8px;
+  background: var(--bb-scrollbar-thumb-hover);
+}
+
+/* Modifier for side tome panels, modals, lists & editors */
+.bb-scroll-indicator--panel {
+  left: auto;
+  right: 2px;
+  top: 2px;
+  bottom: 2px;
+  transform: none;
+  width: 12px;
+}
+
+/* Slimmer corner-safe variant for compact popovers & text inputs */
+.bb-scroll-indicator--compact {
+  right: 2px;
+  top: 4px;
+  bottom: 4px;
+  width: 10px;
+}
+
+.bb-scroll-indicator--compact .bb-scroll-indicator__track {
+  width: 10px;
+}
+
+.bb-scroll-indicator--compact .bb-scroll-indicator__thumb {
+  width: 5px;
+}
+
+.bb-scroll-indicator--compact.is-dragging .bb-scroll-indicator__thumb {
+  width: 7px;
+}
+
+/* Modifier for full-width inner stage containers (e.g. Chat History List) */
+.bb-scroll-indicator--chat-history {
+  left: 0;
+  right: 0;
+  transform: none;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .bb-scroll-indicator:not(.bb-scroll-indicator--panel):not(.bb-scroll-indicator--chat-history) {
+    width: calc(100% - 20px);
+  }
+}

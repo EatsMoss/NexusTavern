@@ -1,0 +1,68 @@
+/* ==========================================================================
+   NEXUSTAVERN UI — M3 CAPSULE BADGE ATOM
+   Reusable Material You (M3) pill badge for version tags, counts & metadata
+   ========================================================================== */
+
+.bb-m3-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--md-sys-color-outline-variant, var(--bb-page-border-mid));
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  color: var(--md-sys-color-on-surface-variant, var(--bb-ink-muted));
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size, 11px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+.bb-m3-badge--md {
+  height: var(--bb-control-height-sm, 26px);
+  padding: 0 12px;
+  font-size: calc(12px * var(--bb-font-scale, 1));
+}
+
+.bb-m3-badge--mono {
+  font-family: var(--bb-font-mono);
+  letter-spacing: 0.03em;
+}
+
+.bb-m3-badge--tonal {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary, #6575b3) 14%,
+    var(--bb-sheet-well-bg, var(--bb-page-card-bg, #1b1b22))
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-primary, #6575b3) 34%,
+    var(--md-sys-color-outline-variant, var(--bb-page-border-mid))
+  );
+  color: var(--md-sys-color-on-surface, var(--bb-ink-heading));
+}
+
+.bb-m3-badge--outlined {
+  background: transparent;
+  border-color: var(--md-sys-color-outline-variant, var(--bb-page-border-strong));
+  color: var(--md-sys-color-on-surface-variant, var(--bb-ink-muted));
+}
+
+.bb-m3-badge__icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+  flex-shrink: 0;
+}
+
+.bb-m3-badge__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

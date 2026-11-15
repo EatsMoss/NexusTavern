@@ -1,0 +1,98 @@
+/* ==========================================================================
+   NEXUSTAVERN CHARACTER TOME (Pinned / splitter / All composition)
+   ========================================================================== */
+
+.bb-char-tome {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+}
+
+.bb-char-tome.is-multi-select-active .bb-char-gallery__scroll {
+  padding-bottom: 104px;
+}
+
+.bb-char-tome__split {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/*
+ * The Pinned section takes an explicit height from usePinnedSplit. It never
+ * shrinks below its own chrome plus one row, and the All section below always
+ * keeps its own minimum, so dragging one side fully open still shows a full row
+ * of the other.
+ */
+.bb-char-tome__pinned {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.bb-char-tome__all-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.bb-char-tome__all {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* Resizable splitter between Pinned and All */
+.bb-char-splitter {
+  position: relative;
+  height: 12px;
+  width: 100%;
+  flex: 0 0 auto;
+  cursor: row-resize;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-char-splitter::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: var(--bb-page-border-mid);
+  transition: background-color 0.12s ease;
+}
+
+.bb-char-splitter-grip {
+  position: relative;
+  z-index: 1;
+  width: 34px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--bb-page-border-strong);
+  transition: width 0.12s ease, background-color 0.12s ease;
+}
+
+.bb-char-splitter:hover::before,
+.bb-char-splitter:active::before {
+  background: var(--bb-accent-border);
+}
+
+.bb-char-splitter:hover .bb-char-splitter-grip,
+.bb-char-splitter:active .bb-char-splitter-grip {
+  width: 52px;
+  background: var(--bb-ink-heading);
+}

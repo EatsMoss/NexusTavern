@@ -1,0 +1,79 @@
+/* ==========================================================================
+   NEXUSTAVERN — YAML / JSON CODE FIELD MOLECULE (M3 SOLID SHEET STANDARD)
+   Aligned with RegexPatternInput & Input/Textarea tokens.
+   ========================================================================== */
+
+.bb-yaml-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+}
+
+.bb-yaml-field__format-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  border: 1px solid var(--bb-page-border);
+  color: var(--bb-ink-muted);
+  font-family: var(--bb-font-mono, monospace);
+  font-size: calc(10.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.bb-yaml-field__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-family: var(--bb-font-mono, monospace);
+  font-size: calc(10.5px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+
+.bb-yaml-field__pill.is-valid {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border-color: var(--bb-accent-border);
+}
+
+.bb-yaml-field__pill.is-warning {
+  background: color-mix(in srgb, var(--md-sys-color-warning) 16%, transparent);
+  color: var(--md-sys-color-warning);
+  border-color: color-mix(in srgb, var(--md-sys-color-warning) 42%, transparent);
+}
+
+.bb-yaml-field__pill.is-invalid {
+  background: var(--bb-danger-surface);
+  color: var(--bb-danger-ink);
+  border-color: var(--bb-danger-border);
+}
+
+.bb-yaml-field__status {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-family: var(--bb-font-body);
+  font-size: calc(11.5px * var(--bb-font-scale, 1));
+  line-height: 1.35;
+}
+
+.bb-yaml-field__status .bb-icon {
+  margin-top: 1px;
+}
+
+.bb-yaml-field__status--warning {
+  color: var(--md-sys-color-warning);
+}
+
+.bb-yaml-field__status--invalid {
+  color: var(--md-sys-color-error);
+}

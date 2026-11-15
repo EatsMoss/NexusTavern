@@ -1,0 +1,319 @@
+/* ==========================================================================
+   NEXUSTAVERN UI BUTTON SYSTEM (B1–B4) — 02-design-system.css
+   - Flat M3 surfaces: solid containers and outlines, no gradients, no shadows
+   - No layout shift or transform on hover/active
+   - State feedback via --bb-btn-flat-bg / --bb-btn-flat-hover-bg
+   ========================================================================== */
+
+.bb-m3-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  gap: 6px;
+  height: var(--bb-control-height-md);
+  min-height: var(--bb-control-height-md);
+  max-height: var(--bb-control-height-md);
+  min-width: var(--bb-control-height-md);
+  padding: 0 14px;
+  margin: 0;
+  box-sizing: border-box;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow: hidden;
+  background: var(--bb-btn-flat-bg, var(--bb-page-card-bg));
+  color: var(--bb-ink-heading);
+  border: 1px solid var(--bb-btn-border);
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  font-family: var(--bb-font-body);
+  font-size: calc(13px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: var(--md-sys-elevation-1);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+
+[data-theme='light'] .bb-m3-btn {
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-m3-btn:hover:not(:disabled) {
+  background: var(--bb-btn-flat-hover-bg, var(--bb-page-card-hover));
+  border-color: var(--bb-btn-hover-border);
+  color: var(--bb-ink-hover);
+}
+
+.bb-m3-btn:focus-visible {
+  outline: none;
+  border-color: var(--bb-accent-border);
+}
+
+.bb-m3-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-m3-btn__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.bb-m3-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--bb-ink-accent);
+  transition: color 0.14s ease;
+}
+
+.bb-m3-btn:hover:not(:disabled) .bb-m3-btn__icon {
+  color: var(--bb-ink-hover);
+}
+
+.bb-m3-btn--sm {
+  height: var(--bb-control-height-sm);
+  min-height: var(--bb-control-height-sm);
+  max-height: var(--bb-control-height-sm);
+  min-width: var(--bb-control-height-sm);
+  padding: 0 11px;
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  gap: 5px;
+}
+
+.bb-m3-btn--lg {
+  height: var(--bb-control-height-lg);
+  min-height: var(--bb-control-height-lg);
+  max-height: var(--bb-control-height-lg);
+  min-width: var(--bb-control-height-lg);
+  padding: 0 18px;
+  font-size: calc(14px * var(--bb-font-scale, 1));
+  gap: 7px;
+}
+
+/* --- Shape System Rule:
+   1) Text buttons (.bb-m3-btn--has-label) & segmented tabs (.bb-m3-btn--b3) -> Capsule (9999px)
+   2) Icon-only buttons (.bb-m3-btn--icon-only) -> Circle 1:1 (9999px)
+   -------------------------------------------------------------------------- */
+.bb-m3-btn--has-label {
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  padding: 0 14px;
+}
+
+.bb-m3-btn--has-label.bb-m3-btn--sm:not(.bb-m3-btn--b3) {
+  padding: 0 11px;
+}
+
+.bb-m3-btn--has-label.bb-m3-btn--lg:not(.bb-m3-btn--b3) {
+  padding: 0 18px;
+}
+
+.bb-m3-btn--pill {
+  border-radius: 999px;
+}
+
+.bb-m3-btn--full {
+  width: 100%;
+}
+
+.bb-m3-btn--borderless,
+.bb-m3-btn--borderless:hover:not(:disabled),
+.bb-m3-btn--borderless:focus-visible {
+  border-color: transparent !important;
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+/* --- B1 Variants (NexusTavern subtle surface hierarchy) --- */
+.bb-m3-btn--b1-filled {
+  background: var(--bb-btn-soft-bg, var(--bb-accent-surface-top));
+  border-color: var(--bb-accent-border);
+  color: var(--bb-ink-heading);
+}
+
+.bb-m3-btn--b1-filled:hover:not(:disabled) {
+  background: var(--bb-btn-flat-hover-bg, var(--bb-page-card-hover));
+  border-color: var(--bb-accent-color);
+}
+
+.bb-m3-btn--b1-tonal {
+  background: var(--bb-btn-flat-bg, var(--bb-page-card-bg));
+  border-color: var(--bb-btn-border);
+  color: var(--bb-ink-heading);
+}
+
+.bb-m3-btn--b1-outlined {
+  background: var(--bb-page-input-bg);
+  border-color: var(--bb-page-border);
+  color: var(--bb-ink-main);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-m3-btn--b1-outlined:hover:not(:disabled) {
+  background: var(--bb-page-input-hover);
+  border-color: var(--bb-accent-border);
+  color: var(--bb-ink-hover);
+}
+
+/* --- Shared Icon-Only Circular 1:1 Geometry (B1, B2, B4) --- */
+.bb-m3-btn--icon-only {
+  width: var(--bb-control-height-md);
+  min-width: var(--bb-control-height-md);
+  height: var(--bb-control-height-md);
+  min-height: var(--bb-control-height-md);
+  max-height: var(--bb-control-height-md);
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+}
+
+.bb-m3-btn--icon-only.bb-m3-btn--sm {
+  width: var(--bb-control-height-sm);
+  min-width: var(--bb-control-height-sm);
+  height: var(--bb-control-height-sm);
+  min-height: var(--bb-control-height-sm);
+  max-height: var(--bb-control-height-sm);
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+}
+
+.bb-m3-btn--icon-only.bb-m3-btn--lg {
+  width: var(--bb-control-height-lg);
+  min-width: var(--bb-control-height-lg);
+  height: var(--bb-control-height-lg);
+  min-height: var(--bb-control-height-lg);
+  max-height: var(--bb-control-height-lg);
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+}
+
+/* --- B2: Ghost / Utility Button (.right_menu_button) --- */
+.bb-m3-btn--b2 {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--bb-ink-muted);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-m3-btn--b2.bb-m3-btn--icon-only.bb-m3-btn--lg {
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+}
+
+.bb-m3-btn--b2.bb-m3-btn--has-label {
+  width: auto;
+  min-width: 0;
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface-variant));
+}
+
+.bb-m3-btn--b2.bb-m3-btn--has-label.bb-m3-btn--full {
+  width: 100%;
+}
+
+.bb-m3-btn--b2 .bb-m3-btn__icon {
+  color: inherit;
+}
+
+.bb-m3-btn--b2:hover:not(:disabled) {
+  background: var(--bb-btn-flat-hover-bg, var(--bb-page-card-hover));
+  border-color: var(--bb-btn-hover-border);
+  color: var(--bb-ink-hover);
+}
+
+.bb-m3-btn--b2-active {
+  background: var(--bb-btn-soft-bg, var(--bb-accent-surface-top));
+  border-color: var(--bb-accent-border);
+  color: var(--bb-ink-heading);
+}
+
+/* --- B3: NexusTavern Mode Switcher (#bb-user-mode-switcher) --- */
+.bb-m3-segmented {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: stretch;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--bb-page-border-mid);
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+[data-theme='light'] .bb-m3-segmented {
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-m3-segmented--full {
+  display: grid;
+  width: 100%;
+}
+
+.bb-m3-segmented--full .bb-m3-btn--b3 {
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.bb-m3-btn--b3 {
+  height: var(--bb-control-height-sm);
+  min-height: var(--bb-control-height-sm);
+  max-height: var(--bb-control-height-sm);
+  padding: 0 12px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--bb-ink-muted);
+  font-family: var(--bb-font-body);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.bb-m3-btn--b3 .bb-m3-btn__icon {
+  color: inherit;
+}
+
+.bb-m3-btn--b3:hover:not(:disabled):not(.bb-m3-btn--b3-active) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--bb-ink-main);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-m3-btn--b3-active {
+  background: var(--bb-btn-soft-bg, var(--bb-accent-surface-top));
+  border-color: var(--bb-accent-border);
+  color: var(--bb-ink-hover);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+[data-theme='light'] .bb-m3-btn--b3-active {
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+/* --- B4: Muted Danger Button (.red_button) --- */
+.bb-m3-btn--b4 {
+  background: var(--bb-danger-surface);
+  color: var(--bb-danger-ink);
+  border: 1px solid var(--bb-danger-border);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+[data-theme='light'] .bb-m3-btn--b4 {
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-m3-btn--b4 .bb-m3-btn__icon {
+  color: var(--bb-danger-ink);
+}
+
+.bb-m3-btn--b4:hover:not(:disabled) {
+  background: var(--bb-danger-hover-bg);
+  border-color: var(--bb-danger-hover-border);
+  color: var(--bb-danger-ink);
+}

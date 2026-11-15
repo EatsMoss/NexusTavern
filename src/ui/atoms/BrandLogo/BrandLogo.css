@@ -1,0 +1,53 @@
+.bb-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--md-sys-color-on-surface);
+  line-height: 0;
+  user-select: none;
+}
+
+.bb-brand-logo__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bb-brand-logo--badge {
+  border-radius: var(--md-sys-shape-corner-lg, 20px);
+  background: var(--bb-sheet-well-bg, var(--md-sys-color-surface-container-low));
+  border: 1px solid var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-sys-elevation-2);
+  color: var(--md-sys-color-on-surface);
+}
+
+.bb-brand-logo--primary {
+  color: var(--md-sys-color-primary);
+}
+
+.bb-brand-logo--pulse .bb-brand-logo__svg {
+  animation: bb-brand-logo-breathe 2.8s var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)) infinite;
+}
+
+@keyframes bb-brand-logo-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.94;
+  }
+  50% {
+    transform: scale(1.035);
+    opacity: 1;
+  }
+}
+
+[data-gpu-mode='low'] .bb-brand-logo--pulse .bb-brand-logo__svg {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-brand-logo--pulse .bb-brand-logo__svg {
+    animation: none;
+  }
+}

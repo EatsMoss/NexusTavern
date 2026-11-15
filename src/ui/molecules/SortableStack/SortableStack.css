@@ -1,0 +1,74 @@
+/* ==========================================================================
+   NEXUSTAVERN — SORTABLE STACK (Smooth Pointer-Driven Reorder List)
+   1:1 motion, slot displacement, dashed slot placeholder & floating ghost
+   matching PinnedSection / CharacterTome
+   ========================================================================== */
+
+.bb-sortable-stack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--bb-space-2);
+  width: 100%;
+}
+
+.bb-sortable-stack__slot {
+  position: relative;
+  z-index: 2;
+  border-radius: var(--md-sys-shape-corner-sm);
+  will-change: transform;
+  transition:
+    transform 230ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.bb-sortable-stack.is-settling .bb-sortable-stack__slot {
+  transition: none !important;
+}
+
+.bb-sortable-stack__slot.is-draggable {
+  cursor: grab;
+}
+
+.bb-sortable-stack__slot.is-dragging-source {
+  z-index: 0;
+  opacity: 0.22;
+  transform: scale(0.96);
+  pointer-events: none;
+}
+
+/* Dashed empty slot placeholder where neighboring cards spread apart */
+.bb-sortable-stack__drop-slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  border-radius: var(--md-sys-shape-corner-sm);
+  border: 2px dashed var(--bb-accent-border, var(--md-sys-color-primary));
+  background: rgba(168, 156, 141, 0.1);
+  box-shadow: var(--bb-inset-shadow);
+  pointer-events: none;
+  transition:
+    top 210ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 210ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Floating card ghost following the pointer (Portal) */
+.bb-sortable-drag-ghost {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  margin: 0;
+  border-radius: var(--md-sys-shape-corner-sm);
+  overflow: hidden;
+  transform: scale(1.03) translateY(-3px);
+  box-shadow:
+    var(--md-sys-elevation-4),
+    0 0 0 1.5px var(--bb-accent-border, var(--md-sys-color-primary));
+  opacity: 0.95;
+  transition:
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 150ms ease,
+    box-shadow 150ms ease;
+}

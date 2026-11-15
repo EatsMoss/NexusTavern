@@ -1,0 +1,782 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — CHAT MESSAGE CARD ORGANISM (M3 SURFACE CONTAINER)
+   ========================================================================== */
+
+.bb-chat-msg-card {
+  --bb-msg-avatar-height: 120px;
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 24px;
+  border-radius: var(--md-sys-shape-corner-xs, 7px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-card-bg, var(--md-sys-color-surface-container));
+  box-shadow: var(--md-sys-elevation-1);
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.bb-chat-msg-card--user {
+  background: var(--md-sys-color-surface-container-low-user, var(--md-sys-color-surface-container-low));
+}
+
+.bb-chat-msg-card--last {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+/* --- Avatar (2:3 portrait format, barely-there outline) --- */
+.bb-chat-msg-card__avatar {
+  position: relative;
+  width: 80px;
+  height: var(--bb-msg-avatar-height, 120px);
+  border-radius: var(--md-sys-shape-corner-xs, 7px);
+  border: 1px solid var(--bb-page-border-soft, rgba(125, 113, 98, 0.28));
+  background: var(--bb-page-panel-bg, var(--md-sys-color-surface-container-high));
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-display-size);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  user-select: none;
+  transform-origin: top left;
+  transition:
+    opacity var(--md-sys-motion-duration-medium, 250ms) var(--md-sys-motion-easing-standard, ease),
+    transform var(--md-sys-motion-duration-medium, 250ms) var(--md-sys-motion-easing-standard, ease);
+}
+
+/* Slow gentle floating animation on the last message's portrait,
+   with dynamic elevation shadow that breathes with height and adapts to the active theme */
+.bb-chat-msg-card--last .bb-chat-msg-card__avatar {
+  --bb-avatar-umbra-near: color-mix(
+    in srgb,
+    var(--bb-accent-soft, #6575b3) 24%,
+    rgba(0, 0, 0, 0.62)
+  );
+  --bb-avatar-umbra-far: color-mix(
+    in srgb,
+    var(--bb-accent-soft, #6575b3) 34%,
+    rgba(0, 0, 0, 0.44)
+  );
+  --bb-avatar-glow-near: color-mix(
+    in srgb,
+    var(--bb-accent-color, #6575b3) 18%,
+    transparent
+  );
+  --bb-avatar-glow-far: color-mix(
+    in srgb,
+    var(--bb-accent-color, #6575b3) 32%,
+    transparent
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--bb-accent-border, rgba(125, 113, 98, 0.5)) 55%,
+    transparent
+  );
+  animation: bb-avatar-float 9.2s ease-in-out infinite;
+  will-change: transform, box-shadow;
+}
+
+[data-theme='light'] .bb-chat-msg-card--last .bb-chat-msg-card__avatar {
+  --bb-avatar-umbra-near: color-mix(
+    in srgb,
+    var(--bb-page-border-strong, #8a7964) 48%,
+    rgba(36, 28, 20, 0.24)
+  );
+  --bb-avatar-umbra-far: color-mix(
+    in srgb,
+    var(--bb-page-border-strong, #8a7964) 36%,
+    rgba(36, 28, 20, 0.15)
+  );
+  --bb-avatar-glow-near: color-mix(
+    in srgb,
+    var(--bb-accent-color, #b08248) 18%,
+    transparent
+  );
+  --bb-avatar-glow-far: color-mix(
+    in srgb,
+    var(--bb-accent-color, #b08248) 30%,
+    transparent
+  );
+}
+
+@keyframes bb-avatar-float {
+  0%,
+  100% {
+    transform: translateY(0);
+    box-shadow:
+      0 4px 10px -1px var(--bb-avatar-umbra-near),
+      0 2px 6px 0 var(--bb-avatar-glow-near);
+    animation-timing-function: ease-in-out;
+  }
+  50% {
+    transform: translateY(-6px);
+    box-shadow:
+      0 12px 22px -2px var(--bb-avatar-umbra-far),
+      0 6px 16px 1px var(--bb-avatar-glow-far);
+    animation-timing-function: ease-in-out;
+  }
+}
+
+/* Message number badge in the bottom-left corner of non-last portraits */
+.bb-chat-msg-card__avatar-num {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  z-index: 2;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(12, 11, 9, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #efeae2;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-label-size);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+/*
+ * Previous messages: every avatar except the last message's sits at 50% opacity
+ * and 75% scale, so the eye lands on the live message. Only opacity and
+ * transform animate, so the flow footprint (80x120) is unchanged and the list
+ * never reflows.
+ *
+ * `transform-origin: top left` keeps the scaled-down box anchored by its top
+ * edge, so the shrunken avatar stays flush with the sender name instead of
+ * sinking towards the middle of its original 120px slot. The extra 2px matches
+ * the half-leading of the sender line inside the 28px header.
+ */
+.bb-chat-msg-card--dimmed .bb-chat-msg-card__avatar {
+  opacity: 0.5;
+  transform: translateY(2px) scale(0.75);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-chat-msg-card__avatar,
+  .bb-chat-msg-card--last .bb-chat-msg-card__avatar {
+    transition: none;
+    animation: none;
+  }
+}
+
+.bb-chat-msg-card__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* --- Main Content Column --- */
+.bb-chat-msg-card__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* --- Header (Sender + Telemetry Pills + Action Toolbar) --- */
+.bb-chat-msg-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: var(--bb-control-height-sm);
+  min-height: var(--bb-control-height-sm);
+  max-height: var(--bb-control-height-sm);
+}
+
+.bb-chat-msg-card__sender-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.bb-chat-msg-card__sender {
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-headline-size, 20px);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-chat-msg-card__model-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.bb-chat-msg-card__model-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  opacity: 0.85;
+  cursor: default;
+  outline: none;
+  transition: color 130ms ease, opacity 130ms ease, background-color 130ms ease;
+}
+
+.bb-chat-msg-card__model-badge:hover,
+.bb-chat-msg-card__model-badge:focus-visible {
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  opacity: 1;
+}
+
+.bb-chat-msg-card__fallback-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+  background: color-mix(in srgb, var(--md-sys-color-primary) 10%, transparent);
+  opacity: 0.9;
+  cursor: default;
+  outline: none;
+  transition:
+    color 130ms ease,
+    opacity 130ms ease,
+    background-color 130ms ease,
+    transform 130ms ease;
+}
+
+.bb-chat-msg-card__fallback-badge:hover,
+.bb-chat-msg-card__fallback-badge:focus-visible {
+  background: color-mix(in srgb, var(--md-sys-color-primary) 20%, transparent);
+  opacity: 1;
+}
+
+.bb-chat-msg-card__role-pill {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  line-height: 1.2;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.bb-chat-msg-card__header-right {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--bb-control-height-sm);
+  min-height: var(--bb-control-height-sm);
+  max-height: var(--bb-control-height-sm);
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.bb-chat-msg-card__telemetry {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 5px;
+  height: var(--bb-control-height-sm);
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--bb-font-mono);
+  font-size: calc(11px * var(--bb-font-scale, 1));
+  line-height: 1;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  cursor: pointer;
+}
+
+.bb-chat-msg-card__telemetry:hover .bb-chat-msg-card__pill,
+.bb-chat-msg-card__telemetry:focus-visible .bb-chat-msg-card__pill {
+  border-color: var(--bb-page-border-mid, var(--md-sys-color-outline));
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}
+
+.bb-chat-msg-card__telemetry:hover .bb-chat-msg-card__pill--timer,
+.bb-chat-msg-card__telemetry:focus-visible .bb-chat-msg-card__pill--timer {
+  color: var(--md-sys-color-tertiary);
+}
+
+.bb-chat-msg-card__telemetry-dot-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 130ms ease;
+}
+
+.bb-chat-msg-card__telemetry-dot-btn:hover,
+.bb-chat-msg-card__telemetry-dot-btn:focus-visible {
+  background: color-mix(in srgb, var(--bb-ink-main, #ffffff) 8%, transparent);
+}
+
+.bb-chat-msg-card__telemetry-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: color-mix(
+    in srgb,
+    var(--bb-ink-muted, var(--md-sys-color-on-surface-muted)) 48%,
+    var(--bb-page-input-bg, transparent)
+  );
+  border: 1.5px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  box-sizing: border-box;
+  transition: transform 130ms ease, background-color 130ms ease, border-color 130ms ease;
+}
+
+.bb-chat-msg-card__telemetry-dot-btn:hover .bb-chat-msg-card__telemetry-dot,
+.bb-chat-msg-card__telemetry-dot-btn:focus-visible .bb-chat-msg-card__telemetry-dot {
+  transform: scale(1.16);
+  background: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  border-color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}
+
+.bb-chat-msg-card__pill {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  gap: 4px;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid var(--bb-page-border-soft, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: border-color 130ms ease, color 130ms ease;
+}
+
+.bb-chat-msg-card__pill--timer {
+  color: var(--md-sys-color-tertiary);
+}
+
+.bb-chat-msg-card__actions {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  gap: 2px;
+}
+
+/* --- Smooth Streaming Card Growth Sizer --- */
+.bb-chat-msg-card__stream-sizer {
+  width: 100%;
+  min-width: 0;
+}
+
+.bb-chat-msg-card__stream-sizer.is-sizing {
+  overflow: hidden;
+  will-change: height;
+}
+
+.bb-chat-msg-card__stream-sizer.is-animating {
+  transition: height 175ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bb-chat-msg-card__stream-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* --- M3 Shared-Axis X Swipe Stage (only message body slides; avatar, header & footer stay fixed) --- */
+.bb-chat-msg-card__swipe-stage {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.bb-chat-msg-card__swipe-stage.is-swiping {
+  overflow: hidden;
+}
+
+.bb-chat-msg-card__swipe-stage.is-height-animating {
+  transition: height var(--md-sys-motion-duration-medium, 250ms)
+    var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+}
+
+.bb-chat-msg-card__swipe-pane {
+  width: 100%;
+  min-width: 0;
+}
+
+.bb-chat-msg-card__swipe-pane--outgoing {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform, opacity;
+}
+
+.bb-chat-msg-card__swipe-pane--out-next {
+  animation: bb-msg-swipe-out-next 210ms var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+.bb-chat-msg-card__swipe-pane--out-prev {
+  animation: bb-msg-swipe-out-prev 210ms var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+.bb-chat-msg-card__swipe-pane--in-next {
+  will-change: transform, opacity;
+  animation: bb-msg-swipe-in-next var(--md-sys-motion-duration-medium, 250ms)
+    var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+
+.bb-chat-msg-card__swipe-pane--in-prev {
+  will-change: transform, opacity;
+  animation: bb-msg-swipe-in-prev var(--md-sys-motion-duration-medium, 250ms)
+    var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+
+@keyframes bb-msg-swipe-out-next {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(-34px, 0, 0);
+  }
+}
+
+@keyframes bb-msg-swipe-out-prev {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(34px, 0, 0);
+  }
+}
+
+@keyframes bb-msg-swipe-in-next {
+  from {
+    opacity: 0;
+    transform: translate3d(34px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes bb-msg-swipe-in-prev {
+  from {
+    opacity: 0;
+    transform: translate3d(-34px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-chat-msg-card__swipe-stage.is-height-animating {
+    transition: none;
+  }
+  .bb-chat-msg-card__swipe-pane--out-next,
+  .bb-chat-msg-card__swipe-pane--out-prev {
+    animation-duration: 120ms;
+    transform: none !important;
+  }
+  .bb-chat-msg-card__swipe-pane--in-next,
+  .bb-chat-msg-card__swipe-pane--in-prev {
+    animation-duration: 120ms;
+    transform: none !important;
+  }
+}
+
+/* --- Footer: Lazy Swipes & Message Controls --- */
+.bb-chat-msg-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--bb-page-border-soft, var(--md-sys-color-outline-variant));
+}
+
+.bb-chat-msg-card__swipes {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.bb-chat-msg-card__ctrl-btn.bb-m3-btn--b2.bb-m3-btn--icon-only {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+}
+
+.bb-chat-msg-card__ctrl-btn.is-generate-next:not(:disabled) {
+  color: var(--md-sys-color-primary);
+  border-color: color-mix(in srgb, var(--md-sys-color-primary) 42%, transparent);
+  background: color-mix(in srgb, var(--md-sys-color-primary-container) 28%, transparent);
+}
+
+.bb-chat-msg-card__ctrl-btn.is-generate-next:not(:disabled):hover {
+  background: color-mix(in srgb, var(--md-sys-color-primary-container) 48%, transparent);
+  border-color: var(--md-sys-color-primary);
+}
+
+.bb-chat-msg-card__ctrl-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--bb-page-border-soft, var(--md-sys-color-outline-variant));
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.bb-chat-msg-card__swipe-count {
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-mono-size);
+  color: var(--bb-ink-muted);
+  min-width: 42px;
+  padding: 0 2px;
+  text-align: center;
+}
+
+/* --- Delta Sync Editor Form --- */
+.bb-chat-msg-card__editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.bb-chat-msg-card__editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* --- Message Attachments (Full-Width Padded Images & M3 File Cards) --- */
+.bb-chat-msg-card__attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 2px 4px;
+  box-sizing: border-box;
+}
+
+.bb-chat-msg-card__attachment-item {
+  position: relative;
+  width: 100%;
+}
+
+.bb-chat-msg-card__attachment-item--file {
+  max-width: 380px;
+}
+
+.bb-chat-msg-card__attachment-remove {
+  appearance: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-header-bg, #18181e);
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  box-shadow: var(--md-sys-elevation-2);
+  cursor: pointer;
+  transition: opacity 130ms ease, transform 130ms ease, background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.bb-chat-msg-card__attachment-item--file .bb-chat-msg-card__attachment-remove {
+  top: -6px;
+  right: -6px;
+  width: 24px;
+  height: 24px;
+}
+
+.bb-chat-msg-card__attachment-remove:hover {
+  background: var(--bb-danger-surface, #3a2b28);
+  border-color: var(--bb-danger-hover-border, #ab7a70);
+  color: var(--bb-danger-ink, #ebd9d4);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bb-chat-msg-card__attachment-remove {
+    opacity: 0;
+    transform: scale(0.86);
+    pointer-events: none;
+  }
+
+  .bb-chat-msg-card__attachment-item:hover .bb-chat-msg-card__attachment-remove,
+  .bb-chat-msg-card__attachment-item:focus-within .bb-chat-msg-card__attachment-remove {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+}
+
+.bb-chat-msg-card__image-frame {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  box-shadow: var(--md-sys-elevation-1);
+  overflow: hidden;
+  cursor: zoom-in;
+  box-sizing: border-box;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.bb-chat-msg-card__image-frame:hover,
+.bb-chat-msg-card__image-frame:focus-visible {
+  outline: none;
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  box-shadow: var(--md-sys-elevation-2);
+}
+
+.bb-chat-msg-card__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(var(--bb-msg-avatar-height, 120px) * 3);
+  object-fit: contain;
+  border-radius: calc(var(--bb-control-radius, 8px) - 1px);
+}
+
+.bb-chat-msg-card__file-card {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  max-width: 380px;
+  padding: 9px 13px;
+  margin: 0;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  box-shadow: var(--md-sys-elevation-1);
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 130ms ease, border-color 130ms ease, box-shadow 130ms ease;
+}
+
+.bb-chat-msg-card__file-card:hover,
+.bb-chat-msg-card__file-card:focus-visible {
+  outline: none;
+  background: var(--bb-sheet-item-hover, var(--bb-page-card-hover));
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  box-shadow: var(--md-sys-elevation-2);
+}
+
+.bb-chat-msg-card__file-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 42px;
+  height: 44px;
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border: 1px solid color-mix(in srgb, var(--md-sys-color-primary) 30%, transparent);
+  flex-shrink: 0;
+}
+
+.bb-chat-msg-card__file-ext {
+  font-family: var(--bb-font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.bb-chat-msg-card__file-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.bb-chat-msg-card__file-name {
+  font-family: var(--bb-font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-chat-msg-card__file-sub {
+  font-family: var(--bb-font-mono);
+  font-size: 11px;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+}
+
+.bb-chat-msg-card__file-open {
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  flex-shrink: 0;
+  transition: color 130ms ease;
+}
+
+.bb-chat-msg-card__file-card:hover .bb-chat-msg-card__file-open {
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}

@@ -1,0 +1,173 @@
+/* ==========================================================================
+   API Hub — Responsive M3 "Add Connection" Modal (Desktop + Mobile Sheet)
+   Hierarchy: 1. RP Proxy | 2. OAI-Compatible | 3. Official API
+   (Frame, header, footer & mobile bottom-sheet inherited from base Modal)
+   ========================================================================== */
+
+.bb-api-modal__tabs {
+  display: flex;
+  width: 100%;
+}
+
+.bb-api-modal__tabs > * {
+  width: 100%;
+  display: flex;
+}
+
+.bb-api-modal__tabs button {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+.bb-api-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bb-api-modal__desc {
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  line-height: 1.45;
+  color: var(--bb-ink-muted);
+  padding: 10px 12px;
+  border-radius: var(--bb-control-radius, 8px);
+  background: var(--bb-sheet-well-bg, #131318);
+  border: 1px solid var(--bb-page-border);
+}
+
+.bb-api-modal__presets {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bb-api-modal__preset-chip {
+  appearance: none;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 9999px;
+  border: 1px solid var(--bb-page-border-mid);
+  background: var(--bb-sheet-well-bg, #131318);
+  color: var(--bb-ink-main);
+  font-family: var(--bb-font-body);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.bb-api-modal__preset-chip:hover {
+  background: var(--bb-sheet-item-hover, #282832);
+  border-color: var(--bb-accent-border);
+  color: var(--bb-ink-heading);
+}
+
+.bb-api-modal__preset-chip.is-active {
+  background: var(--bb-sheet-item-selected, #2d3452);
+  border-color: var(--bb-accent-border);
+  color: var(--bb-ink-heading);
+}
+
+.bb-api-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bb-api-modal__label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bb-api-modal__label {
+  font-family: var(--bb-font-heading);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  color: var(--bb-ink-heading);
+}
+
+.bb-api-modal__label-hint {
+  font-size: 12px;
+  color: var(--bb-ink-muted);
+}
+
+.bb-api-modal__keys-box {
+  width: 100%;
+  min-height: 68px;
+  max-height: 140px;
+  resize: vertical;
+  padding: 9px 12px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid);
+  background: var(--bb-sheet-well-bg, #131318);
+  color: var(--bb-ink-main);
+  font-family: var(--bb-font-mono, monospace);
+  font-size: 12.5px;
+  line-height: 1.45;
+  box-sizing: border-box;
+  transition: border-color 130ms ease, background-color 130ms ease;
+}
+
+.bb-api-modal__keys-box:focus {
+  outline: none;
+  border-color: var(--bb-accent-border);
+}
+
+.bb-api-modal__url-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--bb-font-mono, monospace);
+  font-size: 11.5px;
+  color: #6bc488;
+  word-break: break-all;
+}
+
+.bb-api-modal__banner {
+  padding: 10px 12px;
+  border-radius: var(--bb-control-radius, 8px);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  line-height: 1.4;
+  border: 1px solid var(--bb-page-border-mid);
+  background: var(--bb-sheet-well-bg, #131318);
+  color: var(--bb-ink-main);
+}
+
+.bb-api-modal__banner.is-error {
+  background: var(--bb-danger-surface);
+  border-color: var(--bb-danger-border);
+  color: var(--bb-danger-ink);
+}
+
+.bb-api-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Smartphone M3 API Hub Modal Overrides */
+@media (max-width: 640px) {
+  .bb-api-modal__preset-chip {
+    height: 36px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+
+  .bb-api-modal__footer {
+    flex-direction: row;
+  }
+
+  .bb-api-modal__footer > button:last-child {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 40px;
+  }
+}

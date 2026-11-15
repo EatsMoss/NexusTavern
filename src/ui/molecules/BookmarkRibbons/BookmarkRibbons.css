@@ -1,0 +1,134 @@
+/* ==========================================================================
+   MODERN TOME TABS WITH BOTTOM UNDERLINE (NexusTavern Palette)
+   ========================================================================== */
+
+.bb-m3-tabs {
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  border: 1px solid var(--bb-page-border);
+  border-radius: var(--bb-control-radius, 8px);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.bb-m3-tabs::-webkit-scrollbar {
+  display: none;
+}
+.bb-m3-tab {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 46px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--bb-ink-muted);
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  transition: color 0.14s ease, background-color 0.14s ease;
+}
+
+.bb-m3-tab:hover:not(.bb-m3-tab--active) {
+  color: var(--bb-ink-main);
+  background-color: var(--bb-page-input-hover);
+}
+
+/* Active Bottom Underline Indicator */
+.bb-m3-tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 16%;
+  right: 16%;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background-color: var(--bb-accent-color);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.16s ease;
+}
+
+.bb-m3-tab--active {
+  color: var(--bb-ink-heading);
+  background: var(--bb-page-card-bg);
+}
+
+.bb-m3-tab--active::after {
+  transform: scaleX(1);
+}
+
+/* A disabled tab stays legible but reads as unavailable (M3 disabled state) */
+.bb-m3-tab--disabled,
+.bb-m3-tab--disabled:hover {
+  color: var(--bb-ink-muted);
+  background: transparent;
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.bb-m3-tab--disabled .bb-m3-tab__icon,
+.bb-m3-tab--disabled:hover .bb-m3-tab__icon {
+  color: var(--bb-ink-muted);
+}
+
+.bb-m3-tab--disabled::after {
+  transform: scaleX(0);
+}
+
+.bb-m3-tab__icon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--bb-ink-muted);
+  transition: color 0.14s ease;
+}
+
+.bb-m3-tab:hover .bb-m3-tab__icon,
+.bb-m3-tab--active .bb-m3-tab__icon {
+  color: var(--bb-ink-accent);
+}
+
+.bb-m3-tab__title {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  font-family: var(--bb-font-body);
+  font-size: calc(11.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Secondary M3 Sheet / Panel Sub-Tabs (Selected Scenario & Completion Presets) */
+.bb-m3-tabs--secondary .bb-m3-tab {
+  min-width: 54px;
+  padding: 7px 4px 9px;
+}
+
+@media (max-width: 640px) {
+  .bb-m3-tab {
+    min-height: 50px;
+  }
+}
+
+
+

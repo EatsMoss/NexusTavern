@@ -1,0 +1,212 @@
+/* ==========================================================================
+   NEXUSTAVERN UI INPUTS, SEARCH BAR & TEXTAREA (02-design-system.css)
+   ========================================================================== */
+
+.bb-m3-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+}
+
+.bb-m3-field__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bb-m3-field__label {
+  font-family: var(--bb-font-heading);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  color: var(--bb-ink-heading);
+  letter-spacing: 0.01em;
+}
+
+.bb-m3-field__label-extra {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.bb-m3-field__hint {
+  font-family: var(--bb-font-body);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  color: var(--bb-ink-muted);
+}
+
+.bb-m3-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.bb-m3-textarea-wrap {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+/* Leave bottom-right resize grip unobstructed on vertically resizable textareas */
+.bb-m3-textarea__scroll.bb-scroll-indicator--compact {
+  bottom: 12px;
+}
+
+.bb-m3-input,
+.bb-m3-textarea {
+  width: 100%;
+  background-color: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  color: var(--bb-ink-main);
+  border: 1px solid var(--bb-page-border-mid, var(--bb-page-border));
+  border-radius: var(--bb-input-radius, 8px);
+  font-family: var(--bb-font-body);
+  font-size: calc(13.5px * var(--bb-font-scale, 1));
+  font-weight: 500;
+  line-height: 1.4;
+  box-shadow: var(--bb-inset-shadow);
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.bb-m3-input {
+  height: var(--bb-control-height-md);
+  padding: 0 12px;
+}
+
+.bb-m3-input--sm {
+  height: var(--bb-control-height-sm);
+  padding: 0 10px;
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+}
+
+.bb-m3-textarea {
+  min-height: 82px;
+  padding: 9px 12px;
+  resize: vertical;
+}
+
+.bb-m3-textarea--mono {
+  font-family: var(--bb-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  line-height: 1.45;
+  tab-size: 2;
+}
+
+.bb-m3-textarea.is-invalid,
+.bb-m3-textarea.is-invalid:focus {
+  border-color: var(--md-sys-color-error);
+}
+
+.bb-m3-textarea.is-warning,
+.bb-m3-textarea.is-warning:focus {
+  border-color: var(--md-sys-color-warning);
+}
+
+.bb-m3-input::placeholder,
+.bb-m3-textarea::placeholder {
+  color: var(--bb-ink-muted);
+  opacity: 0.78;
+  font-weight: 400;
+}
+
+.bb-m3-input:hover:not(:disabled):not(:focus),
+.bb-m3-textarea:hover:not(:disabled):not(:focus) {
+  background-color: var(--bb-page-input-hover);
+  border-color: var(--bb-page-border-strong);
+  color: var(--bb-ink-hover);
+}
+
+.bb-m3-input:focus,
+.bb-m3-textarea:focus {
+  outline: none;
+  background-color: var(--bb-page-input-focus);
+  border-color: var(--bb-accent-border);
+  color: var(--bb-ink-hover);
+}
+
+.bb-m3-input:disabled,
+.bb-m3-textarea:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Search Bar — M3 Search Pill Standard (Matches PersonaPicker) */
+.bb-m3-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.bb-m3-search__icon {
+  position: absolute;
+  left: 12px;
+  color: var(--bb-ink-muted);
+  pointer-events: none;
+}
+
+.bb-m3-search .bb-m3-input {
+  height: var(--bb-search-height, 38px);
+  padding-left: 36px;
+  padding-right: 34px;
+  border-radius: var(--bb-search-radius, 9999px);
+  background-color: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  font-size: calc(13.5px * var(--bb-font-scale, 1));
+}
+
+.bb-m3-search--sm .bb-m3-search__icon {
+  left: 11px;
+}
+
+.bb-m3-search--sm .bb-m3-input {
+  height: var(--bb-control-height-md);
+  padding-left: 32px;
+  padding-right: 30px;
+  font-size: calc(13px * var(--bb-font-scale, 1));
+}
+
+.bb-m3-search__clear {
+  position: absolute;
+  right: 7px;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--bb-ink-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.bb-m3-search--sm .bb-m3-search__clear {
+  right: 6px;
+  width: 22px;
+  height: 22px;
+}
+
+.bb-m3-search__clear:hover {
+  background-color: var(--bb-sheet-item-hover, var(--bb-page-input-hover));
+  color: var(--bb-ink-heading);
+}
+
+@media (max-width: 640px) {
+  /* 16px prevents mobile browser auto-zoom on input focus */
+  .bb-m3-input,
+  .bb-m3-textarea,
+  .bb-m3-search .bb-m3-input,
+  .bb-m3-search--sm .bb-m3-input {
+    font-size: 16px;
+  }
+
+  .bb-m3-search__clear,
+  .bb-m3-search--sm .bb-m3-search__clear {
+    width: 28px;
+    height: 28px;
+  }
+}
+

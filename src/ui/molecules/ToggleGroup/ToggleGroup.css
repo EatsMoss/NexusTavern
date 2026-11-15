@@ -1,0 +1,66 @@
+/* ==========================================================================
+   NEXUSTAVERN UI TOGGLE GROUP (compact M3 segmented button)
+   Dense switchers for the right tome: columns, aspect ratio, entity type, sort.
+   ========================================================================== */
+
+.bb-toggle-group {
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background-color: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  border: 1px solid var(--bb-page-border-mid, var(--bb-page-border));
+}
+
+.bb-toggle-group__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--bb-ink-muted);
+  font-family: var(--bb-font-body);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.bb-toggle-group--sm .bb-toggle-group__item {
+  min-width: 26px;
+  height: var(--bb-control-height-sm);
+  padding: 0 8px;
+  font-size: calc(12px * var(--bb-font-scale, 1));
+}
+
+.bb-toggle-group--md .bb-toggle-group__item {
+  height: calc(var(--bb-control-height-md) - 4px);
+}
+
+.bb-toggle-group__item:hover:not(:disabled):not(.is-active) {
+  background-color: var(--bb-page-input-hover);
+  color: var(--bb-ink-heading);
+}
+
+.bb-toggle-group__item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bb-toggle-group__item.is-active {
+  background: var(--bb-btn-soft-bg, var(--bb-accent-surface-top));
+  color: var(--bb-ink-heading);
+}
+
+.bb-toggle-group__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,211 @@
+/* ==========================================================================
+   M3 INLINE EDITABLE TITLE MOLECULE
+   ========================================================================== */
+
+.bb-inline-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
+.bb-inline-title__pill-wrap {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  margin: 0 0 0 -4px;
+}
+
+.bb-inline-title__trigger {
+  appearance: none;
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 2px 6px 2px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--bb-font-heading, inherit);
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease;
+}
+
+.bb-inline-title__trigger:hover:not(:disabled) {
+  background: var(--md-sys-color-surface-container-high);
+  border-color: var(--md-sys-color-outline-variant);
+}
+
+.bb-inline-title__trigger:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 1px;
+}
+
+.bb-inline-title__trigger.is-placeholder {
+  color: var(--md-sys-color-on-surface-muted);
+}
+
+.bb-inline-title__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bb-inline-title__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--md-sys-color-primary);
+  opacity: 0;
+  transform: translateX(-2px);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.bb-inline-title__trigger:hover:not(:disabled) .bb-inline-title__icon,
+.bb-inline-title__trigger:focus-visible .bb-inline-title__icon {
+  opacity: 0.92;
+  transform: translateX(0);
+}
+
+.bb-inline-title__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  margin: 0 0 0 -4px;
+  padding: 2px 8px 2px 5px;
+  border: 1px solid var(--md-sys-color-primary);
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  background: var(--md-sys-color-surface-container-lowest);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--bb-font-heading, inherit);
+  font-weight: 700;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(101, 117, 179, 0.2);
+}
+
+.bb-inline-title__trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Sizes */
+.bb-inline-title--lg .bb-inline-title__trigger,
+.bb-inline-title--lg .bb-inline-title__input {
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.bb-inline-title--md .bb-inline-title__trigger,
+.bb-inline-title--md .bb-inline-title__input {
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.bb-inline-title--sm .bb-inline-title__trigger,
+.bb-inline-title--sm .bb-inline-title__input {
+  font-size: 12.5px;
+  line-height: 1.25;
+}
+
+/* M3 Tonal Subtitle / Role Badge variant (matching Persona subtitle pill) */
+.bb-inline-title--badge {
+  justify-content: flex-start;
+  width: auto;
+  max-width: 100%;
+}
+
+.bb-inline-title--badge .bb-inline-title__pill-wrap {
+  flex: 0 1 auto;
+  max-width: 100%;
+  margin: 0;
+}
+
+.bb-inline-title--badge .bb-inline-title__trigger {
+  margin: 0;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid var(--bb-page-border, var(--md-sys-color-outline-variant));
+  background: var(--bb-btn-flat-bg, var(--md-sys-color-surface-container-high));
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+  font-family: var(--bb-font-body, inherit);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.bb-inline-title--badge .bb-inline-title__trigger.is-placeholder {
+  border-style: dashed;
+  background: transparent;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  font-weight: 500;
+  opacity: 0.82;
+}
+
+.bb-inline-title--badge .bb-inline-title__trigger:hover:not(:disabled) {
+  opacity: 1;
+  background: var(--bb-btn-flat-hover-bg, var(--md-sys-color-surface-container-highest));
+  border-style: solid;
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}
+
+.bb-inline-title--badge .bb-inline-title__input {
+  margin: 0;
+  height: 24px;
+  max-width: 240px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-family: var(--bb-font-body, inherit);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bb-inline-title__clear {
+  appearance: none;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.14s ease, background-color 0.14s ease, color 0.14s ease;
+}
+
+.bb-inline-title__pill-wrap:hover .bb-inline-title__clear,
+.bb-inline-title__clear:focus-visible {
+  opacity: 0.88;
+}
+
+.bb-inline-title__clear:hover {
+  opacity: 1;
+  background: var(--bb-btn-flat-hover-bg, var(--md-sys-color-surface-container-highest));
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}

@@ -1,0 +1,341 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — TIMELINE TREE ORGANISM (HORIZONTAL BRANCH TREE CANVAS)
+   Renders directly on the background from Tome to Tome without a window frame.
+   ========================================================================== */
+
+.bb-tl-tree {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+}
+
+.bb-tl-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+.bb-tl-viewport.is-grid-visible {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--bb-ink-muted, #7d7162) 6.4%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--bb-ink-muted, #7d7162) 6.4%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 28px 28px;
+}
+
+.bb-tl-viewport.is-panning {
+  cursor: grabbing !important;
+}
+
+/* Zero-size world anchor prevents Chromium from allocating a giant 1x bitmap texture
+   across multi-thousand-pixel forests (which caused blurry text/avatars on scroll & zoom). */
+.bb-tl-tree__world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  transform-origin: 0 0;
+  z-index: 1;
+}
+
+/* --- SVG Bezier Branch Connectors --- */
+.bb-tl-tree__edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.bb-tl-tree__edge {
+  fill: none;
+  stroke: var(--bb-tl-family-color, var(--bb-accent-color, #9a8d7e));
+  stroke-width: 2.2px;
+  stroke-opacity: 0.46;
+  stroke-linecap: round;
+}
+
+.bb-tl-tree__edge.is-active-family {
+  stroke-width: 2.6px;
+  stroke-opacity: 0.84;
+}
+
+.bb-tl-tree__edge.is-selected-path {
+  stroke-width: 3px;
+  stroke-opacity: 1;
+}
+
+.bb-tl-tree__edge-glow {
+  fill: none;
+  stroke: var(--bb-tl-family-color, var(--bb-accent-color, #9a8d7e));
+  stroke-width: 7px;
+  stroke-opacity: 0.2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+/* --- Branch Node Card (Unified App Geometry: 7-8px corner radius & flat M3 container) --- */
+.bb-tl-node {
+  position: absolute;
+  width: 264px;
+  height: 84px;
+  padding: 9px 11px 9px 14px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--md-sys-shape-corner-xs, 7px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-bg, var(--bb-page-card-bg));
+  box-shadow: var(--md-sys-elevation-1);
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  cursor: pointer;
+  contain: layout style;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+[data-theme='light'] .bb-tl-node {
+  background: var(--bb-sheet-bg, var(--bb-page-card-bg));
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-tl-node:hover {
+  border-color: var(--bb-page-border-strong, var(--md-sys-color-outline));
+  background: var(--bb-sheet-item-hover, var(--bb-page-card-hover));
+  box-shadow: var(--md-sys-elevation-2);
+}
+
+.bb-tl-node.is-current {
+  border-color: var(--bb-accent-color, var(--md-sys-color-primary));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--bb-accent-color, var(--md-sys-color-primary)) 45%, transparent),
+    var(--md-sys-elevation-2);
+}
+
+.bb-tl-node.is-selected {
+  border-color: var(--bb-accent-color, var(--md-sys-color-primary));
+  background: var(--bb-sheet-item-selected, var(--bb-page-card-hover));
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--bb-accent-color, var(--md-sys-color-primary)) 72%, transparent),
+    var(--md-sys-elevation-3);
+}
+
+.bb-tl-node.is-orphan {
+  border-style: dashed;
+}
+
+.bb-tl-node__accent {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--bb-tl-family-color, var(--bb-accent-color, var(--md-sys-color-primary)));
+}
+
+/* Node Portrait */
+.bb-tl-node__avatar-stack {
+  flex-shrink: 0;
+}
+
+/* Node Body */
+.bb-tl-node__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.bb-tl-node__top-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.bb-tl-node__branch-pill {
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  font-weight: 600;
+  line-height: 1.3;
+  background: color-mix(
+    in srgb,
+    var(--bb-tl-family-color, var(--md-sys-color-primary)) 22%,
+    var(--bb-page-input-bg, rgba(0, 0, 0, 0.4))
+  );
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  border: 1px solid color-mix(
+    in srgb,
+    var(--bb-tl-family-color, var(--md-sys-color-primary)) 45%,
+    transparent
+  );
+  flex-shrink: 0;
+}
+
+.bb-tl-node__root-pill {
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  font-weight: 600;
+  line-height: 1.3;
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+  border: 1px solid var(--bb-page-border-soft, var(--md-sys-color-outline-variant));
+  flex-shrink: 0;
+}
+
+.bb-tl-node__active-dot {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  font-weight: 700;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  flex-shrink: 0;
+}
+
+.bb-tl-node__title {
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-label-size);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-tl-node__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.bb-tl-node__meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.bb-tl-node__fork-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+  font-weight: 600;
+}
+
+/* --- Last Message Preview Popover (Exact 1:1 Last Message Style) --- */
+.bb-tl-preview-anchor {
+  position: absolute;
+  z-index: 24;
+  width: 720px;
+  max-width: 720px;
+  cursor: default;
+  user-select: text;
+  animation: bb-tl-preview-enter 180ms cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+@keyframes bb-tl-preview-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.bb-tl-preview-anchor__slot {
+  position: relative;
+  width: 100%;
+  border-radius: var(--md-sys-shape-corner-xs, 7px);
+  overflow: hidden;
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+[data-theme='light'] .bb-tl-preview-anchor__slot {
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-tl-preview-anchor__scroll {
+  max-height: 460px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.bb-scroll-indicator--tl-preview {
+  top: 6px;
+  bottom: 6px;
+  right: 3px;
+}
+
+/* --- Bottom Centered M3 Dock (`FloatingPalette` stacked above `Timeline Chat Stepper`) --- */
+.bb-tl-bottom-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 24px);
+  pointer-events: none;
+}
+
+.bb-tl-empty {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px;
+  text-align: center;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+}
+

@@ -1,0 +1,228 @@
+/* ==========================================================================
+   NEXUSTAVERN UI — CHARACTER CARD ROW (M3 Horizontal List Card)
+   Matches TimelineBranchList leaf branch row (.bb-tl-leaf-item) tonal colors.
+   ========================================================================== */
+
+.bb-char-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  min-height: var(--bb-list-row-2line-height, 56px);
+  padding: 8px 10px;
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    transform 0.12s ease;
+}
+
+.bb-char-row:hover {
+  background: var(--bb-sheet-item-hover, var(--bb-page-input-hover));
+  border-color: var(--bb-page-border-mid);
+}
+
+.bb-char-row.is-selected {
+  background: var(--bb-sheet-item-selected, var(--bb-page-card-bg));
+  border-color: var(--bb-accent-color);
+}
+
+.bb-char-row.is-multi-selected {
+  background: var(--bb-sheet-item-selected, var(--bb-accent-surface-top));
+  border-color: var(--bb-accent-color);
+}
+
+.bb-char-row.is-dragging {
+  opacity: 0.5;
+  transform: scale(0.985);
+}
+
+/* 2:3 Thumbnail Portrait */
+.bb-char-row__portrait {
+  position: relative;
+  width: 44px;
+  height: 60px;
+  flex: 0 0 44px;
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  overflow: hidden;
+  background-color: var(--bb-page-card-bg);
+  border: 1px solid var(--bb-page-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-char-row__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 18%;
+  display: block;
+}
+
+.bb-char-row__initials {
+  font-family: var(--bb-font-heading);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+}
+
+.bb-char-row__pin {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.68);
+  color: var(--bb-accent-bright, var(--md-sys-color-warning));
+  pointer-events: none;
+}
+
+/* Content Column */
+.bb-char-row__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.bb-char-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bb-char-row__identity {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.bb-char-row__name {
+  font-family: var(--bb-font-body);
+  font-size: calc(14.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tonal Subtitle Pill (aligned with TimelineBranchList badge pills) */
+.bb-char-row__subtitle {
+  flex: 0 1 auto;
+  max-width: 130px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--bb-font-body);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  background: var(--bb-page-card-bg);
+  color: var(--bb-ink-muted);
+  border: 1px solid var(--bb-page-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-char-row.is-selected .bb-char-row__subtitle {
+  background: var(--bb-accent-surface-top);
+  border-color: var(--bb-accent-color);
+  color: var(--bb-ink-heading);
+}
+
+/* Right Tail: Chats Counter + Kebab / Checkbox */
+.bb-char-row__tail {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.bb-char-row__chats-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 21px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--bb-page-card-bg);
+  border: 1px solid var(--bb-page-border);
+  color: var(--bb-ink-muted);
+  font-family: var(--bb-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.bb-char-row__chats-pill.is-zero {
+  opacity: 0.62;
+}
+
+.bb-char-row__check {
+  pointer-events: none;
+}
+
+.bb-char-row__actions {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.65;
+  transition: opacity 0.12s ease;
+}
+
+.bb-char-row:hover .bb-char-row__actions,
+.bb-char-row__actions:focus-within,
+.bb-char-row__actions:has(.bb-kebab-menu.is-open) {
+  opacity: 1;
+}
+
+/* Bottom Snippet Line (2-line clamp) */
+.bb-char-row__snippet {
+  font-family: var(--bb-font-body);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  line-height: 1.36;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.bb-char-row__intro-tag {
+  margin-right: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--md-sys-color-tertiary, var(--bb-accent-color));
+}
+
+.bb-char-row__snippet-empty {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+@media (hover: none) {
+  .bb-char-row__actions {
+    opacity: 1;
+  }
+}

@@ -1,0 +1,566 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — MESSAGE DECORATOR MOLECULE (M3 RP TEXT ENGINE)
+   ========================================================================== */
+
+.bb-message-decorator {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* --- 1. Collapsible M3 Reasoning / Chain-of-Thought Glass Pill-Button --- */
+.bb-reasoning-box {
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--bb-btn-border, var(--md-sys-color-outline-variant)) 72%,
+      rgba(255, 255, 255, 0.12)
+    );
+  background: color-mix(
+    in srgb,
+    var(--bb-btn-flat-bg, var(--md-sys-color-surface-container-high)) 32%,
+    transparent
+  );
+  backdrop-filter: blur(10px) saturate(135%);
+  -webkit-backdrop-filter: blur(10px) saturate(135%);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.28),
+    0 1px 3px rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+[data-theme='light'] .bb-reasoning-box {
+  border-color: color-mix(
+    in srgb,
+    var(--bb-btn-border, var(--md-sys-color-outline-variant)) 76%,
+    rgba(255, 255, 255, 0.75)
+  );
+  background: color-mix(
+    in srgb,
+    var(--bb-btn-flat-bg, var(--md-sys-color-surface-container-lowest)) 46%,
+    transparent
+  );
+  box-shadow:
+    0 4px 14px rgba(82, 98, 161, 0.11),
+    0 1px 3px rgba(82, 98, 161, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+[data-gpu-mode='low'] .bb-reasoning-box {
+  background: color-mix(
+    in srgb,
+    var(--bb-btn-flat-bg, var(--md-sys-color-surface-container-high)) 76%,
+    transparent
+  );
+}
+
+.bb-reasoning-box:not(.bb-reasoning-box--open):hover {
+  background: color-mix(
+    in srgb,
+    var(--bb-btn-flat-hover-bg, var(--md-sys-color-surface-container-highest)) 48%,
+    transparent
+  );
+  border-color: var(--bb-btn-hover-border, var(--md-sys-color-outline));
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.34),
+    0 2px 5px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+[data-theme='light'] .bb-reasoning-box:not(.bb-reasoning-box--open):hover {
+  background: color-mix(
+    in srgb,
+    var(--bb-btn-flat-hover-bg, var(--md-sys-color-surface-container-low)) 64%,
+    transparent
+  );
+  box-shadow:
+    0 6px 18px rgba(82, 98, 161, 0.15),
+    0 2px 5px rgba(82, 98, 161, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+/* Active thinking tint matching .bb-chat-msg-card__ctrl-btn.is-generate-next */
+.bb-reasoning-box--thinking:not(.bb-reasoning-box--open) {
+  border-color: color-mix(in srgb, var(--md-sys-color-primary) 42%, transparent);
+  background: color-mix(in srgb, var(--md-sys-color-primary-container) 26%, transparent);
+}
+
+.bb-reasoning-box--thinking:not(.bb-reasoning-box--open):hover {
+  border-color: var(--md-sys-color-primary);
+  background: color-mix(in srgb, var(--md-sys-color-primary-container) 40%, transparent);
+}
+
+.bb-reasoning-box--open {
+  align-self: stretch;
+  width: 100%;
+  border-color: var(--bb-btn-hover-border, var(--md-sys-color-outline));
+  background: color-mix(
+    in srgb,
+    var(--bb-page-input-bg, var(--md-sys-color-surface-container-low)) 68%,
+    transparent
+  );
+}
+
+[data-theme='light'] .bb-reasoning-box--open {
+  background: color-mix(
+    in srgb,
+    var(--bb-page-input-bg, var(--md-sys-color-surface-container-lowest)) 78%,
+    transparent
+  );
+}
+
+.bb-reasoning-box__header {
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 11px;
+  border: none;
+  background: transparent;
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface-variant));
+  font-family: var(--bb-font-body);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.bb-reasoning-box__header:hover {
+  color: var(--bb-ink-hover, var(--md-sys-color-on-surface));
+}
+
+.bb-reasoning-box--open .bb-reasoning-box__header:hover {
+  background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
+}
+
+.bb-reasoning-box__header:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--bb-accent-border, var(--md-sys-color-primary));
+}
+
+.bb-reasoning-box__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.bb-reasoning-box__icon {
+  flex-shrink: 0;
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+  transition: color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.bb-reasoning-box__header:hover .bb-reasoning-box__icon {
+  color: var(--bb-ink-hover, var(--md-sys-color-on-surface));
+}
+
+.bb-reasoning-box--thinking .bb-reasoning-box__icon {
+  color: var(--md-sys-color-primary);
+  animation: bb-cot-pulse 1.5s ease-in-out infinite;
+}
+
+.bb-reasoning-box__label {
+  white-space: nowrap;
+}
+
+.bb-reasoning-box__live-heading {
+  display: inline-block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 0;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  animation: bb-cot-heading-enter var(--md-sys-motion-duration-medium, 250ms)
+    var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+
+@keyframes bb-cot-heading-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 5px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-reasoning-box__live-heading {
+    animation-duration: 120ms;
+    transform: none !important;
+  }
+}
+
+.bb-reasoning-box__badge {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--bb-btn-border, var(--md-sys-color-outline-variant)) 55%, transparent);
+  background: color-mix(in srgb, var(--md-sys-color-secondary-container) 46%, transparent);
+  color: var(--bb-ink-muted, var(--md-sys-color-on-secondary-container));
+  font-family: var(--bb-font-mono);
+  font-size: calc(10.5px * var(--bb-font-scale, 1));
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.bb-reasoning-box__chevron {
+  flex-shrink: 0;
+  transition: transform 160ms ease, opacity 140ms ease;
+  opacity: 0.72;
+}
+
+.bb-reasoning-box__header:hover .bb-reasoning-box__chevron {
+  opacity: 1;
+}
+
+.bb-reasoning-box--open .bb-reasoning-box__chevron {
+  transform: rotate(180deg);
+}
+
+.bb-reasoning-box__body {
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--bb-page-border-soft, var(--md-sys-color-outline-variant));
+  font-family: var(--bb-font-mono);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  line-height: 1.42;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.bb-reasoning-box--thinking .bb-reasoning-box__badge {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  animation: bb-cot-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes bb-cot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.bb-decorator-tail-anchor {
+  white-space: nowrap;
+}
+
+.bb-decorator-stall-dots {
+  font-style: normal;
+}
+
+/* --- 2. Rich Narrative & RP Paragraphs (ST + BookboundUI book density) --- */
+.bb-decorator-body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px 0 8px;
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-body-size, 14px);
+  line-height: 1.45;
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  word-break: break-word;
+}
+
+.bb-decorator-p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.bb-decorator-para-gap {
+  display: block;
+  height: 9px;
+}
+
+/* Zero-latency silky M3 word reveal during live streaming */
+.bb-stream-word {
+  display: inline;
+  animation: bb-stream-word-in 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  will-change: opacity, filter;
+}
+
+@keyframes bb-stream-word-in {
+  0% {
+    opacity: 0;
+    filter: blur(2.2px);
+  }
+  55% {
+    opacity: 0.78;
+    filter: blur(0.5px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+[data-gpu-mode='low'] .bb-stream-word {
+  animation: bb-stream-word-in-lite 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  will-change: opacity;
+}
+
+@keyframes bb-stream-word-in-lite {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Direct Speech / Dialogue Quotes ("...", «...», “...”) */
+.bb-decorator-quote {
+  color: var(--bb-quote-color, var(--md-sys-color-on-primary-container, #dce2ff));
+  font-weight: 450;
+}
+
+[data-theme='light'] .bb-decorator-quote {
+  color: var(--bb-quote-color, var(--md-sys-color-primary, #425393));
+}
+
+/* Narrative Thoughts & Actions (*...*) */
+.bb-decorator-thought {
+  font-style: italic;
+  color: var(--bb-thought-color, var(--md-sys-color-on-surface-variant));
+  opacity: 0.92;
+}
+
+/* Strong Emphasis (**...**) */
+.bb-decorator-bold {
+  font-weight: 650;
+  color: var(--md-sys-color-on-surface);
+}
+
+/* Inline Code (`...`) */
+.bb-decorator-inline-code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-highest));
+  font-family: var(--bb-font-mono);
+  font-size: 0.9em;
+  color: var(--md-sys-color-tertiary);
+}
+
+/* Blockquote (> ...) */
+.bb-decorator-blockquote {
+  margin: 2px 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--md-sys-color-tertiary);
+  border-radius: 0 6px 6px 0;
+  background: rgba(101, 117, 179, 0.06);
+  color: var(--md-sys-color-on-surface-variant);
+  font-style: italic;
+}
+
+/* Horizontal Divider (--- / ***) */
+.bb-decorator-hr {
+  border: none;
+  height: 1px;
+  margin: 4px 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--bb-page-border-strong, var(--md-sys-color-outline-variant)) 50%,
+    transparent 100%
+  );
+}
+
+/* Fenced Code Block (```lang ... ```) */
+.bb-decorator-codeblock {
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--md-sys-color-surface-container-lowest);
+  overflow: hidden;
+}
+
+.bb-decorator-codeblock__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--bb-page-border-soft, var(--md-sys-color-outline-variant));
+  background: var(--md-sys-color-surface-container-low);
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  color: var(--bb-ink-muted);
+}
+
+.bb-decorator-codeblock__copy {
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+}
+
+.bb-decorator-codeblock__copy:hover {
+  background: rgba(101, 117, 179, 0.14);
+}
+
+.bb-decorator-codeblock__pre {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-family: var(--bb-font-mono);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface);
+}
+
+/* ==========================================================================
+   3. RICH MESSAGE HTML (details / tables / inputs / lists)
+   Scoped under .bb-decorator-body so character-card markup can never
+   restyle the application shell.
+   ========================================================================== */
+
+.bb-decorator-rich {
+  display: block;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.bb-decorator-rich p {
+  margin: 0 0 9px 0;
+}
+
+.bb-decorator-rich p:last-child {
+  margin-bottom: 0;
+}
+
+.bb-decorator-body details {
+  margin: 18px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--bb-page-border-mid, rgba(125, 113, 98, 0.45));
+  border-radius: 6px;
+  background: var(--bb-page-input-bg, rgba(12, 11, 9, 0.55));
+}
+
+.bb-decorator-body details + details {
+  margin-top: 10px;
+}
+
+.bb-decorator-body details > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--bb-page-border-soft, rgba(125, 113, 98, 0.3));
+}
+
+.bb-decorator-body details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.bb-decorator-body details > summary::before {
+  content: '\25B8';
+  display: inline-block;
+  transition: transform 160ms ease;
+}
+
+.bb-decorator-body details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.bb-decorator-body details[open] > summary {
+  margin-bottom: 10px;
+}
+
+.bb-decorator-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 6px 0;
+  font-size: 0.94em;
+}
+
+.bb-decorator-body th,
+.bb-decorator-body td {
+  border: 1px solid var(--bb-page-border-soft, rgba(125, 113, 98, 0.35));
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.bb-decorator-body th {
+  background: var(--bb-page-panel-bg, rgba(28, 25, 21, 0.8));
+  font-weight: 650;
+}
+
+.bb-decorator-body ul,
+.bb-decorator-body ol {
+  margin: 4px 0;
+  padding-left: 22px;
+}
+
+.bb-decorator-body li {
+  margin: 2px 0;
+}
+
+.bb-decorator-img-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  margin: 4px 0;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px dashed var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+  font-family: var(--bb-font-body);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  font-style: italic;
+  user-select: none;
+}
+
+.bb-decorator-body a {
+  color: var(--bb-ink-accent, #97c8ec);
+  text-decoration: underline;
+}
+
+.bb-decorator-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 5px;
+}
+
+.bb-decorator-body input,
+.bb-decorator-body textarea,
+.bb-decorator-body select {
+  font-family: inherit;
+  font-size: 0.94em;
+  color: var(--bb-ink-main, inherit);
+  background: var(--bb-page-input-bg, rgba(12, 11, 9, 0.75));
+  border: 1px solid var(--bb-page-border-mid, rgba(125, 113, 98, 0.5));
+  border-radius: 4px;
+  padding: 3px 7px;
+}
+

@@ -1,0 +1,301 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100dvh;
+  background-color: var(--md-sys-color-background);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--bb-font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+/* ==========================================================================
+   SCROLLBAR — one appearance for every scroll container in the app.
+   Containers only declare `overflow`; the look comes from here through the
+   --bb-scrollbar-* tokens, so a restyle happens in exactly one place.
+   Hidden containers opt out with `.bb-scrollbar--hidden`, which keeps
+   programmatic scrolling and keyboard focus intact.
+   ========================================================================== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bb-scrollbar-thumb) var(--bb-scrollbar-track);
+}
+
+::-webkit-scrollbar {
+  width: var(--bb-scrollbar-size);
+  height: var(--bb-scrollbar-size);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bb-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--bb-scrollbar-thumb);
+  border-radius: var(--bb-scrollbar-radius);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--bb-scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.bb-scrollbar--hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.bb-scrollbar--hidden::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.bb-boot-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.bb-boot-header {
+  background: var(--bb-page-card-bg);
+  border: 1px solid var(--bb-page-border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+[data-theme='light'] .bb-boot-header {
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-boot-title {
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-t1-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--bb-ink-heading);
+  letter-spacing: 0.04em;
+}
+
+.bb-boot-subtitle {
+  color: var(--bb-ink-muted);
+  font-size: var(--bb-caption-size);
+  margin-top: 3px;
+}
+
+.bb-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.bb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--bb-control-height-sm);
+  padding: 0 10px;
+  border-radius: 5px;
+  font-size: calc(11.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  background: var(--bb-page-input-bg);
+  border: 1px solid var(--bb-page-border);
+  color: var(--bb-ink-main);
+}
+
+
+.bb-badge--ok {
+  border-color: var(--bb-success);
+  color: #a8dfb5;
+}
+
+.bb-badge--err {
+  border-color: var(--bb-danger);
+  color: #f2a0a0;
+}
+
+.bb-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .bb-grid {
+    grid-template-columns: 1fr;
+  }
+  .bb-boot-shell {
+    padding: 14px 12px 32px;
+  }
+  .bb-boot-title {
+    font-size: var(--bb-title-size);
+  }
+}
+
+.bb-card {
+  background: var(--bb-bg-surface);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bb-card-title {
+  font-family: var(--bb-font-serif);
+  font-size: var(--bb-title-size);
+  color: var(--bb-accent);
+  border-bottom: 1px solid var(--bb-border);
+  padding-bottom: 8px;
+}
+
+.bb-lan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bb-lan-item {
+  background: var(--bb-bg-card);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bb-lan-label {
+  font-size: var(--bb-caption-size);
+  color: var(--bb-text-muted);
+}
+
+.bb-lan-url {
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-body-size);
+  color: var(--bb-text-primary);
+  word-break: break-all;
+}
+
+.bb-dir-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: 8px;
+}
+
+.bb-dir-chip {
+  background: var(--bb-bg-card);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-sm);
+  padding: 7px 10px;
+  font-size: var(--bb-label-size);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.bb-btn {
+  background: var(--bb-bg-card);
+  color: var(--bb-text-primary);
+  border: 1px solid var(--bb-border-accent);
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  padding: 8px 14px;
+  font-size: var(--bb-body-size);
+  cursor: pointer;
+}
+
+.bb-btn:active {
+  transform: translateY(1px);
+}
+
+.bb-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bb-tunnel-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid, var(--bb-border));
+  background: var(--bb-sheet-well-bg, var(--bb-bg-card));
+}
+
+.bb-qr-wrap {
+  width: 168px;
+  height: 168px;
+  background: var(--bb-sheet-bg, var(--bb-bg-card));
+  border: 1px solid var(--bb-border-accent);
+  border-radius: var(--bb-control-radius, 8px);
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 540px) {
+  .bb-tunnel-box {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .bb-tunnel-info {
+    align-items: center;
+  }
+}
+
+.bb-qr-wrap svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bb-tunnel-info {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bb-link {
+  color: var(--bb-accent);
+  text-decoration: underline;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-body-size);
+  word-break: break-all;
+}
+

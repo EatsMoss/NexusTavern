@@ -1,0 +1,26 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — OVERLAY SCROLL AREA ATOM
+   Zero-layout-shift scrollable container paired with M3 ScrollIndicator.
+   ========================================================================== */
+
+.bb-overlay-scroll-area {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.bb-overlay-scroll-area__viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.bb-overlay-scroll-area__viewport.is-scroll-disabled {
+  overflow: hidden;
+}

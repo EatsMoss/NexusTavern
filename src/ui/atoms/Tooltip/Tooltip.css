@@ -1,0 +1,124 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — M3 PLAIN TOOLTIP ATOM (100% OPAQUE TONAL SURFACE)
+   ========================================================================== */
+
+.bb-m3-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-m3-tooltip {
+  position: fixed;
+  z-index: 4500;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 5px 10px;
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-bg, #1e1e25);
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  font-family: var(--bb-font-body);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  box-shadow: var(--md-sys-elevation-3);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: bb-m3-tooltip-in 120ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.bb-m3-tooltip--mono {
+  font-family: var(--bb-font-mono, monospace);
+  font-size: calc(11.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+}
+
+.bb-m3-tooltip--rich {
+  max-width: min(368px, calc(100vw - 24px));
+  padding: 9px 12px;
+  border-radius: var(--md-sys-shape-corner-small, 8px);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.bb-m3-tooltip-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 210px;
+}
+
+.bb-m3-tooltip-detail__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--bb-page-border-soft, rgba(128, 128, 128, 0.2));
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+  font-family: var(--bb-font-mono, monospace);
+  font-size: calc(10.5px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.bb-m3-tooltip-detail__row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  font-size: calc(11.5px * var(--bb-font-scale, 1));
+  line-height: 1.38;
+}
+
+.bb-m3-tooltip-detail__label {
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+  font-weight: 600;
+  font-size: calc(10.5px * var(--bb-font-scale, 1));
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bb-m3-tooltip-detail__value {
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.bb-m3-tooltip-detail__value--mono {
+  font-family: var(--bb-font-mono, monospace);
+  font-size: calc(11px * var(--bb-font-scale, 1));
+}
+
+.bb-m3-tooltip-detail__value--error {
+  color: var(--bb-danger-ink, #f2c6be);
+}
+
+.bb-m3-tooltip-detail__arrow {
+  display: inline-block;
+  margin: 0 5px;
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+  font-weight: 700;
+}
+
+@keyframes bb-m3-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-m3-tooltip {
+    animation: none;
+  }
+}

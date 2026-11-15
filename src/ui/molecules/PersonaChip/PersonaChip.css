@@ -1,0 +1,205 @@
+/* ==========================================================================
+   M3 Persona Chip Molecule — Capsule with Stretched-Edge Blur & 2/3 Framing
+   ========================================================================== */
+
+.bb-persona-chip {
+  appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--bb-control-height-md, 30px);
+  padding: 0 0 0 13px;
+  margin: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-btn-flat-bg, var(--md-sys-color-surface-container-high));
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  font-family: var(--bb-font-body);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: var(--md-sys-elevation-1);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.bb-persona-chip:hover:not(:disabled) {
+  background: var(--bb-btn-flat-hover-bg, var(--md-sys-color-surface-container-highest));
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  color: var(--bb-ink-hover, var(--md-sys-color-on-surface));
+}
+
+.bb-persona-chip:focus-visible {
+  outline: none;
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+}
+
+.bb-persona-chip:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.bb-persona-chip__label {
+  position: relative;
+  z-index: 3;
+  padding-right: 0;
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-label-size);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: inherit;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.36);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+[data-theme='light'] .bb-persona-chip__label {
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.65);
+}
+
+/* Composite right-edge media group (50px total: 19px stretched mist + 31px portrait)
+   Pulled left under the trailing letters so the name gently overlaps the blur fade */
+.bb-persona-chip__media {
+  position: relative;
+  width: 50px;
+  height: 100%;
+  margin-left: -13px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Layer 1 (underneath): unified blurred bed containing both the stretched left edge
+   and an aligned copy of the portrait under a single Gaussian blur — zero seam line. */
+.bb-persona-chip__blur-bed {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0px,
+    rgba(0, 0, 0, 0.36) 9px,
+    rgba(0, 0, 0, 0.82) 17px,
+    #000 23px
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0px,
+    rgba(0, 0, 0, 0.36) 9px,
+    rgba(0, 0, 0, 0.82) 17px,
+    #000 23px
+  );
+}
+
+.bb-persona-chip__blur-canvas {
+  position: absolute;
+  inset: 0;
+  filter: blur(5.5px);
+  transform: scaleY(1.24);
+  transform-origin: center center;
+}
+
+/* Stretches the leftmost ~2px strip of the portrait across x = 0..20px */
+.bb-persona-chip__stretch-img {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 31px;
+  height: 46px;
+  object-fit: cover;
+  object-position: center top;
+  transform-origin: left top;
+  transform: scaleX(10);
+  clip-path: inset(0 0 0 0);
+  display: block;
+}
+
+/* Exact aligned portrait copy at x = 19..50px fused with the stretched strip by blur */
+.bb-persona-chip__blur-portrait-img {
+  position: absolute;
+  top: -4px;
+  left: 19px;
+  width: 31px;
+  height: 46px;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+/* Layer 2 (on top): crisp portrait at x = 19..50px, framed slightly above image center (~41%).
+   Softly cross-fades out of its own blurred twin over the leftmost 11px — no hard seam. */
+.bb-persona-chip__portrait {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: 31px;
+  height: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0px,
+    rgba(0, 0, 0, 0.45) 5px,
+    #000 11px
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0px,
+    rgba(0, 0, 0, 0.45) 5px,
+    #000 11px
+  );
+}
+
+.bb-persona-chip__img {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 31px;
+  height: 46px;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+/* Fallback tonal bleed when persona has no image */
+.bb-persona-chip__fallback {
+  position: relative;
+  z-index: 1;
+  width: 46px;
+  height: 100%;
+  margin-left: -11px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--md-sys-color-primary-container);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0, 0, 0, 0.55) 34%,
+    #000 68%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0, 0, 0, 0.55) 34%,
+    #000 68%
+  );
+}
+
+.bb-persona-chip__initials {
+  padding-left: 8px;
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-caption-size);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--md-sys-color-on-primary-container);
+}
+

@@ -1,0 +1,120 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — FLOATING PALETTE MOLECULE (M3 CAPSULE TOOLBAR)
+   Capsule container with circular 1:1 icon buttons and capsule text pills.
+   ========================================================================== */
+
+.bb-floating-palette {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-bg, var(--bb-page-card-bg));
+  box-shadow: var(--md-sys-elevation-2);
+  box-sizing: border-box;
+  user-select: none;
+}
+
+.bb-floating-palette__btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: var(--bb-control-height-sm, 28px);
+  min-height: var(--bb-control-height-sm, 28px);
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--bb-btn-border, var(--bb-page-border-mid));
+  background: var(--bb-btn-flat-bg, var(--bb-page-input-bg));
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  font-family: var(--bb-font-body);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.14s ease, background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.bb-floating-palette__btn--circle {
+  width: var(--bb-control-height-sm, 28px);
+  min-width: var(--bb-control-height-sm, 28px);
+  padding: 0;
+}
+
+.bb-floating-palette__btn--pill {
+  width: auto;
+  padding: 0 11px;
+  color: var(--bb-ink-heading, var(--bb-ink-main));
+}
+
+.bb-floating-palette__btn.is-mono {
+  min-width: 48px;
+  padding: 0 9px;
+  font-family: var(--bb-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+}
+
+.bb-floating-palette__btn:hover:not(:disabled) {
+  color: var(--bb-ink-hover, var(--bb-ink-heading));
+  background: var(--bb-btn-flat-hover-bg, var(--bb-page-card-hover));
+  border-color: var(--bb-btn-hover-border, var(--bb-page-border-strong));
+}
+
+.bb-floating-palette__btn.is-active {
+  color: var(--md-sys-color-on-primary-container, var(--bb-ink-heading));
+  border-color: var(--md-sys-color-primary, var(--bb-accent-color));
+  background: var(--md-sys-color-primary-container, var(--bb-accent-surface-top));
+}
+
+.bb-floating-palette__btn:focus-visible {
+  outline: none;
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+}
+
+.bb-floating-palette__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+.bb-floating-palette__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.bb-floating-palette__label {
+  display: inline-block;
+  line-height: 1;
+}
+
+.bb-floating-palette__divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--bb-page-border, var(--md-sys-color-outline-variant));
+  flex-shrink: 0;
+}
+
+.bb-floating-palette__readout {
+  min-width: 48px;
+  padding: 0 6px;
+  text-align: center;
+  font-family: var(--bb-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  white-space: nowrap;
+}

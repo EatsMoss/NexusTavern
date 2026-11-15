@@ -1,0 +1,178 @@
+/* ==========================================================================
+   NEXUSTAVERN UI — M3 PROGRESS INDICATOR (CIRCULAR & LINEAR)
+   Pure Material Design 3 indeterminate & determinate progress primitives
+   ========================================================================== */
+
+.bb-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bb-space-2);
+  color: var(--md-sys-color-primary);
+  user-select: none;
+}
+
+.bb-progress--linear-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+}
+
+.bb-progress__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bb-space-2);
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size);
+  color: var(--md-sys-color-on-surface-muted);
+}
+
+.bb-progress__value {
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* --- M3 Circular Indicator ----------------------------------------------- */
+.bb-progress__circular {
+  display: block;
+  flex-shrink: 0;
+  transform-origin: center;
+}
+
+.bb-progress__circular--indeterminate {
+  animation: bb-m3-circular-rotate 1.4s linear infinite;
+}
+
+.bb-progress__circular-track {
+  fill: none;
+  stroke: var(--md-sys-color-surface-container-highest);
+  opacity: 0.72;
+}
+
+.bb-progress__circular-active {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 220ms var(--md-sys-motion-easing-standard);
+}
+
+.bb-progress__circular--indeterminate .bb-progress__circular-active {
+  stroke-dasharray: 80, 200;
+  stroke-dashoffset: 0;
+  animation: bb-m3-circular-dash 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes bb-m3-circular-rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bb-m3-circular-dash {
+  0% {
+    stroke-dasharray: 1, 200;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 92, 200;
+    stroke-dashoffset: -32px;
+  }
+  100% {
+    stroke-dasharray: 92, 200;
+    stroke-dashoffset: -124px;
+  }
+}
+
+/* --- M3 Linear Indicator ------------------------------------------------- */
+.bb-progress__linear-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  background-color: var(--md-sys-color-surface-container-highest);
+  overflow: hidden;
+}
+
+.bb-progress--size-sm .bb-progress__linear-track {
+  height: 3px;
+}
+
+.bb-progress--size-lg .bb-progress__linear-track {
+  height: 6px;
+}
+
+.bb-progress__linear-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    var(--md-sys-color-primary) 0%,
+    var(--md-sys-color-tertiary, var(--md-sys-color-primary)) 100%
+  );
+  transition: width 240ms var(--md-sys-motion-easing-standard);
+}
+
+.bb-progress__linear-track--indeterminate .bb-progress__linear-bar--primary {
+  width: auto;
+  animation: bb-m3-linear-indeterminate-1 1.85s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
+}
+
+.bb-progress__linear-track--indeterminate .bb-progress__linear-bar--secondary {
+  width: auto;
+  animation: bb-m3-linear-indeterminate-2 1.85s cubic-bezier(0.165, 0.84, 0.44, 1) 0.85s infinite;
+}
+
+@keyframes bb-m3-linear-indeterminate-1 {
+  0% {
+    left: -35%;
+    right: 100%;
+  }
+  60% {
+    left: 100%;
+    right: -90%;
+  }
+  100% {
+    left: 100%;
+    right: -90%;
+  }
+}
+
+@keyframes bb-m3-linear-indeterminate-2 {
+  0% {
+    left: -200%;
+    right: 100%;
+  }
+  60% {
+    left: 107%;
+    right: -8%;
+  }
+  100% {
+    left: 107%;
+    right: -8%;
+  }
+}
+
+/* Tone variants */
+.bb-progress--tone-muted {
+  color: var(--md-sys-color-on-surface-muted);
+}
+
+.bb-progress--tone-on-surface {
+  color: var(--md-sys-color-on-surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-progress__circular--indeterminate {
+    animation-duration: 2.8s;
+  }
+  .bb-progress__circular--indeterminate .bb-progress__circular-active {
+    animation: none;
+    stroke-dasharray: 65, 200;
+  }
+}

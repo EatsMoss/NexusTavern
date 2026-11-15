@@ -1,0 +1,153 @@
+/* ==========================================================================
+   PRESET VAULT INSPECTOR & AI CONFIG TOME (M3 + BookboundUI)
+   ========================================================================== */
+
+.bb-aiconfig-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bb-preset-dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 6px;
+  transition: box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.bb-preset-dropzone.is-dragging-file {
+  box-shadow: 0 0 0 2px var(--bb-accent-border), var(--md-sys-elevation-2);
+  border-radius: 8px;
+}
+
+.bb-preset-dropzone-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 8px;
+  border: 2px dashed var(--bb-accent-border);
+  background: rgba(18, 15, 12, 0.88);
+  color: var(--bb-ink-heading);
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-label-size);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.bb-preset-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.bb-preset-action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.bb-preset-dirty-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--bb-control-radius, 8px);
+  background: var(--bb-sheet-item-selected, rgba(212, 175, 99, 0.13));
+  border: 1px solid var(--bb-accent-border);
+  color: var(--bb-ink-heading);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+}
+
+.bb-preset-dirty-banner-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bb-export-preset-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bb-export-preset-warning {
+  padding: 10px 12px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-danger-border);
+  background: var(--bb-danger-surface);
+  color: var(--bb-ink-main);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  line-height: 1.45;
+}
+
+.bb-export-preset-warning-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--bb-font-heading);
+  font-weight: 700;
+  color: #ff8a80;
+  margin-bottom: 4px;
+}
+
+.bb-export-preset-shield-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: var(--bb-control-radius, 8px);
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  border: 1px solid var(--bb-page-border-mid, var(--bb-page-border));
+  color: var(--bb-ink-muted);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+}
+
+.bb-samplers-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.bb-samplers-header-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-family: var(--bb-font-mono, monospace);
+  font-size: calc(10.5px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.bb-samplers-header-pill.is-active {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border-color: var(--bb-accent-border);
+}
+
+.bb-samplers-header-pill.is-invalid {
+  background: var(--bb-danger-surface);
+  color: var(--bb-danger-ink);
+  border-color: var(--bb-danger-border);
+}
+
+@media (max-width: 520px) {
+  .bb-samplers-grid-2col {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,128 @@
+/* ==========================================================================
+   NEXUSTAVERN UI TAG CHIP (character gallery filter row)
+   Filter state rides on a leading colour bar + textual prefix, not on a filled
+   background, so chips stay legible in both themes.
+   ========================================================================== */
+
+.bb-tag-chip {
+  display: inline-flex;
+  align-items: stretch;
+  height: var(--bb-control-height-sm);
+  max-width: 100%;
+  border-radius: 999px;
+  overflow: hidden;
+  background-color: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  border: 1px solid var(--bb-page-border-mid);
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.bb-tag-chip:hover {
+  background-color: var(--bb-sheet-item-hover, var(--bb-page-input-hover));
+  border-color: var(--bb-page-border-strong);
+}
+
+.bb-tag-chip__body {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 6px 0 0;
+  border: none;
+  background: transparent;
+  color: var(--bb-ink-main);
+  font-family: var(--bb-font-body);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bb-tag-chip__bar {
+  align-self: stretch;
+  width: 3px;
+  flex-shrink: 0;
+}
+
+.bb-tag-chip__prefix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 9px;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bb-tag-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bb-tag-chip__count {
+  padding: 0 5px;
+  border-radius: 999px;
+  background-color: var(--bb-page-card-bg);
+  color: var(--bb-ink-muted);
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.bb-tag-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--bb-ink-muted);
+  cursor: pointer;
+}
+
+.bb-tag-chip__remove:hover {
+  color: var(--bb-ink-heading);
+  background-color: var(--bb-page-card-hover);
+}
+
+/* Filter states: OR include (green), AND require (blue), NOT exclude (red) */
+.bb-tag-chip--or {
+  border-color: color-mix(in srgb, #4caf7d 45%, var(--bb-page-border-mid));
+}
+.bb-tag-chip--or .bb-tag-chip__bar,
+.bb-tag-chip--or .bb-tag-chip__prefix {
+  background-color: #4caf7d;
+  color: #0d1f16;
+  padding: 0 2px;
+}
+
+.bb-tag-chip--and {
+  border-color: color-mix(in srgb, #5b8def 45%, var(--bb-page-border-mid));
+}
+.bb-tag-chip--and .bb-tag-chip__bar,
+.bb-tag-chip--and .bb-tag-chip__prefix {
+  background-color: #5b8def;
+  color: #0c1526;
+  padding: 0 2px;
+}
+
+.bb-tag-chip--not {
+  border-color: color-mix(in srgb, #e2685f 45%, var(--bb-page-border-mid));
+}
+.bb-tag-chip--not .bb-tag-chip__bar,
+.bb-tag-chip--not .bb-tag-chip__prefix {
+  background-color: #e2685f;
+  color: #2a0f0c;
+  padding: 0 2px;
+}
+.bb-tag-chip--not .bb-tag-chip__label {
+  text-decoration: line-through;
+  opacity: 0.85;
+}
+
+[data-theme='light'] .bb-tag-chip__bar,
+[data-theme='light'] .bb-tag-chip__prefix {
+  color: #ffffff;
+}

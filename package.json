@@ -1,0 +1,30 @@
+{
+  "name": "nexus-tavern",
+  "version": "0.5.0-beta.1",
+  "private": true,
+  "type": "module",
+  "description": "NexusTavern RP AI Frontend & Clean Server Core (100% SillyTavern Data Compatible)",
+  "scripts": {
+    "dev": "concurrently -k -n SERVER,CLIENT,BUILD -c yellow,cyan,green \"node --watch-path=server server/index.js\" \"vite\" \"vite build --watch\"",
+    "dev:server": "node --watch-path=server server/index.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "node server/index.js --open",
+    "preview": "vite preview --host 0.0.0.0 --open http://localhost:4173"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dompurify": "^3.4.17",
+    "express": "^5.1.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "write-file-atomic": "^6.0.0",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "vite": "^6.2.0"
+  }
+}

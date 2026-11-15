@@ -1,0 +1,142 @@
+/* ==========================================================================
+   NEXUSTAVERN UI SWITCH — PURE MATERIAL YOU (M3) TOGGLE
+   Rule: Never wrap a switch inside a button/bordered box ("switch in a button").
+   ========================================================================== */
+
+.bb-m3-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  padding: 4px 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bb-m3-switch-row:hover:not(.bb-m3-switch-row--disabled) .bb-m3-switch-title {
+  color: var(--bb-ink-hover, var(--bb-ink-heading));
+}
+
+.bb-m3-switch-row--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bb-m3-switch-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bb-m3-switch-title {
+  font-family: var(--bb-font-body);
+  font-size: calc(13.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  color: var(--bb-ink-heading);
+}
+
+.bb-m3-switch-desc {
+  font-family: var(--bb-font-body);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  color: var(--bb-ink-muted);
+  line-height: 1.38;
+}
+
+.bb-m3-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background-color: var(--bb-page-card-bg);
+  border: 1px solid var(--bb-page-border-mid);
+  padding: 0;
+  cursor: inherit;
+  box-shadow: var(--bb-inset-shadow);
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+[data-theme='light'] .bb-m3-switch {
+  box-shadow: var(--bb-inset-shadow);
+}
+
+.bb-m3-switch--checked {
+  background: var(--bb-btn-soft-bg, var(--bb-accent-surface-top));
+  border-color: var(--bb-accent-color);
+}
+
+.bb-m3-switch__thumb {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--bb-ink-muted);
+  color: var(--bb-ink-heading);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(0, -50%);
+  transition: transform 0.14s ease, background-color 0.14s ease;
+}
+
+.bb-m3-switch--checked .bb-m3-switch__thumb {
+  background-color: var(--bb-ink-heading);
+  color: var(--bb-accent-surface-top);
+  transform: translate(18px, -50%);
+}
+
+.bb-m3-switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Compact bare M3 switch (`size="sm"`) — comfortable 36x20px target for list rows */
+.bb-m3-switch--sm {
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.bb-m3-switch--sm .bb-m3-switch__thumb {
+  left: 2px;
+  width: 14px;
+  height: 14px;
+}
+
+.bb-m3-switch--sm.bb-m3-switch--checked .bb-m3-switch__thumb {
+  transform: translate(16px, -50%);
+}
+
+/* Bare inline label + switch pair (e.g. `All [switch]`) */
+.bb-m3-switch-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bb-m3-switch-inline--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bb-m3-switch-inline__label {
+  font-family: var(--bb-font-body);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  color: var(--bb-ink-muted);
+  line-height: 1;
+}
+
+.bb-m3-switch-inline:hover:not(.bb-m3-switch-inline--disabled) .bb-m3-switch-inline__label {
+  color: var(--bb-ink-heading);
+}
+
+

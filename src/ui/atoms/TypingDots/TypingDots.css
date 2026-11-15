@@ -1,0 +1,122 @@
+/* ==========================================================================
+   NEXUSTAVERN UI — M3 TYPING / WAITING DOTS ATOM
+   Reusable 3-dot wave indicator for LLM response waiting & stalled stream tails
+   ========================================================================== */
+
+.bb-typing-dots {
+  --bb-typing-dot-size: 6px;
+  --bb-typing-dot-gap: 5px;
+  --bb-typing-dot-lift: -3px;
+  --bb-typing-dot-color: var(--md-sys-color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 4px 2px;
+  user-select: none;
+}
+
+.bb-typing-dots--size-sm {
+  --bb-typing-dot-size: 4.5px;
+  --bb-typing-dot-gap: 4px;
+  --bb-typing-dot-lift: -2.2px;
+}
+
+.bb-typing-dots--tone-muted {
+  --bb-typing-dot-color: var(--md-sys-color-on-surface-muted, var(--md-sys-color-on-surface-variant));
+}
+
+.bb-typing-dots--tone-on-surface {
+  --bb-typing-dot-color: var(--md-sys-color-on-surface);
+}
+
+/* Inline tail variant: sits right where streaming paused with zero line-height jump */
+.bb-typing-dots--inline {
+  display: inline-flex;
+  align-items: center;
+  min-height: 0;
+  height: 0.9em;
+  padding: 0;
+  gap: 6px;
+  line-height: 1;
+  vertical-align: middle;
+  margin-inline-start: 5px;
+  animation: bb-typing-dots-enter 180ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.bb-typing-dots__track {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bb-typing-dot-gap);
+  line-height: 1;
+}
+
+.bb-typing-dots__dot {
+  width: var(--bb-typing-dot-size);
+  height: var(--bb-typing-dot-size);
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  background: var(--bb-typing-dot-color);
+  opacity: 0.35;
+  flex-shrink: 0;
+  animation: bb-typing-dots-bounce 1.2s ease-in-out infinite;
+}
+
+.bb-typing-dots__dot:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.bb-typing-dots__dot:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+.bb-typing-dots__label {
+  font-family: var(--bb-font-body);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  font-style: italic;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+  letter-spacing: 0.01em;
+}
+
+@keyframes bb-typing-dots-bounce {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 0.95;
+    transform: translateY(var(--bb-typing-dot-lift));
+  }
+}
+
+@keyframes bb-typing-dots-enter {
+  from {
+    opacity: 0;
+    transform: translateY(1px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-typing-dots--inline {
+    animation: none;
+  }
+  .bb-typing-dots__dot {
+    animation: bb-typing-dots-pulse-reduced 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes bb-typing-dots-pulse-reduced {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 0.95;
+  }
+}

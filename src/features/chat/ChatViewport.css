@@ -1,0 +1,926 @@
+/* ==========================================================================
+   NEXUSTAVERN FEATURE — CHAT VIEWPORT (VIRTUALIZED STREAM & M3 COMPOSER)
+   ========================================================================== */
+
+/* Scroll-aware edge fading for the message stream.
+   --------------------------------------------------------------------------
+   Messages fade to transparent near the top and bottom edges of the stream via
+   a vertical gradient mask, so any background or theme shows through the fading
+   messages (a box-shadow could only paint a solid colour on top).
+
+   The fade lengths start at 0 and are ANIMATED, which requires registering
+   them with @property — plain custom properties are not interpolatable, so a
+   transition on them would snap instead of easing. An edge only fades while
+   content is scrolled underneath it; when the stream rests at its start or end,
+   that edge stays fully solid. */
+@property --bb-chat-fade-top {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --bb-chat-fade-bottom {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.bb-chat-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* --- 1. Virtualized Message Stream Container --- */
+.bb-chat-viewport__stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bb-chat-viewport__stream {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 0 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  overflow-anchor: none;
+
+  /* Edge fade lengths. Tune here: the top edge is kept shorter than the bottom
+     because the composer sits directly below the stream and needs less run-up. */
+  --bb-chat-fade-max-top: 24px;
+  --bb-chat-fade-max-bottom: 40px;
+
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--bb-chat-fade-top),
+    #000 calc(100% - var(--bb-chat-fade-bottom)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--bb-chat-fade-top),
+    #000 calc(100% - var(--bb-chat-fade-bottom)),
+    transparent 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transition: --bb-chat-fade-top 0.18s ease-out, --bb-chat-fade-bottom 0.18s ease-out;
+}
+
+/* An edge fades only while content is scrolled under it. */
+.bb-chat-viewport__stream.is-scrolled-under-top {
+  --bb-chat-fade-top: var(--bb-chat-fade-max-top);
+}
+
+.bb-chat-viewport__stream.is-scrolled-under-bottom {
+  --bb-chat-fade-bottom: var(--bb-chat-fade-max-bottom);
+}
+
+
+.bb-chat-viewport__track {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Keep the tail window's real layout heights resolved at all times so scroll-to-composer
+   and branch glide calculations never jump due to intrinsic-size placeholders */
+.bb-chat-viewport__slot:nth-last-child(-n + 22) {
+  content-visibility: visible;
+}
+
+/* Tail-First Pagination Banner at top of stream (auto-loads on scroll up) */
+.bb-chat-viewport__tail-banner {
+  width: var(--bb-chat-column-width);
+  max-width: var(--bb-chat-column-max);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 24px;
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  border: 1px dashed var(--bb-page-border-strong, var(--md-sys-color-outline));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+  flex-shrink: 0;
+}
+
+.bb-chat-viewport__tail-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--bb-font-mono);
+  font-size: calc(11.5px * var(--bb-font-scale, 1));
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  white-space: nowrap;
+}
+
+.bb-chat-viewport__tail-spinner {
+  animation: bb-chat-tail-spin 900ms linear infinite;
+}
+
+@keyframes bb-chat-tail-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-chat-viewport__tail-spinner {
+    animation: none;
+  }
+
+  /* Edge fades still apply — they aid readability — but without the easing. */
+  .bb-chat-viewport__stream {
+    transition: none;
+  }
+}
+
+/* DOM Virtualization Slot for 200+ messages x 3k tokens */
+.bb-chat-viewport__slot {
+  width: var(--bb-chat-column-width);
+  max-width: var(--bb-chat-column-max);
+  flex-shrink: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
+}
+
+.bb-chat-viewport__slot--last {
+  width: var(--bb-chat-column-width);
+  max-width: var(--bb-chat-column-max);
+  flex-shrink: 0;
+}
+
+/* --- Branch Creation Motion (M3 Tonal Collapse) --- */
+.bb-chat-viewport__slot--branch-anchor .bb-chat-msg-card {
+  animation: bb-branch-anchor-pulse 320ms var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+}
+
+.bb-chat-viewport__slot--branch-exit {
+  content-visibility: visible;
+  pointer-events: none;
+  animation: bb-branch-tail-collapse 210ms var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+@keyframes bb-branch-anchor-pulse {
+  0% {
+    box-shadow: var(--md-sys-elevation-1);
+  }
+  45% {
+    border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-sys-color-primary) 38%, transparent);
+  }
+  100% {
+    box-shadow: var(--md-sys-elevation-1);
+  }
+}
+
+@keyframes bb-branch-tail-collapse {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-chat-viewport__slot--branch-anchor .bb-chat-msg-card {
+    animation: none;
+  }
+
+  .bb-chat-viewport__slot--branch-exit {
+    animation-duration: 120ms;
+    transform: none;
+  }
+}
+
+/* --- 3. Floating M3 "Jump to Latest" Icon Button --- */
+/* Anchored inside the stage, whose bottom edge is the composer's top edge, so
+   the button keeps a constant gap above the composer no matter how tall the
+   textarea or the chip row grows. */
+.bb-chat-viewport__jump-bottom {
+  position: absolute;
+  bottom: 12px;
+  right: max(24px, calc(50% - 390px));
+  z-index: 28;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--bb-control-height-lg);
+  height: var(--bb-control-height-lg);
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--bb-accent-border, var(--md-sys-color-outline));
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  box-shadow: var(--md-sys-elevation-3);
+  cursor: pointer;
+  transition: transform 140ms ease, opacity 140ms ease;
+}
+
+.bb-chat-viewport__jump-bottom:hover {
+  transform: translateY(-2px);
+}
+
+/* --- 4. M3 Multiline Chat Composer --- */
+.bb-chat-viewport__composer {
+  position: relative;
+  z-index: 40;
+  width: var(--bb-chat-column-width);
+  max-width: var(--bb-chat-column-max);
+  margin: 0 var(--bb-chat-column-gutter) 14px;
+  padding: 6px 12px;
+  border-radius: var(--md-sys-shape-corner-sm, 11px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-card-bg, var(--md-sys-color-surface-container));
+  box-shadow: var(--md-sys-elevation-1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  transition: border-color 140ms ease;
+}
+
+.bb-chat-viewport__composer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--bb-control-height-lg);
+}
+
+.bb-chat-viewport__composer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.bb-chat-viewport__composer-icon-btn.bb-m3-btn--b2.bb-m3-btn--icon-only.bb-m3-btn--lg:not(.bb-m3-btn--b2-active):not(:hover) {
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+}
+
+/* --- 4.1 M3 Composer Chips Row (Model & Persona selectors) --- */
+.bb-chat-viewport__composer-chips {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--bb-page-border-soft, var(--md-sys-color-outline-variant));
+}
+
+.bb-chat-viewport__composer:focus-within {
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+}
+
+.bb-chat-viewport__composer.is-drag-over {
+  border-color: var(--md-sys-color-primary);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container) 26%,
+    var(--bb-page-card-bg, var(--md-sys-color-surface-container))
+  );
+}
+
+.bb-chat-viewport__drop-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px dashed var(--md-sys-color-primary);
+  background: color-mix(in srgb, var(--md-sys-color-primary-container) 45%, transparent);
+  color: var(--md-sys-color-on-primary-container);
+  font-family: var(--bb-font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.bb-chat-viewport__input-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.bb-chat-viewport__textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 24px;
+  max-height: 160px;
+  padding: 3px 2px;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-body-size, 14px);
+  line-height: 1.5;
+  overflow-y: auto;
+}
+
+.bb-chat-viewport__textarea::placeholder {
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+}
+
+.bb-chat-viewport__placeholder {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 2px;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bb-chat-viewport__placeholder-text {
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-body-size, 14px);
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-chat-viewport__send-mode-btn {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.72;
+  transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.bb-chat-viewport__send-mode-btn:hover {
+  opacity: 1;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+  border-color: var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+}
+
+.bb-chat-viewport__send-mode-btn.is-newline-mode {
+  opacity: 1;
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+}
+
+@media (max-width: 768px) {
+  .bb-chat-viewport {
+    --bb-chat-column-gutter: 10px;
+  }
+
+  .bb-chat-viewport__composer {
+    margin-left: var(--bb-chat-column-gutter);
+    margin-right: var(--bb-chat-column-gutter);
+  }
+
+  .bb-chat-viewport.is-emoji-tray-open > .bb-chat-viewport__composer {
+    margin-bottom: 6px;
+  }
+
+  .bb-chat-viewport__stream {
+    padding: 10px 0 16px;
+  }
+
+  .bb-chat-viewport__jump-bottom {
+    right: 16px;
+    bottom: 76px;
+  }
+
+  .bb-chat-history {
+    width: calc(100% - 20px);
+  }
+}
+
+/* --- 5. Date-Sorted Chat History View (Opened via TopBar Back Arrow) --- */
+.bb-chat-history {
+  width: calc(100% - 36px);
+  max-width: 784px;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 14px 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.bb-chat-history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 13px 24px;
+  border-radius: var(--md-sys-shape-corner-xs, 7px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-card-bg, var(--md-sys-color-surface-container));
+  box-shadow: var(--md-sys-elevation-1);
+  flex-shrink: 0;
+}
+
+.bb-chat-history__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.bb-chat-history__icon {
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+  flex-shrink: 0;
+}
+
+.bb-chat-history__title {
+  margin: 0;
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-headline-size, 18px);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}
+
+.bb-chat-history__stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bb-chat-history__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  padding-right: 4px;
+}
+
+.bb-chat-history__list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.bb-chat-history__more-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 20px;
+  border-radius: var(--md-sys-shape-corner-xs, 7px);
+  border: 1px dashed var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+  flex-shrink: 0;
+}
+
+.bb-chat-history__empty {
+  padding: 28px 24px;
+  text-align: center;
+  border-radius: var(--md-sys-shape-corner-xs, 7px);
+  border: 1px dashed var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-label-size);
+}
+
+.bb-chat-history__item {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  padding: 12px 20px 12px 16px;
+  border-radius: var(--md-sys-shape-corner-xs, 7px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-card-bg, var(--md-sys-color-surface-container));
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+  flex-shrink: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 120ms ease;
+}
+
+.bb-chat-history__avatar-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 78px;
+  aspect-ratio: 2 / 3;
+}
+
+.bb-chat-history__char-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+  box-shadow: var(--md-sys-elevation-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-chat-history__char-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 18%;
+  display: block;
+}
+
+.bb-chat-history__avatar-initials {
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-body-size);
+  font-weight: 700;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}
+
+.bb-chat-history__persona-avatar {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 2px solid var(--bb-page-card-bg, #181613);
+  outline: 1px solid var(--bb-page-border-mid, rgba(125, 113, 98, 0.55));
+  background: var(--bb-page-panel-bg, var(--md-sys-color-surface-container-high));
+  box-shadow: var(--md-sys-elevation-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.bb-chat-history__persona-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 18%;
+  display: block;
+}
+
+.bb-chat-history__persona-initials {
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-caption-size);
+  font-weight: 700;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}
+
+.bb-chat-history__item-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bb-chat-history__item:hover {
+  background: var(--bb-page-card-hover, var(--md-sys-color-surface-container-high));
+  border-color: var(--bb-accent-border, var(--md-sys-color-outline));
+}
+
+.bb-chat-history__item.is-active {
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  background: color-mix(
+    in srgb,
+    var(--bb-accent-surface-top, rgba(101, 117, 179, 0.16)) 35%,
+    var(--bb-page-card-bg, rgba(22, 20, 17, 0.85))
+  );
+}
+
+.bb-chat-history__item.is-multi-selected {
+  border-color: var(--bb-accent-bright, var(--md-sys-color-primary));
+  background: color-mix(
+    in srgb,
+    var(--bb-accent-surface-top, rgba(101, 117, 179, 0.24)) 55%,
+    var(--bb-page-card-bg, rgba(22, 20, 17, 0.9))
+  );
+}
+
+.bb-chat-history__item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bb-chat-history__item-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bb-chat-history__item-name {
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-body-size);
+  font-weight: 700;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.bb-chat-history__branch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 5px;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  font-weight: 600;
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  flex-shrink: 0;
+}
+
+.bb-chat-history__active-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  font-weight: 600;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border: 1px solid var(--bb-accent-border, transparent);
+  flex-shrink: 0;
+}
+
+.bb-chat-history__item-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.bb-chat-history__check {
+  pointer-events: none;
+}
+
+.bb-chat-history__actions {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.72;
+  transition: opacity 140ms ease;
+}
+
+.bb-chat-history__item:hover .bb-chat-history__actions,
+.bb-chat-history__actions:focus-within,
+.bb-chat-history__actions:has(.bb-kebab-menu.is-open) {
+  opacity: 1;
+}
+
+.bb-chat-history__delete-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bb-chat-history__delete-list {
+  max-height: 210px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+}
+
+.bb-chat-history__delete-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-chat-history__item-date {
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  white-space: nowrap;
+}
+
+.bb-chat-history__item-preview {
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-label-size);
+  line-height: 1.45;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bb-chat-history__item-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.bb-chat-history__meta-pill {
+  padding: 1px 6px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-soft, var(--md-sys-color-outline-variant));
+  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-low));
+  font-family: var(--bb-font-mono);
+  font-size: var(--bb-caption-size);
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+}
+
+/* --- 4. Full-Width Tome-to-Tome Timelines Stage with M3 Enter / Exit Motion --- */
+.bb-chat-viewport__timelines-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: var(--md-sys-color-background, #111115);
+  opacity: 0;
+  transform: scale(0.985);
+  transform-origin: center center;
+  transition:
+    opacity 200ms var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
+    transform 200ms var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
+    padding-left 160ms ease,
+    padding-right 160ms ease;
+}
+
+.bb-chat-viewport__timelines-layer.is-open {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.bb-chat-viewport__timelines-layer.is-closing {
+  opacity: 0;
+  transform: scale(0.985);
+  pointer-events: none;
+}
+
+.bb-chat-viewport.is-timelines-active > .bb-chat-viewport__stage,
+.bb-chat-viewport.is-timelines-active > .bb-chat-viewport__composer {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity 150ms var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
+    visibility 0s linear 150ms;
+}
+
+.bb-chat-viewport > .bb-chat-viewport__stage,
+.bb-chat-viewport > .bb-chat-viewport__composer {
+  transition:
+    opacity 180ms var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
+    visibility 0s linear 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-chat-viewport__timelines-layer,
+  .bb-chat-viewport > .bb-chat-viewport__stage,
+  .bb-chat-viewport > .bb-chat-viewport__composer {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* --- 5. Empty Workspace / No Scenario Open State (M3 Solid Card) --- */
+.bb-chat-viewport__empty-stage {
+  margin: auto;
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+  padding: 32px 26px;
+  border-radius: var(--md-sys-shape-corner-xl, 28px);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--bb-sheet-bg, var(--md-sys-color-surface-container));
+  box-shadow: var(--md-sys-elevation-2);
+}
+
+.bb-chat-viewport__empty-title {
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-headline-size, 20px);
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface);
+}
+
+.bb-chat-viewport__empty-sub {
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-body-size, 14px);
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface-variant);
+  max-width: 340px;
+}
+
+.bb-chat-viewport__empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.bb-chat-viewport__loading-stage {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: var(--bb-chat-column-width);
+  max-width: var(--bb-chat-column-max);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 12px 0 4px;
+}
+
+.bb-chat-viewport__top-progress {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  width: var(--bb-chat-column-width);
+  max-width: var(--bb-chat-column-max);
+  margin-bottom: 6px;
+}
+
+
