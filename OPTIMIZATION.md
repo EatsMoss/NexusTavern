@@ -102,9 +102,9 @@
     - [x] **O4.2.5 — `usePresetsAndHubWorkspace`** (`src/features/settings-tome/usePresetsWorkspace.js` + `src/features/api-hub/useApiHubWorkspace.js` + композиция секций `src/app/AppShell/`): пресеты промптов, черновики `PresetVaultInspector` и состояние `ApiHub`.
   - Примечание: каждый из 5 подпунктов выносится отдельным микро-шагом с промежуточной живой проверкой.
 
-- [ ] **Шаг O4.3 — Модульное разделение крупных серверных сервисов (`chatStore.js`, `llmStreamer.js`)**:
+- [x] **Шаг O4.3 — Модульное разделение крупных серверных сервисов (`chatStore.js`, `llmStreamer.js`)**:
   - Разделить `server/services/chatStore.js` (2 267 строк) на сфокусированные модули: парсер/сериализатор `.jsonl` и кэш (`chatJsonlCodec.js`), операции сообщений/свайпов/ветвлений (`chatMutations.js`) и работа с вложениями/бэкапами/архивами (`chatAttachmentsAndBackups.js`).
-  - Разделить `server/services/llmStreamer.js` (1 755 строк) на адаптеры провайдеров (OpenAI-compatible / Anthropic / Google / TextGen), парсер потокового `reasoning` и оркестратор записи ответа.
+  - Разделить `server/services/llmStreamer.js` (1 755 строк) на адаптеры провайдеров (`llmProviderAdapters.js`: OpenAI-compatible / Anthropic / Google / TextGen), парсер потокового `reasoning` (`llmReasoningParser.js`) и оркестратор записи ответа (`llmResponsePersistence.js` + `llmStreamer.js`).
   - **Живая проверка**: чтение/запись чатов, импорт/экспорт `.zip`, свайпы, ветвления и генерация через подключённые провайдеры.
 
 ---
@@ -138,16 +138,13 @@
 
 ## 5. Текущая точка остановки (Handoff для новой сессии)
 
-Полностью завершены этапы **O1**, **O2**, **O3** и клиентская декомпозиция **O4.1 + O4.2 (`O4.2.1`–`O4.2.5`)**.
+Полностью завершены этапы **O1**, **O2**, **O3** и **O4 (`O4.1`–`O4.3`)**.
 
 **Что осталось выполнить строго по порядку (по одному шагу с живой проверкой):**
-1. **Шаг O4.3 — Модульное разделение крупных серверных сервисов (`server/services/chatStore.js`, `server/services/llmStreamer.js`)**:
-   - Разделить `server/services/chatStore.js` (2 267 строк) на `chatJsonlCodec.js`, `chatMutations.js` и `chatAttachmentsAndBackups.js` (сохранив публичный фасад экспортов в `chatStore.js` для 100% обратной совместимости роутов).
-   - Разделить `server/services/llmStreamer.js` (1 755 строк) на адаптеры провайдеров (OpenAI-compatible / Anthropic / Google / TextGen), парсер потокового `reasoning` и оркестратор записи ответа.
-2. **Шаг O5.1 — Настройка `jsconfig.json` и `ESLint` с проверкой границ слоёв**:
+1. **Шаг O5.1 — Настройка `jsconfig.json` и `ESLint` с проверкой границ слоёв**:
    - Добавить `jsconfig.json` с алиасами Vite (`@/*`, `@app/*`, `@ui/*`, `@core/*`, `@features/*`, `@styles/*`, `@assets/*`).
    - Настроить `ESLint` (Flat Config для React 19 + Hooks + Node ESM) со скриптом `npm run lint` и контролем отсутствия кросс-импортов между `features/*` и импортов `features/*` внутрь `ui/*`.
-3. **Шаг O5.2 — Покрытие быстрыми Unit-тестами ядра совместимости SillyTavern (`node --test`, `npm test`)**:
+2. **Шаг O5.2 — Покрытие быстрыми Unit-тестами ядра совместимости SillyTavern (`node --test`, `npm test`)**:
    - Автотесты PNG-метаданных карточек (`chara` v2 / `ccv3` v3), `regexEngine.js`, `messageHtml.js` / `messageDecorator.js`, `promptGroupsModel.js` и `timelineForest.js`.
 
 
