@@ -6,6 +6,7 @@ import {
   Input,
   Textarea,
   Modal,
+  UnsavedChangesModal,
   SegmentedGroup,
 } from '@ui/index.js';
 import './ApiHubModal.css';
@@ -84,9 +85,13 @@ export function ApiHubModal({
 
   const [busy, setBusy] = useState(false);
   const [banner, setBanner] = useState(null); // { type: 'error' | 'warn', text: string }
+  const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setUnsavedPromptOpen(false);
+      return;
+    }
     setConnType('rp_proxy');
     setBaseUrl('');
     setOfficialId('makersuite');
@@ -94,6 +99,7 @@ export function ApiHubModal({
     setCustomName('');
     setBusy(false);
     setBanner(null);
+    setUnsavedPromptOpen(false);
   }, [open]);
 
   const parsedKeysCount = useMemo(
@@ -130,9 +136,24 @@ export function ApiHubModal({
           ? true
           : parsedKeysCount > 0 || connType === 'oai_proxy'));
 
+  const isDirty = Boolean(
+    !banner &&
+      (baseUrl.trim() || keysText.trim() || customName.trim()),
+  );
+
+  const handleRequestClose = () => {
+    if (busy) return;
+    if (isDirty) {
+      setUnsavedPromptOpen(true);
+      return;
+    }
+    onClose?.();
+  };
+
   const handleConnect = async (e) => {
     e?.preventDefault?.();
     if (!canSubmit) return;
+    setUnsavedPromptOpen(false);
     setBusy(true);
     setBanner(null);
     try {
@@ -162,9 +183,10 @@ export function ApiHubModal({
   };
 
   return (
+    <>
     <Modal
       open={open}
-      onClose={() => !busy && onClose?.()}
+      onClose={handleRequestClose}
       title="Connect Proxy / API"
       subtitle="Add credentials once — switch & manage directly from the chat bar"
       icon="plug"
@@ -176,7 +198,7 @@ export function ApiHubModal({
             variant="b1"
             emphasis="outlined"
             disabled={busy}
-            onClick={() => onClose?.()}
+            onClick={handleRequestClose}
           >
             {banner ? 'Done' : 'Cancel'}
           </Button>
@@ -319,6 +341,29 @@ export function ApiHubModal({
         )}
       </form>
     </Modal>
+
+    <UnsavedChangesModal
+      open={unsavedPromptOpen}
+      subtitle="Connect Proxy / API"
+      itemName={customName.trim() || autoNameHint || 'New Connection'}
+      saveLabel="Connect & Save"
+      canSave={canSubmit}
+      cannotSaveReason={
+        !canSubmit
+          ? connType === 'official_api'
+            ? 'Enter at least one API key before saving, or discard changes.'
+            : 'Enter a valid endpoint URL and key before saving, or discard changes.'
+          : ''
+      }
+      busy={busy}
+      onCancel={() => setUnsavedPromptOpen(false)}
+      onDiscard={() => {
+        setUnsavedPromptOpen(false);
+        onClose?.();
+      }}
+      onSave={() => handleConnect()}
+    />
+    </>
   );
 }
 

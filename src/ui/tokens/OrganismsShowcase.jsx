@@ -7,6 +7,7 @@ import {
   MarkdownEditor,
   PinnedLayout,
   Modal,
+  UnsavedChangesModal,
   TopBar,
   ChatMessageCard,
   PromptEditorSheet,
@@ -80,6 +81,7 @@ export function OrganismsShowcase() {
   const [cards, setCards] = useState(INITIAL_CARDS);
   const [selectedCardId, setSelectedCardId] = useState('c1');
   const [modalOpen, setModalOpen] = useState(false);
+  const [unsavedDemoOpen, setUnsavedDemoOpen] = useState(false);
   const [demoChatListOpen, setDemoChatListOpen] = useState(false);
   const [demoSwipeId, setDemoSwipeId] = useState(1);
   const [demoSwipeCount, setDemoSwipeCount] = useState(3);
@@ -408,13 +410,25 @@ export function OrganismsShowcase() {
           subtitle="Click a folder to expand, drag cards to pin/folder, or use ⋮ menu"
           icon="folder"
           actions={
-            <Button
-              variant="b2"
-              size="sm"
-              icon="expand"
-              title="Open selected card in popup window"
-              onClick={() => setModalOpen(true)}
-            />
+            <div style={{ display: 'inline-flex', gap: 6 }}>
+              <Button
+                variant="b1"
+                size="sm"
+                emphasis="tonal"
+                icon="warning"
+                title="Preview M3 UnsavedChangesModal"
+                onClick={() => setUnsavedDemoOpen(true)}
+              >
+                Unsaved Guard
+              </Button>
+              <Button
+                variant="b2"
+                size="sm"
+                icon="expand"
+                title="Open selected card in popup window"
+                onClick={() => setModalOpen(true)}
+              />
+            </div>
           }
         >
           <PinnedLayout
@@ -467,6 +481,15 @@ export function OrganismsShowcase() {
           onChange={setMdText}
         />
       </Modal>
+
+      <UnsavedChangesModal
+        open={unsavedDemoOpen}
+        subtitle='Scenario: "Elowen Vane"'
+        itemName="Elowen Vane"
+        onCancel={() => setUnsavedDemoOpen(false)}
+        onDiscard={() => setUnsavedDemoOpen(false)}
+        onSave={() => setUnsavedDemoOpen(false)}
+      />
     </section>
   );
 }

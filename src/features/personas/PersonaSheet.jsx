@@ -1,4 +1,12 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import {
   BookmarkRibbons,
   Button,
@@ -34,25 +42,29 @@ function normalizeConnections(conns) {
   return out;
 }
 
-export function PersonaSheet({
-  initialMode = 'manage', // 'manage' | 'create'
-  initialTargetAvatar = '',
-  personas = [],
-  activePersonaAvatar = '',
-  cards = [],
-  groups = [],
-  activeCharacter = null,
-  hasUserMessages = false,
-  userMessageCount = 0,
-  onClose,
-  onCreatePersona,
-  onSavePersona,
-  onUploadPersonaAvatar,
-  onDuplicatePersona,
-  onDeletePersona,
-  onSelectPersonaInChat,
-  onConfirmReplacePersonaInChat,
-}) {
+export const PersonaSheet = forwardRef(function PersonaSheet(
+  {
+    initialMode = 'manage', // 'manage' | 'create'
+    initialTargetAvatar = '',
+    personas = [],
+    activePersonaAvatar = '',
+    cards = [],
+    groups = [],
+    activeCharacter = null,
+    hasUserMessages = false,
+    userMessageCount = 0,
+    onClose,
+    onCreatePersona,
+    onSavePersona,
+    onUploadPersonaAvatar,
+    onDuplicatePersona,
+    onDeletePersona,
+    onSelectPersonaInChat,
+    onConfirmReplacePersonaInChat,
+    onDirtyChange,
+  },
+  ref,
+) {
   const [mode, setMode] = useState(initialMode === 'create' ? 'create' : 'manage');
   const [selectedAvatar, setSelectedAvatar] = useState('');
   const [activeTab, setActiveTab] = useState('details'); // 'details' | 'connections'
@@ -278,7 +290,7 @@ export function PersonaSheet({
     const cleanName = nameDraft.trim();
     if (!cleanName) {
       setFeedback({ type: 'error', text: 'Display Name is required.' });
-      return;
+      return false;
     }
     setBusy(true);
     setFeedback(null);
@@ -298,7 +310,7 @@ export function PersonaSheet({
           loadPersonaIntoDraft(createdObj);
           setFeedback({ type: 'ok', text: `Created "${createdObj.name}"` });
         } else {
-          onClose?.();
+          onClose?.({ skipGuard: true });
         }
       } else if (selectedAvatar) {
         if (pendingAvatarBase64 && onUploadPersonaAvatar) {
@@ -317,8 +329,10 @@ export function PersonaSheet({
         }
         setFeedback({ type: 'ok', text: 'Saved changes' });
       }
+      return true;
     } catch (err) {
       setFeedback({ type: 'error', text: err.message || 'Failed to save persona' });
+      return false;
     } finally {
       setBusy(false);
     }
@@ -337,6 +351,45 @@ export function PersonaSheet({
     loadPersonaIntoDraft,
     onClose,
   ]);
+
+  const handleDiscardDraft = useCallback(() => {
+    if (mode === 'create' || !selectedPersonaObj) {
+      resetForCreate();
+      return;
+    }
+    loadPersonaIntoDraft(selectedPersonaObj);
+  }, [mode, selectedPersonaObj, resetForCreate, loadPersonaIntoDraft]);
+
+  const canSaveDraft = Boolean(!busy && nameDraft.trim());
+
+  useEffect(() => {
+    const label =
+      mode === 'create'
+        ? nameDraft.trim() || 'New Persona'
+        : selectedPersonaObj?.name || nameDraft.trim() || 'Persona';
+    onDirtyChange?.({
+      isDirty,
+      canSave: canSaveDraft,
+      cannotSaveReason: !nameDraft.trim()
+        ? 'Enter a Display Name before saving, or discard changes.'
+        : '',
+      saveLabel: mode === 'create' ? 'Create & Close' : 'Save & Close',
+      itemName: label,
+      subtitle: mode === 'create' ? 'New Persona' : 'Persona Workspace',
+      busy,
+    });
+  }, [isDirty, canSaveDraft, nameDraft, mode, selectedPersonaObj, busy, onDirtyChange]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      isDirty,
+      canSave: canSaveDraft,
+      save: handleSubmitSave,
+      discard: handleDiscardDraft,
+    }),
+    [isDirty, canSaveDraft, handleSubmitSave, handleDiscardDraft],
+  );
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -840,7 +893,7 @@ export function PersonaSheet({
       </footer>
     </div>
   );
-}
+});
 
 
 

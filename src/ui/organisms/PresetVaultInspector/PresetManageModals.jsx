@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { Button } from '../../atoms/Button/Button.jsx';
 import { Input } from '../../atoms/Input/Input.jsx';
 import { Switch } from '../../atoms/Switch/Switch.jsx';
 import { Modal } from '../Modal/Modal.jsx';
+import { UnsavedChangesModal } from '../UnsavedChangesModal/UnsavedChangesModal.jsx';
 
 export function PresetManageModals({
   isOpenai = true,
@@ -33,31 +34,87 @@ export function PresetManageModals({
   onSelectPreset,
   onSaveActiveDoc,
 }) {
+  const [initialSaveAsName, setInitialSaveAsName] = useState('');
+  const [saveAsUnsavedOpen, setSaveAsUnsavedOpen] = useState(false);
+  const [renameUnsavedOpen, setRenameUnsavedOpen] = useState(false);
+
+  useEffect(() => {
+    if (saveAsModalOpen) {
+      setInitialSaveAsName(saveAsDraftName);
+      setSaveAsUnsavedOpen(false);
+    } else {
+      setSaveAsUnsavedOpen(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveAsModalOpen]);
+
+  useEffect(() => {
+    if (!renameModalOpen) {
+      setRenameUnsavedOpen(false);
+    }
+  }, [renameModalOpen]);
+
+  const isSaveAsDirty =
+    saveAsModalOpen && saveAsDraftName.trim() !== initialSaveAsName.trim();
+  const canConfirmSaveAs = Boolean(saveAsDraftName.trim());
+
+  const handleRequestCloseSaveAs = () => {
+    if (isSaveAsDirty) {
+      setSaveAsUnsavedOpen(true);
+      return;
+    }
+    setSaveAsModalOpen(false);
+  };
+
+  const handleConfirmSaveAs = () => {
+    const clean = saveAsDraftName.trim();
+    if (!clean) return;
+    onSaveAsPreset?.(currentCategory, clean, activeDoc);
+    setSaveAsUnsavedOpen(false);
+    setSaveAsModalOpen(false);
+  };
+
+  const isRenameDirty =
+    renameModalOpen && renameDraftName.trim() !== (currentSelectedName || '').trim();
+  const canConfirmRename =
+    Boolean(renameDraftName.trim()) && renameDraftName.trim() !== currentSelectedName;
+
+  const handleRequestCloseRename = () => {
+    if (isRenameDirty) {
+      setRenameUnsavedOpen(true);
+      return;
+    }
+    setRenameModalOpen(false);
+  };
+
+  const handleConfirmRename = () => {
+    const clean = renameDraftName.trim();
+    if (!clean || clean === currentSelectedName) return;
+    onRenamePreset?.(currentCategory, currentSelectedName, clean);
+    setRenameUnsavedOpen(false);
+    setRenameModalOpen(false);
+  };
+
   return (
     <>
       <Modal
         open={saveAsModalOpen}
-        onClose={() => setSaveAsModalOpen(false)}
+        onClose={handleRequestCloseSaveAs}
         title="Save Preset As"
         subtitle={`Create a new ${isOpenai ? 'Chat Completion' : 'TextGen'} preset`}
         icon="plus"
         width={420}
         footer={
           <>
-            <Button variant="b1" emphasis="outlined" onClick={() => setSaveAsModalOpen(false)}>
+            <Button variant="b1" emphasis="outlined" onClick={handleRequestCloseSaveAs}>
               Cancel
             </Button>
             <Button
               variant="b1"
               emphasis="filled"
               icon="check"
-              disabled={!saveAsDraftName.trim()}
-              onClick={() => {
-                const clean = saveAsDraftName.trim();
-                if (!clean) return;
-                onSaveAsPreset?.(currentCategory, clean, activeDoc);
-                setSaveAsModalOpen(false);
-              }}
+              disabled={!canConfirmSaveAs}
+              onClick={handleConfirmSaveAs}
             >
               Save New Preset
             </Button>
@@ -74,27 +131,22 @@ export function PresetManageModals({
 
       <Modal
         open={renameModalOpen}
-        onClose={() => setRenameModalOpen(false)}
+        onClose={handleRequestCloseRename}
         title="Rename Preset"
         subtitle={`Current preset: ${currentSelectedName}`}
         icon="edit"
         width={420}
         footer={
           <>
-            <Button variant="b1" emphasis="outlined" onClick={() => setRenameModalOpen(false)}>
+            <Button variant="b1" emphasis="outlined" onClick={handleRequestCloseRename}>
               Cancel
             </Button>
             <Button
               variant="b1"
               emphasis="filled"
               icon="check"
-              disabled={!renameDraftName.trim() || renameDraftName.trim() === currentSelectedName}
-              onClick={() => {
-                const clean = renameDraftName.trim();
-                if (!clean) return;
-                onRenamePreset?.(currentCategory, currentSelectedName, clean);
-                setRenameModalOpen(false);
-              }}
+              disabled={!canConfirmRename}
+              onClick={handleConfirmRename}
             >
               Rename
             </Button>
@@ -195,50 +247,61 @@ export function PresetManageModals({
         </div>
       </Modal>
 
-      <Modal
+      <UnsavedChangesModal
         open={Boolean(unsavedSwitchTarget)}
-        onClose={() => setUnsavedSwitchTarget(null)}
         title="Unsaved Preset Changes"
         subtitle={`You have unsaved edits in "${currentSelectedName}"`}
-        icon="sliders"
-        width={450}
-        footer={
+        saveLabel="Save & Switch"
+        discardLabel="Discard & Switch"
+        onCancel={() => setUnsavedSwitchTarget(null)}
+        onDiscard={() => {
+          const target = unsavedSwitchTarget;
+          setUnsavedSwitchTarget(null);
+          if (target) onSelectPreset?.(target.category, target.name);
+        }}
+        onSave={async () => {
+          const target = unsavedSwitchTarget;
+          setUnsavedSwitchTarget(null);
+          await onSaveActiveDoc?.();
+          if (target) onSelectPreset?.(target.category, target.name);
+        }}
+        message={
           <>
-            <Button variant="b1" emphasis="outlined" onClick={() => setUnsavedSwitchTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="b1"
-              emphasis="outlined"
-              onClick={() => {
-                const target = unsavedSwitchTarget;
-                setUnsavedSwitchTarget(null);
-                if (target) onSelectPreset?.(target.category, target.name);
-              }}
-            >
-              Discard &amp; Switch
-            </Button>
-            <Button
-              variant="b1"
-              emphasis="filled"
-              icon="check"
-              onClick={async () => {
-                const target = unsavedSwitchTarget;
-                setUnsavedSwitchTarget(null);
-                await onSaveActiveDoc?.();
-                if (target) onSelectPreset?.(target.category, target.name);
-              }}
-            >
-              Save &amp; Switch
-            </Button>
+            Would you like to save your changes to <strong>{currentSelectedName}</strong> before switching to{' '}
+            <strong>{unsavedSwitchTarget?.name}</strong>?
           </>
         }
-      >
-        <div className="bb-caption-text">
-          Would you like to save your changes to <strong>{currentSelectedName}</strong> before switching to{' '}
-          <strong>{unsavedSwitchTarget?.name}</strong>?
-        </div>
-      </Modal>
+      />
+
+      <UnsavedChangesModal
+        open={saveAsUnsavedOpen && saveAsModalOpen}
+        subtitle="Save Preset As"
+        itemName={saveAsDraftName.trim() || 'New Preset'}
+        saveLabel="Save New Preset"
+        canSave={canConfirmSaveAs}
+        cannotSaveReason="Preset name cannot be empty."
+        onCancel={() => setSaveAsUnsavedOpen(false)}
+        onDiscard={() => {
+          setSaveAsUnsavedOpen(false);
+          setSaveAsModalOpen(false);
+        }}
+        onSave={handleConfirmSaveAs}
+      />
+
+      <UnsavedChangesModal
+        open={renameUnsavedOpen && renameModalOpen}
+        subtitle={`Rename Preset "${currentSelectedName}"`}
+        itemName={renameDraftName.trim() || currentSelectedName}
+        saveLabel="Rename"
+        canSave={canConfirmRename}
+        cannotSaveReason="Preset name cannot be empty."
+        onCancel={() => setRenameUnsavedOpen(false)}
+        onDiscard={() => {
+          setRenameUnsavedOpen(false);
+          setRenameModalOpen(false);
+        }}
+        onSave={handleConfirmRename}
+      />
     </>
   );
 }

@@ -90,6 +90,7 @@ export {
 export { MarkdownEditor } from './organisms/MarkdownEditor/MarkdownEditor.jsx';
 export { PinnedLayout } from './organisms/PinnedLayout/PinnedLayout.jsx';
 export { Modal } from './organisms/Modal/Modal.jsx';
+export { UnsavedChangesModal } from './organisms/UnsavedChangesModal/UnsavedChangesModal.jsx';
 export {
   TopBar,
   formatTopBarChatTitle,

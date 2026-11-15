@@ -1,4 +1,12 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import {
   Button,
   Icon,
@@ -19,19 +27,23 @@ function serializeIntroSnapshot(draft) {
   });
 }
 
-export function IntroEditorSheet({
-  target = null,
-  scenarioName = '',
-  defaultPortraitUrl = null,
-  fallbackInitials = 'CH',
-  portraitGallery = [],
-  busyPortrait = false,
-  onClose,
-  onSave,
-  onNavigateIndex,
-  onStartChat,
-  onUploadPortraitFile,
-}) {
+export const IntroEditorSheet = forwardRef(function IntroEditorSheet(
+  {
+    target = null,
+    scenarioName = '',
+    defaultPortraitUrl = null,
+    fallbackInitials = 'CH',
+    portraitGallery = [],
+    busyPortrait = false,
+    onClose,
+    onSave,
+    onNavigateIndex,
+    onStartChat,
+    onUploadPortraitFile,
+    onDirtyChange,
+  },
+  ref,
+) {
   const [draft, setDraft] = useState(null);
   const [baselineSnapshot, setBaselineSnapshot] = useState('');
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -113,6 +125,42 @@ export function IntroEditorSheet({
     setDraft(restored);
     setBaselineSnapshot(serializeIntroSnapshot(restored));
   }, [target]);
+
+  useEffect(() => {
+    const kind = target?.kind;
+    const idx = Number(target?.index || 0);
+    const fallbackLabel =
+      kind === 'group'
+        ? `Group Greeting #${idx + 1}`
+        : idx === 0
+          ? 'First Message'
+          : `Intro #${idx + 1}`;
+    const label = String(draft?.title || '').trim() || fallbackLabel;
+    onDirtyChange?.({
+      isDirty,
+      canSave: Boolean(target && draft),
+      cannotSaveReason: '',
+      itemName: label,
+      subtitle: scenarioName ? `Greeting Editor · ${scenarioName}` : 'Greeting Editor',
+    });
+  }, [isDirty, target, draft, scenarioName, onDirtyChange]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      isDirty,
+      canSave: Boolean(target && draft),
+      save: async () => {
+        if (!target || !draft) return false;
+        commitDraft();
+        return true;
+      },
+      discard: () => {
+        handleDiscard();
+      },
+    }),
+    [isDirty, target, draft, commitDraft, handleDiscard],
+  );
 
   useEffect(() => {
     if (!target || !draft) return undefined;
@@ -257,7 +305,7 @@ export function IntroEditorSheet({
                         rawPortraitUrl: draft.rawPortraitUrl || null,
                         portraitUrl: draft.portraitUrl || null,
                       });
-                      onClose?.();
+                      onClose?.({ skipGuard: true });
                     }}
                   >
                     Start Chat
@@ -420,4 +468,4 @@ export function IntroEditorSheet({
       )}
     </div>
   );
-}
+});

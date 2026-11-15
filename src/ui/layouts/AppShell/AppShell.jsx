@@ -117,6 +117,7 @@ import {
   Dropdown,
   MarkdownEditor,
   Modal,
+  UnsavedChangesModal,
   PearlescentShader,
   TopBar,
   PresetVaultInspector,
@@ -156,6 +157,10 @@ import { useRegexWorkspace } from '@features/regex/useRegexWorkspace.js';
 import { useRefusalCatcher } from '@features/refusal/useRefusalCatcher.js';
 import { StImporterTomePanel } from '@features/st-importer/StImporterTomePanel.jsx';
 import { useStImporter } from '@features/st-importer/useStImporter.js';
+import {
+  isWorkspaceSheetExemptClickTarget,
+  hasOpenTopLayerOverlay,
+} from './useWorkspaceSheetDismiss.js';
 import {
   CreateScenarioSheet,
   convertImageFileToPngBase64,
@@ -372,14 +377,39 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   const [multiFolderInput, setMultiFolderInput] = useState('New Folder');
   const [multiTagInput, setMultiTagInput] = useState('');
   const [lastMultiClick, setLastMultiClick] = useState({ id: null, selected: true });
-  const [renameDialog, setRenameDialog] = useState(null); // { kind: 'card'|'tag'|'folder', id, name }
+  const [renameDialog, setRenameDialog] = useState(null); // { kind: 'card'|'tag'|'folder', id, name, initialName? }
+  const [renameDialogUnsavedOpen, setRenameDialogUnsavedOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(null); // { kind: 'card'|'tag', id, name, deleteChats }
-  const [createGroupDialog, setCreateGroupDialog] = useState(null); // { name, members: Card[] }
+  const [createGroupDialog, setCreateGroupDialog] = useState(null); // { name, initialName?, members: Card[] }
+  const [createGroupUnsavedOpen, setCreateGroupUnsavedOpen] = useState(false);
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(null); // { items: Entity[], deleteChats: boolean }
   const [createScenarioModalOpen, setCreateScenarioModalOpen] = useState(false);
   const [createScenarioModalMode, setCreateScenarioModalMode] = useState('create');
   const [creatingScenario, setCreatingScenario] = useState(false);
   const [createScenarioStatus, setCreateScenarioStatus] = useState('');
+
+  // Central workspace sheet refs, dirty state & unsaved guard state
+  const createScenarioSheetRef = useRef(null);
+  const personaSheetRef = useRef(null);
+  const promptEditorSheetRef = useRef(null);
+  const introEditorSheetRef = useRef(null);
+  const centerSheetSurfaceRef = useRef(null);
+  const [sheetDirtyMeta, setSheetDirtyMeta] = useState({
+    createScenario: { isDirty: false, canSave: false, cannotSaveReason: '', itemName: '', subtitle: '', saveLabel: 'Create & Close', busy: false },
+    persona: { isDirty: false, canSave: false, cannotSaveReason: '', itemName: '', subtitle: '', saveLabel: 'Save & Close', busy: false },
+    prompt: { isDirty: false, canSave: true, cannotSaveReason: '', itemName: '', subtitle: '', saveLabel: 'Save & Close', busy: false },
+    intro: { isDirty: false, canSave: true, cannotSaveReason: '', itemName: '', subtitle: '', saveLabel: 'Save & Close', busy: false },
+  });
+  const [workspaceUnsavedGuard, setWorkspaceUnsavedGuard] = useState(null);
+  const workspaceGuardActionRef = useRef(null);
+  const workspaceGuardBridgeRef = useRef({
+    activeKind: null,
+    isCardDirty: false,
+    runGuard: (fn) => fn?.(),
+  });
+  const runWithWorkspaceUnsavedGuard = useCallback((proceedAction, opts) => {
+    workspaceGuardBridgeRef.current.runGuard(proceedAction, opts);
+  }, []);
 
   const [personas, setPersonas] = useState([]);
   const [activePersonaAvatar, setActivePersonaAvatar] = useState('');
@@ -1721,7 +1751,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   }, [selectedCardId, openChatFileWindow, recordSessionPointer, finishBootSplash, pushToast]);
 
   const handleSaveCardToPng = async () => {
-    if (!activeCardFull || cardSaving) return;
+    if (!activeCardFull || cardSaving) return false;
     setCardSaving(true);
     setCardSaveStatus('Saving card...');
     try {
@@ -1754,9 +1784,12 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         setCardSaveStatus('Saved to card');
         await loadCardsAndPersonas();
         setTimeout(() => setCardSaveStatus(''), 2500);
+        return true;
       }
+      return false;
     } catch (err) {
       setCardSaveStatus(`Error: ${err.message}`);
+      return false;
     } finally {
       setCardSaving(false);
     }
@@ -2601,13 +2634,33 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
 
   const handleOpenManagePersonaModal = useCallback(
     (targetAvatar = '') => {
-      const resolvedAv = targetAvatar || activePersonaAvatar;
-      const found = personas.find((p) => p.avatar === resolvedAv);
-      if (found) {
-        setPersonaModalTargetAvatar(found.avatar);
-      } else {
-        setPersonaModalTargetAvatar(resolvedAv || '');
-      }
+      runWithWorkspaceUnsavedGuard(() => {
+        const resolvedAv = targetAvatar || activePersonaAvatar;
+        const found = personas.find((p) => p.avatar === resolvedAv);
+        if (found) {
+          setPersonaModalTargetAvatar(found.avatar);
+        } else {
+          setPersonaModalTargetAvatar(resolvedAv || '');
+        }
+        setChatListOpen(false);
+        setTimelinesOpen(false);
+        setEditingPromptSelection(null);
+        setEditingIntroTarget(null);
+        setCreateScenarioModalOpen(false);
+        setSheetExpanded(false);
+        if (isMobile) {
+          setLeftOpen(false);
+          setRightOpen(false);
+        }
+        setPersonaModalMode('manage');
+        setPersonaModalOpen(true);
+      });
+    },
+    [personas, activePersonaAvatar, isMobile, runWithWorkspaceUnsavedGuard],
+  );
+
+  const handleOpenCreatePersonaModal = useCallback(() => {
+    runWithWorkspaceUnsavedGuard(() => {
       setChatListOpen(false);
       setTimelinesOpen(false);
       setEditingPromptSelection(null);
@@ -2618,27 +2671,11 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         setLeftOpen(false);
         setRightOpen(false);
       }
-      setPersonaModalMode('manage');
+      setPersonaModalTargetAvatar('');
+      setPersonaModalMode('create');
       setPersonaModalOpen(true);
-    },
-    [personas, activePersonaAvatar, isMobile],
-  );
-
-  const handleOpenCreatePersonaModal = useCallback(() => {
-    setChatListOpen(false);
-    setTimelinesOpen(false);
-    setEditingPromptSelection(null);
-    setEditingIntroTarget(null);
-    setCreateScenarioModalOpen(false);
-    setSheetExpanded(false);
-    if (isMobile) {
-      setLeftOpen(false);
-      setRightOpen(false);
-    }
-    setPersonaModalTargetAvatar('');
-    setPersonaModalMode('create');
-    setPersonaModalOpen(true);
-  }, [isMobile]);
+    });
+  }, [isMobile, runWithWorkspaceUnsavedGuard]);
 
   const handleCreatePersona = useCallback(
     async (payload) => {
@@ -2835,41 +2872,75 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
    */
   const handleSelectCard = useCallback(
     (id) => {
-      restoreCardAppliedRef.current = true;
-      restorePointerAppliedRef.current = true;
-      restorePointerRef.current = null;
-      if (id && id !== selectedCardIdRef.current) {
-        setEditingIntroTarget(null);
-        if (!isDemoCardId(id)) {
-          recordSessionPointer(id, '');
+      const isChangingCard = Boolean(id && id !== selectedCardIdRef.current);
+      const { activeKind, isCardDirty } = workspaceGuardBridgeRef.current;
+      const guardKind =
+        isChangingCard &&
+        (isCardDirty
+          ? 'expandedCharacter'
+          : activeKind === 'intro' ||
+              activeKind === 'createScenario' ||
+              activeKind === 'persona'
+            ? activeKind
+            : null);
+
+      const proceed = () => {
+        restoreCardAppliedRef.current = true;
+        restorePointerAppliedRef.current = true;
+        restorePointerRef.current = null;
+        if (id && id !== selectedCardIdRef.current) {
+          setEditingIntroTarget(null);
+          if (!isDemoCardId(id)) {
+            recordSessionPointer(id, '');
+          }
         }
+        setCreateScenarioModalOpen(false);
+        setPersonaModalOpen(false);
+        setSelectedCardId(id);
+      };
+
+      if (guardKind) {
+        runWithWorkspaceUnsavedGuard(proceed, { targetKind: guardKind });
+        return;
       }
-      setCreateScenarioModalOpen(false);
-      setPersonaModalOpen(false);
-      setSelectedCardId(id);
+      proceed();
     },
-    [recordSessionPointer],
+    [recordSessionPointer, runWithWorkspaceUnsavedGuard],
   );
 
   const handleGalleryOpenCard = useCallback(
     (id) => {
-      restoreCardAppliedRef.current = true;
-      restorePointerAppliedRef.current = true;
-      restorePointerRef.current = null;
-      if (id && id !== selectedCardIdRef.current && !isDemoCardId(id)) {
-        recordSessionPointer(id, '');
+      const isChangingCard = Boolean(id && id !== selectedCardIdRef.current);
+      const { activeKind, isCardDirty } = workspaceGuardBridgeRef.current;
+      const guardKind =
+        activeKind ||
+        (isChangingCard && isCardDirty ? 'expandedCharacter' : null);
+
+      const proceed = () => {
+        restoreCardAppliedRef.current = true;
+        restorePointerAppliedRef.current = true;
+        restorePointerRef.current = null;
+        if (id && id !== selectedCardIdRef.current && !isDemoCardId(id)) {
+          recordSessionPointer(id, '');
+        }
+        setSelectedCardId(id);
+        setChatListOpen(false);
+        setTimelinesOpen(false);
+        setSheetExpanded(false);
+        setEditingPromptSelection(null);
+        setEditingIntroTarget(null);
+        setCreateScenarioModalOpen(false);
+        setPersonaModalOpen(false);
+        setLeftTab('chats');
+      };
+
+      if (guardKind) {
+        runWithWorkspaceUnsavedGuard(proceed, { targetKind: guardKind });
+        return;
       }
-      setSelectedCardId(id);
-      setChatListOpen(false);
-      setTimelinesOpen(false);
-      setSheetExpanded(false);
-      setEditingPromptSelection(null);
-      setEditingIntroTarget(null);
-      setCreateScenarioModalOpen(false);
-      setPersonaModalOpen(false);
-      setLeftTab('chats');
+      proceed();
     },
-    [recordSessionPointer],
+    [recordSessionPointer, runWithWorkspaceUnsavedGuard],
   );
 
   const handleGalleryTogglePin = useCallback(
@@ -2960,21 +3031,23 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
 
   const handleOpenCreateScenarioModal = useCallback(
     (mode = 'create') => {
-      setChatListOpen(false);
-      setTimelinesOpen(false);
-      setEditingPromptSelection(null);
-      setEditingIntroTarget(null);
-      setSheetExpanded(false);
-      setPersonaModalOpen(false);
-      if (isMobile) {
-        setLeftOpen(false);
-        setRightOpen(false);
-      }
-      setCreateScenarioModalMode(mode);
-      setCreateScenarioStatus('');
-      setCreateScenarioModalOpen(true);
+      runWithWorkspaceUnsavedGuard(() => {
+        setChatListOpen(false);
+        setTimelinesOpen(false);
+        setEditingPromptSelection(null);
+        setEditingIntroTarget(null);
+        setSheetExpanded(false);
+        setPersonaModalOpen(false);
+        if (isMobile) {
+          setLeftOpen(false);
+          setRightOpen(false);
+        }
+        setCreateScenarioModalMode(mode);
+        setCreateScenarioStatus('');
+        setCreateScenarioModalOpen(true);
+      });
     },
-    [isMobile],
+    [isMobile, runWithWorkspaceUnsavedGuard],
   );
 
   const handleCreateScenario = useCallback(
@@ -3270,7 +3343,12 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           label: 'Rename',
           icon: 'edit',
           onClick: () =>
-            setRenameDialog({ kind: 'card', id: card.id, name: card.name || '' }),
+            setRenameDialog({
+              kind: 'card',
+              id: card.id,
+              name: card.name || '',
+              initialName: card.name || '',
+            }),
         },
         {
           id: 'duplicate',
@@ -3610,6 +3688,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     }`;
     setCreateGroupDialog({
       name: defaultName,
+      initialName: defaultName,
       members: selectedCharacterCards,
     });
   }, [selectedCharacterCards]);
@@ -3620,6 +3699,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     const memberIds = (createGroupDialog.members || []).map((m) => m.id);
     if (!trimmedName || memberIds.length === 0) return;
 
+    setCreateGroupUnsavedOpen(false);
     setCreateGroupDialog(null);
     const serverMembers = memberIds.filter((id) => !isDemoCardId(id));
 
@@ -4075,7 +4155,13 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           id: 'rename-tag',
           label: 'Rename tag',
           icon: 'edit',
-          onClick: () => setRenameDialog({ kind: 'tag', id: tid, name: tag.name || '' }),
+          onClick: () =>
+            setRenameDialog({
+              kind: 'tag',
+              id: tid,
+              name: tag.name || '',
+              initialName: tag.name || '',
+            }),
         },
         {
           id: 'toggle-hide-tag',
@@ -4106,7 +4192,13 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             id: 'rename-tag',
             label: 'Rename tag',
             icon: 'edit',
-            onClick: () => setRenameDialog({ kind: 'tag', id: tid, name: entry.name || '' }),
+            onClick: () =>
+              setRenameDialog({
+                kind: 'tag',
+                id: tid,
+                name: entry.name || '',
+                initialName: entry.name || '',
+              }),
           },
           {
             id: 'toggle-hide-tag',
@@ -4150,7 +4242,12 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           label: 'Rename',
           icon: 'edit',
           onClick: () =>
-            setRenameDialog({ kind: 'folder', id: entry.id, name: entry.name || 'Folder' }),
+            setRenameDialog({
+              kind: 'folder',
+              id: entry.id,
+              name: entry.name || 'Folder',
+              initialName: entry.name || 'Folder',
+            }),
         },
         {
           id: 'ungroup-folder',
@@ -4179,20 +4276,22 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   }, []);
 
   const handleBackToChat = useCallback(() => {
-    setChatListOpen(false);
-    setTimelinesOpen(false);
-    setEditingPromptSelection(null);
-    setEditingIntroTarget(null);
-    setCreateScenarioModalOpen(false);
-    setPersonaModalOpen(false);
-    setSheetExpanded((wasExpanded) => {
-      if (wasExpanded) {
-        setRightTab('selected');
-      }
-      return false;
+    runWithWorkspaceUnsavedGuard(() => {
+      setChatListOpen(false);
+      setTimelinesOpen(false);
+      setEditingPromptSelection(null);
+      setEditingIntroTarget(null);
+      setCreateScenarioModalOpen(false);
+      setPersonaModalOpen(false);
+      setSheetExpanded((wasExpanded) => {
+        if (wasExpanded) {
+          setRightTab('selected');
+        }
+        return false;
+      });
+      scrollToChatBottom();
     });
-    scrollToChatBottom();
-  }, [scrollToChatBottom]);
+  }, [runWithWorkspaceUnsavedGuard, scrollToChatBottom]);
 
   const handleToggleChatList = useCallback(async () => {
     if (isMobile) setRightOpen(false);
@@ -4219,51 +4318,60 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   const handleFocusNodeOnTree = useCallback(
     (fileName, { openTree = false } = {}) => {
       if (!fileName) return;
-      if (openTree) {
-        setEditingPromptSelection(null);
-        setEditingIntroTarget(null);
-        setCreateScenarioModalOpen(false);
-        setPersonaModalOpen(false);
-        setSheetExpanded((wasExpanded) => {
-          if (wasExpanded) setRightTab('selected');
-          return false;
-        });
-        setTimelinesOpen(true);
-        if (selectedCardId && !isDemoCardId(selectedCardId)) {
-          refreshTimelineChats(selectedCardId);
+      const proceed = () => {
+        if (openTree) {
+          setEditingPromptSelection(null);
+          setEditingIntroTarget(null);
+          setCreateScenarioModalOpen(false);
+          setPersonaModalOpen(false);
+          setSheetExpanded((wasExpanded) => {
+            if (wasExpanded) setRightTab('selected');
+            return false;
+          });
+          setTimelinesOpen(true);
+          if (selectedCardId && !isDemoCardId(selectedCardId)) {
+            refreshTimelineChats(selectedCardId);
+          }
         }
+        setFocusedTimelineRequest((prev) => ({
+          fileName,
+          seq: (prev?.seq || 0) + 1,
+        }));
+      };
+      if (openTree) {
+        runWithWorkspaceUnsavedGuard(proceed);
+      } else {
+        proceed();
       }
-      setFocusedTimelineRequest((prev) => ({
-        fileName,
-        seq: (prev?.seq || 0) + 1,
-      }));
     },
-    [selectedCardId, refreshTimelineChats],
+    [selectedCardId, refreshTimelineChats, runWithWorkspaceUnsavedGuard],
   );
 
   const handleToggleTimelines = useCallback(() => {
-    setChatListOpen(false);
-    setFocusedTimelineRequest(null);
-    setEditingPromptSelection(null);
-    setEditingIntroTarget(null);
-    setCreateScenarioModalOpen(false);
-    setPersonaModalOpen(false);
-    setSheetExpanded((wasExpanded) => {
-      if (wasExpanded) {
-        setRightTab('selected');
-      }
-      return false;
+    runWithWorkspaceUnsavedGuard(() => {
+      setChatListOpen(false);
+      setFocusedTimelineRequest(null);
+      setEditingPromptSelection(null);
+      setEditingIntroTarget(null);
+      setCreateScenarioModalOpen(false);
+      setPersonaModalOpen(false);
+      setSheetExpanded((wasExpanded) => {
+        if (wasExpanded) {
+          setRightTab('selected');
+        }
+        return false;
+      });
+      setTimelinesOpen((prev) => {
+        const next = !prev;
+        if (next && selectedCardId && !isDemoCardId(selectedCardId)) {
+          refreshTimelineChats(selectedCardId);
+        } else if (!next) {
+          scrollToChatBottom();
+        }
+        return next;
+      });
     });
-    setTimelinesOpen((prev) => {
-      const next = !prev;
-      if (next && selectedCardId && !isDemoCardId(selectedCardId)) {
-        refreshTimelineChats(selectedCardId);
-      } else if (!next) {
-        scrollToChatBottom();
-      }
-      return next;
-    });
-  }, [selectedCardId, refreshTimelineChats, scrollToChatBottom]);
+  }, [selectedCardId, refreshTimelineChats, scrollToChatBottom, runWithWorkspaceUnsavedGuard]);
 
   const handleLoadMoreChats = useCallback(async () => {
     if (
@@ -5695,24 +5803,38 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   }, [loadingPreset, activeOpenaiDoc, editingPromptSelection, resolvedEditingPrompt]);
 
   const handleChangeEditingPromptSelection = useCallback(
-    (nextSelection) => {
-      if (nextSelection) {
-        setChatListOpen(false);
-        setTimelinesOpen(false);
-        setSheetExpanded(false);
-        setEditingIntroTarget(null);
-        setCreateScenarioModalOpen(false);
-        setPersonaModalOpen(false);
-        if (isMobile) {
-          setRightOpen(false);
-        }
-        setEditingPromptSelection(nextSelection);
-      } else {
-        setEditingPromptSelection(null);
-        scrollToChatBottom();
-      }
+    (nextSelection, opts) => {
+      const skip = Boolean(opts && typeof opts === 'object' && opts.skipGuard);
+      const isSamePrompt =
+        Boolean(nextSelection && editingPromptSelection) &&
+        nextSelection.mode === editingPromptSelection.mode &&
+        (nextSelection.mode === 'group'
+          ? nextSelection.groupId === editingPromptSelection.groupId
+          : nextSelection.identifier === editingPromptSelection.identifier);
+      if (isSamePrompt) return;
+
+      runWithWorkspaceUnsavedGuard(
+        () => {
+          if (nextSelection) {
+            setChatListOpen(false);
+            setTimelinesOpen(false);
+            setSheetExpanded(false);
+            setEditingIntroTarget(null);
+            setCreateScenarioModalOpen(false);
+            setPersonaModalOpen(false);
+            if (isMobile) {
+              setRightOpen(false);
+            }
+            setEditingPromptSelection(nextSelection);
+          } else {
+            setEditingPromptSelection(null);
+            scrollToChatBottom();
+          }
+        },
+        { skipGuard: skip },
+      );
     },
-    [isMobile, scrollToChatBottom],
+    [editingPromptSelection, isMobile, scrollToChatBottom, runWithWorkspaceUnsavedGuard],
   );
 
   const resolvedEditingIntro = useMemo(
@@ -5727,25 +5849,51 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   }, [editingIntroTarget, matchedActiveCardFull, resolvedEditingIntro]);
 
   const handleOpenIntroEditor = useCallback(
-    (nextTarget) => {
-      if (nextTarget) {
-        setChatListOpen(false);
-        setTimelinesOpen(false);
-        setEditingPromptSelection(null);
-        setCreateScenarioModalOpen(false);
-        setPersonaModalOpen(false);
-        if (isMobile) {
-          setRightOpen(false);
-        }
-        setEditingIntroTarget(nextTarget);
-      } else {
-        setEditingIntroTarget(null);
-        if (!sheetExpanded) {
-          scrollToChatBottom();
-        }
-      }
+    (nextTarget, opts) => {
+      const skip = Boolean(opts && typeof opts === 'object' && opts.skipGuard);
+      const isSameIntro =
+        Boolean(nextTarget && editingIntroTarget) &&
+        nextTarget.cardId === editingIntroTarget.cardId &&
+        nextTarget.kind === editingIntroTarget.kind &&
+        nextTarget.index === editingIntroTarget.index;
+      if (isSameIntro) return;
+
+      const curKind = workspaceGuardBridgeRef.current.activeKind;
+      const targetKind = nextTarget && sheetExpanded
+        ? curKind === 'expandedCharacter'
+          ? null
+          : curKind
+        : curKind;
+
+      runWithWorkspaceUnsavedGuard(
+        () => {
+          if (nextTarget) {
+            setChatListOpen(false);
+            setTimelinesOpen(false);
+            setEditingPromptSelection(null);
+            setCreateScenarioModalOpen(false);
+            setPersonaModalOpen(false);
+            if (isMobile) {
+              setRightOpen(false);
+            }
+            setEditingIntroTarget(nextTarget);
+          } else {
+            setEditingIntroTarget(null);
+            if (!sheetExpanded) {
+              scrollToChatBottom();
+            }
+          }
+        },
+        { skipGuard: skip, targetKind },
+      );
     },
-    [isMobile, sheetExpanded, scrollToChatBottom],
+    [
+      editingIntroTarget,
+      sheetExpanded,
+      isMobile,
+      scrollToChatBottom,
+      runWithWorkspaceUnsavedGuard,
+    ],
   );
 
   const handleSaveEditedIntro = useCallback(
@@ -5830,6 +5978,268 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       serializeCardEditableSnapshot(activeCardFull) !== cleanCardSnapshot,
   );
 
+  const handleCreateScenarioDirtyChange = useCallback((meta) => {
+    setSheetDirtyMeta((prev) => ({
+      ...prev,
+      createScenario: { ...prev.createScenario, ...meta },
+    }));
+  }, []);
+
+  const handlePersonaDirtyChange = useCallback((meta) => {
+    setSheetDirtyMeta((prev) => ({
+      ...prev,
+      persona: { ...prev.persona, ...meta },
+    }));
+  }, []);
+
+  const handlePromptDirtyChange = useCallback((meta) => {
+    setSheetDirtyMeta((prev) => ({
+      ...prev,
+      prompt: { ...prev.prompt, ...meta },
+    }));
+  }, []);
+
+  const handleIntroDirtyChange = useCallback((meta) => {
+    setSheetDirtyMeta((prev) => ({
+      ...prev,
+      intro: { ...prev.intro, ...meta },
+    }));
+  }, []);
+
+  const activeWorkspaceSheetKind = useMemo(() => {
+    if (viewMode === 'sandbox') return null;
+    if (createScenarioModalOpen) return 'createScenario';
+    if (personaModalOpen) return 'persona';
+    if (resolvedEditingPrompt) return 'prompt';
+    if (resolvedEditingIntro && matchedActiveCardFull) return 'intro';
+    if (sheetExpanded && (matchedActiveCardFull || hasActiveScenario)) return 'expandedCharacter';
+    return null;
+  }, [
+    viewMode,
+    createScenarioModalOpen,
+    personaModalOpen,
+    resolvedEditingPrompt,
+    resolvedEditingIntro,
+    matchedActiveCardFull,
+    sheetExpanded,
+    hasActiveScenario,
+  ]);
+
+  const getWorkspaceDirtyDescriptor = useCallback(
+    (targetKind = activeWorkspaceSheetKind) => {
+      if (!targetKind) return null;
+      if (targetKind === 'createScenario') {
+        const m = sheetDirtyMeta.createScenario;
+        if (!m.isDirty) return null;
+        return {
+          kind: 'createScenario',
+          subtitle: m.subtitle || 'Create New Scenario',
+          itemName: m.itemName || 'New Scenario',
+          saveLabel: m.saveLabel || 'Create & Close',
+          canSave: Boolean(m.canSave),
+          cannotSaveReason: m.cannotSaveReason || '',
+          save: async () => (await createScenarioSheetRef.current?.save?.()) !== false,
+          discard: () => createScenarioSheetRef.current?.discard?.(),
+        };
+      }
+      if (targetKind === 'persona') {
+        const m = sheetDirtyMeta.persona;
+        if (!m.isDirty) return null;
+        return {
+          kind: 'persona',
+          subtitle: m.subtitle || 'Persona Workspace',
+          itemName: m.itemName || 'Persona',
+          saveLabel: m.saveLabel || 'Save & Close',
+          canSave: Boolean(m.canSave),
+          cannotSaveReason: m.cannotSaveReason || '',
+          save: async () => (await personaSheetRef.current?.save?.()) !== false,
+          discard: () => personaSheetRef.current?.discard?.(),
+        };
+      }
+      if (targetKind === 'prompt') {
+        const m = sheetDirtyMeta.prompt;
+        if (!m.isDirty) return null;
+        return {
+          kind: 'prompt',
+          subtitle: m.subtitle || 'Prompt Editor',
+          itemName: m.itemName || 'Prompt',
+          saveLabel: 'Save & Close',
+          canSave: Boolean(m.canSave),
+          cannotSaveReason: m.cannotSaveReason || '',
+          save: async () => (await promptEditorSheetRef.current?.save?.()) !== false,
+          discard: () => promptEditorSheetRef.current?.discard?.(),
+        };
+      }
+      if (targetKind === 'intro') {
+        const m = sheetDirtyMeta.intro;
+        if (!m.isDirty) return null;
+        return {
+          kind: 'intro',
+          subtitle: m.subtitle || 'Greeting Editor',
+          itemName: m.itemName || 'Greeting',
+          saveLabel: 'Save & Close',
+          canSave: Boolean(m.canSave),
+          cannotSaveReason: m.cannotSaveReason || '',
+          save: async () => (await introEditorSheetRef.current?.save?.()) !== false,
+          discard: () => introEditorSheetRef.current?.discard?.(),
+        };
+      }
+      if (targetKind === 'expandedCharacter') {
+        if (!isActiveCardDirty) return null;
+        const canSaveCard = Boolean(
+          activeCardFull && String(activeCardFull.name || '').trim() && !cardSaving,
+        );
+        return {
+          kind: 'expandedCharacter',
+          subtitle: 'Selected Scenario Workspace',
+          itemName: String(activeCardFull?.name || activeCharacter?.name || 'Scenario').trim(),
+          saveLabel: 'Save & Close',
+          canSave: canSaveCard,
+          cannotSaveReason: !String(activeCardFull?.name || '').trim()
+            ? 'Scenario name cannot be empty.'
+            : '',
+          save: async () => (await handleSaveCardToPng()) !== false,
+          discard: () => handleDiscardCardChanges(),
+        };
+      }
+      return null;
+    },
+    [
+      activeWorkspaceSheetKind,
+      sheetDirtyMeta,
+      isActiveCardDirty,
+      activeCardFull,
+      activeCharacter?.name,
+      cardSaving,
+      handleDiscardCardChanges,
+    ],
+  );
+
+  workspaceGuardBridgeRef.current = {
+    activeKind: activeWorkspaceSheetKind,
+    isCardDirty: isActiveCardDirty,
+    runGuard: (proceedAction, { skipGuard = false, targetKind } = {}) => {
+      if (skipGuard) {
+        proceedAction?.();
+        return;
+      }
+      const dirtyDesc = getWorkspaceDirtyDescriptor(
+        targetKind !== undefined ? targetKind : activeWorkspaceSheetKind,
+      );
+      if (!dirtyDesc) {
+        proceedAction?.();
+        return;
+      }
+      workspaceGuardActionRef.current = {
+        descriptor: dirtyDesc,
+        proceed: proceedAction,
+      };
+      setWorkspaceUnsavedGuard({
+        kind: dirtyDesc.kind,
+        subtitle: dirtyDesc.subtitle,
+        itemName: dirtyDesc.itemName,
+        saveLabel: dirtyDesc.saveLabel,
+        canSave: dirtyDesc.canSave,
+        cannotSaveReason: dirtyDesc.cannotSaveReason,
+        busy: false,
+      });
+    },
+  };
+
+  const performCloseActiveWorkspaceSheet = useCallback(() => {
+    if (createScenarioModalOpen) {
+      setCreateScenarioModalOpen(false);
+      scrollToChatBottom();
+      return;
+    }
+    if (personaModalOpen) {
+      setPersonaModalOpen(false);
+      scrollToChatBottom();
+      return;
+    }
+    if (resolvedEditingPrompt) {
+      setEditingPromptSelection(null);
+      scrollToChatBottom();
+      return;
+    }
+    if (resolvedEditingIntro) {
+      setEditingIntroTarget(null);
+      if (!sheetExpanded) {
+        scrollToChatBottom();
+      }
+      return;
+    }
+    if (sheetExpanded) {
+      setSheetExpanded(false);
+      setRightTab('selected');
+      scrollToChatBottom();
+    }
+  }, [
+    createScenarioModalOpen,
+    personaModalOpen,
+    resolvedEditingPrompt,
+    resolvedEditingIntro,
+    sheetExpanded,
+    scrollToChatBottom,
+  ]);
+
+  const requestCloseActiveWorkspaceSheet = useCallback(
+    (opts) => {
+      const skip = Boolean(opts && typeof opts === 'object' && opts.skipGuard);
+      runWithWorkspaceUnsavedGuard(performCloseActiveWorkspaceSheet, { skipGuard: skip });
+    },
+    [runWithWorkspaceUnsavedGuard, performCloseActiveWorkspaceSheet],
+  );
+
+  useEffect(() => {
+    if (!activeWorkspaceSheetKind || workspaceUnsavedGuard) return undefined;
+
+    let pressOutside = false;
+
+    const handleDocPointerDown = (e) => {
+      if (e.button !== undefined && e.button !== 0) {
+        pressOutside = false;
+        return;
+      }
+      pressOutside = !isWorkspaceSheetExemptClickTarget(
+        e.target,
+        centerSheetSurfaceRef.current,
+        activeWorkspaceSheetKind,
+      );
+    };
+
+    const handleDocClick = (e) => {
+      if (!pressOutside) return;
+      pressOutside = false;
+      if (
+        isWorkspaceSheetExemptClickTarget(
+          e.target,
+          centerSheetSurfaceRef.current,
+          activeWorkspaceSheetKind,
+        )
+      ) {
+        return;
+      }
+      requestCloseActiveWorkspaceSheet();
+    };
+
+    const handleDocKeyDown = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (hasOpenTopLayerOverlay()) return;
+      e.stopPropagation();
+      requestCloseActiveWorkspaceSheet();
+    };
+
+    document.addEventListener('pointerdown', handleDocPointerDown, true);
+    document.addEventListener('click', handleDocClick, true);
+    window.addEventListener('keydown', handleDocKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handleDocPointerDown, true);
+      document.removeEventListener('click', handleDocClick, true);
+      window.removeEventListener('keydown', handleDocKeyDown);
+    };
+  }, [activeWorkspaceSheetKind, workspaceUnsavedGuard, requestCloseActiveWorkspaceSheet]);
+
   const characterSheetSharedProps = {
     card: matchedActiveCardFull,
     loading: Boolean(hasActiveScenario && !matchedActiveCardFull),
@@ -5868,19 +6278,42 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       handleGalleryTogglePin(activeCardFull.avatar || activeCardFull.id, nextFav);
     },
     onOpenAdvanced: () => {
-      setTimelinesOpen(false);
-      setEditingPromptSelection(null);
-      setEditingIntroTarget(null);
-      setCreateScenarioModalOpen(false);
-      setPersonaModalOpen(false);
-      setSheetExpanded(true);
-      setRightOpen(true);
-      setRightTab('selected');
+      const guardKind =
+        activeWorkspaceSheetKind && activeWorkspaceSheetKind !== 'expandedCharacter'
+          ? activeWorkspaceSheetKind
+          : null;
+      runWithWorkspaceUnsavedGuard(
+        () => {
+          setTimelinesOpen(false);
+          setEditingPromptSelection(null);
+          setEditingIntroTarget(null);
+          setCreateScenarioModalOpen(false);
+          setPersonaModalOpen(false);
+          setSheetExpanded(true);
+          setRightOpen(true);
+          setRightTab('selected');
+        },
+        { targetKind: guardKind },
+      );
     },
-    onToggleExpand: () =>
-      setSheetExpanded((prev) => {
-        const next = !prev;
-        if (next) {
+    onToggleExpand: () => {
+      if (sheetExpanded) {
+        runWithWorkspaceUnsavedGuard(
+          () => {
+            setSheetExpanded(false);
+            setRightTab('selected');
+            scrollToChatBottom();
+          },
+          { targetKind: 'expandedCharacter' },
+        );
+        return;
+      }
+      const guardKind =
+        activeWorkspaceSheetKind && activeWorkspaceSheetKind !== 'expandedCharacter'
+          ? activeWorkspaceSheetKind
+          : null;
+      runWithWorkspaceUnsavedGuard(
+        () => {
           setTimelinesOpen(false);
           setEditingPromptSelection(null);
           setEditingIntroTarget(null);
@@ -5890,11 +6323,11 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             setRightOpen(true);
           }
           setRightTab('selected');
-        } else {
-          setRightTab('selected');
-        }
-        return next;
-      }),
+          setSheetExpanded(true);
+        },
+        { targetKind: guardKind },
+      );
+    },
     onStartNewChat: handleCreateNewChat,
     onPickMainPortraitFile: handlePickMainPortraitFile,
     onUploadGalleryPortraits: handleUploadGalleryPortraits,
@@ -6243,22 +6676,25 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           </OverlayScrollArea>
         ) : createScenarioModalOpen ? (
           <section className="bb-center-column__sheet" aria-label="Create scenario workspace">
-            <div className="bb-center-column__sheet-surface">
+            <div ref={centerSheetSurfaceRef} className="bb-center-column__sheet-surface">
               <CreateScenarioSheet
+                ref={createScenarioSheetRef}
                 initialMode={createScenarioModalMode}
                 availableTags={tags}
                 submitting={creatingScenario}
                 statusMsg={createScenarioStatus}
-                onClose={() => setCreateScenarioModalOpen(false)}
+                onClose={requestCloseActiveWorkspaceSheet}
                 onCreateScenario={handleCreateScenario}
                 onImportScenarioFiles={handleImportScenarioFiles}
+                onDirtyChange={handleCreateScenarioDirtyChange}
               />
             </div>
           </section>
         ) : personaModalOpen ? (
           <section className="bb-center-column__sheet" aria-label="Persona workspace">
-            <div className="bb-center-column__sheet-surface">
+            <div ref={centerSheetSurfaceRef} className="bb-center-column__sheet-surface">
               <PersonaSheet
+                ref={personaSheetRef}
                 initialMode={personaModalMode}
                 initialTargetAvatar={personaModalTargetAvatar}
                 personas={personas}
@@ -6268,10 +6704,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                 activeCharacter={activeCharacter}
                 hasUserMessages={effectiveHasUserMessages}
                 userMessageCount={effectiveUserMessageCount}
-                onClose={() => {
-                  setPersonaModalOpen(false);
-                  scrollToChatBottom();
-                }}
+                onClose={requestCloseActiveWorkspaceSheet}
                 onCreatePersona={handleCreatePersona}
                 onSavePersona={handleSavePersonaById}
                 onUploadPersonaAvatar={handleUploadPersonaAvatar}
@@ -6279,26 +6712,30 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                 onDeletePersona={handleDeletePersona}
                 onSelectPersonaInChat={handleSelectPersona}
                 onConfirmReplacePersonaInChat={handleConfirmReplacePersonaInChat}
+                onDirtyChange={handlePersonaDirtyChange}
               />
             </div>
           </section>
         ) : resolvedEditingPrompt ? (
           <section className="bb-center-column__sheet" aria-label="Prompt editor workspace">
-            <div className="bb-center-column__sheet-surface">
+            <div ref={centerSheetSurfaceRef} className="bb-center-column__sheet-surface">
               <PromptEditorSheet
+                ref={promptEditorSheetRef}
                 mode={resolvedEditingPrompt.mode}
                 target={resolvedEditingPrompt.target}
                 isInherited={resolvedEditingPrompt.isInherited}
-                onClose={() => handleChangeEditingPromptSelection(null)}
+                onClose={requestCloseActiveWorkspaceSheet}
                 onSavePrompt={handleSaveEditedPromptInDoc}
                 onSaveGroup={handleSaveEditedGroupInDoc}
+                onDirtyChange={handlePromptDirtyChange}
               />
             </div>
           </section>
         ) : resolvedEditingIntro && matchedActiveCardFull ? (
           <section className="bb-center-column__sheet" aria-label="Greeting editor workspace">
-            <div className="bb-center-column__sheet-surface">
+            <div ref={centerSheetSurfaceRef} className="bb-center-column__sheet-surface">
               <IntroEditorSheet
+                ref={introEditorSheetRef}
                 target={resolvedEditingIntro}
                 scenarioName={matchedActiveCardFull.name || ''}
                 defaultPortraitUrl={
@@ -6310,8 +6747,9 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                 }
                 portraitGallery={matchedActiveCardFull.scenarioMeta?.avatarGallery || []}
                 busyPortrait={busyPortrait}
-                onClose={() => handleOpenIntroEditor(null)}
+                onClose={requestCloseActiveWorkspaceSheet}
                 onSave={handleSaveEditedIntro}
+                onDirtyChange={handleIntroDirtyChange}
                 onNavigateIndex={(nextKind, nextIdx) => {
                   if (nextKind === 'standard') {
                     setActiveIntroIdx(nextIdx);
@@ -6329,7 +6767,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           </section>
         ) : sheetExpanded && (matchedActiveCardFull || hasActiveScenario) ? (
           <section className="bb-center-column__sheet" aria-label="Scenario sheet workspace">
-            <div className="bb-center-column__sheet-surface">
+            <div ref={centerSheetSurfaceRef} className="bb-center-column__sheet-surface">
               <CharacterSheet {...characterSheetSharedProps} isExpanded />
             </div>
           </section>
@@ -6715,7 +7153,18 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       {/* Rename Card / Tag / Folder Modal */}
       <Modal
         open={Boolean(renameDialog)}
-        onClose={() => setRenameDialog(null)}
+        onClose={() => {
+          if (
+            renameDialog &&
+            String(renameDialog.name || '').trim() !==
+              String(renameDialog.initialName ?? '').trim()
+          ) {
+            setRenameDialogUnsavedOpen(true);
+            return;
+          }
+          setRenameDialogUnsavedOpen(false);
+          setRenameDialog(null);
+        }}
         title={
           renameDialog?.kind === 'tag'
             ? 'Rename Tag'
@@ -6728,7 +7177,22 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         width={420}
         footer={
           <>
-            <Button variant="b1" emphasis="outlined" onClick={() => setRenameDialog(null)}>
+            <Button
+              variant="b1"
+              emphasis="outlined"
+              onClick={() => {
+                if (
+                  renameDialog &&
+                  String(renameDialog.name || '').trim() !==
+                    String(renameDialog.initialName ?? '').trim()
+                ) {
+                  setRenameDialogUnsavedOpen(true);
+                  return;
+                }
+                setRenameDialogUnsavedOpen(false);
+                setRenameDialog(null);
+              }}
+            >
               Cancel
             </Button>
             <Button
@@ -6748,6 +7212,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                     pinnedLayout.renameFolder(renameDialog.id, nextName);
                   }
                 }
+                setRenameDialogUnsavedOpen(false);
                 setRenameDialog(null);
               }}
             >
@@ -6863,7 +7328,18 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       {/* Create Group Chat Modal (Multi-Select) */}
       <Modal
         open={Boolean(createGroupDialog)}
-        onClose={() => setCreateGroupDialog(null)}
+        onClose={() => {
+          if (
+            createGroupDialog &&
+            String(createGroupDialog.name || '').trim() !==
+              String(createGroupDialog.initialName ?? '').trim()
+          ) {
+            setCreateGroupUnsavedOpen(true);
+            return;
+          }
+          setCreateGroupUnsavedOpen(false);
+          setCreateGroupDialog(null);
+        }}
         title="Create Group Chat"
         subtitle={
           createGroupDialog
@@ -6877,7 +7353,18 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             <Button
               variant="b1"
               emphasis="outlined"
-              onClick={() => setCreateGroupDialog(null)}
+              onClick={() => {
+                if (
+                  createGroupDialog &&
+                  String(createGroupDialog.name || '').trim() !==
+                    String(createGroupDialog.initialName ?? '').trim()
+                ) {
+                  setCreateGroupUnsavedOpen(true);
+                  return;
+                }
+                setCreateGroupUnsavedOpen(false);
+                setCreateGroupDialog(null);
+              }}
             >
               Cancel
             </Button>
@@ -7018,6 +7505,96 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           </div>
         )}
       </Modal>
+
+      <UnsavedChangesModal
+        open={renameDialogUnsavedOpen && Boolean(renameDialog)}
+        subtitle={
+          renameDialog?.kind === 'tag'
+            ? 'Rename Tag'
+            : renameDialog?.kind === 'folder'
+              ? 'Rename Folder'
+              : 'Rename Scenario'
+        }
+        itemName={
+          String(renameDialog?.name || '').trim() ||
+          renameDialog?.initialName ||
+          'Item'
+        }
+        saveLabel="Save"
+        canSave={Boolean(renameDialog?.name?.trim())}
+        cannotSaveReason="Name cannot be empty."
+        onCancel={() => setRenameDialogUnsavedOpen(false)}
+        onDiscard={() => {
+          setRenameDialogUnsavedOpen(false);
+          setRenameDialog(null);
+        }}
+        onSave={() => {
+          if (!renameDialog) return;
+          const nextName = renameDialog.name.trim();
+          if (!nextName) return;
+          if (renameDialog.kind === 'card') {
+            handleRenameCard(renameDialog.id, nextName);
+          } else if (renameDialog.kind === 'tag') {
+            handleRenameTagFolder(renameDialog.id, nextName);
+          } else if (renameDialog.kind === 'folder') {
+            pinnedLayout.renameFolder(renameDialog.id, nextName);
+          }
+          setRenameDialogUnsavedOpen(false);
+          setRenameDialog(null);
+        }}
+      />
+
+      <UnsavedChangesModal
+        open={createGroupUnsavedOpen && Boolean(createGroupDialog)}
+        subtitle="Create Group Chat"
+        itemName={String(createGroupDialog?.name || '').trim() || 'New Group'}
+        saveLabel="Create Group"
+        canSave={Boolean(createGroupDialog?.name?.trim())}
+        cannotSaveReason="Group name cannot be empty."
+        onCancel={() => setCreateGroupUnsavedOpen(false)}
+        onDiscard={() => {
+          setCreateGroupUnsavedOpen(false);
+          setCreateGroupDialog(null);
+        }}
+        onSave={handleConfirmCreateGroup}
+      />
+
+      <UnsavedChangesModal
+        open={Boolean(workspaceUnsavedGuard)}
+        subtitle={workspaceUnsavedGuard?.subtitle || 'Your recent edits have not been saved yet'}
+        itemName={workspaceUnsavedGuard?.itemName || ''}
+        saveLabel={workspaceUnsavedGuard?.saveLabel || 'Save & Close'}
+        canSave={Boolean(workspaceUnsavedGuard?.canSave)}
+        cannotSaveReason={workspaceUnsavedGuard?.cannotSaveReason || ''}
+        busy={Boolean(workspaceUnsavedGuard?.busy)}
+        onCancel={() => {
+          workspaceGuardActionRef.current = null;
+          setWorkspaceUnsavedGuard(null);
+        }}
+        onDiscard={() => {
+          const pending = workspaceGuardActionRef.current;
+          workspaceGuardActionRef.current = null;
+          setWorkspaceUnsavedGuard(null);
+          pending?.descriptor?.discard?.();
+          pending?.proceed?.();
+        }}
+        onSave={async () => {
+          const pending = workspaceGuardActionRef.current;
+          if (!pending) {
+            setWorkspaceUnsavedGuard(null);
+            return;
+          }
+          setWorkspaceUnsavedGuard((prev) => (prev ? { ...prev, busy: true } : null));
+          const ok = await pending.descriptor?.save?.();
+          if (ok !== false) {
+            workspaceGuardActionRef.current = null;
+            setWorkspaceUnsavedGuard(null);
+            pending.proceed?.();
+          } else {
+            setWorkspaceUnsavedGuard((prev) => (prev ? { ...prev, busy: false } : null));
+          }
+        }}
+      />
 
       {/* Lightweight Frameless M3 Boot Splash Screen */}
       <SplashScreen

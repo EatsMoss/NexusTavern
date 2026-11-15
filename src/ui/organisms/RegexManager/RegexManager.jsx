@@ -16,6 +16,7 @@ import {
   analyzeRegexSafety,
 } from '@core/regex/regexEngine.js';
 import { RegexEditorModal } from './RegexEditorModal.jsx';
+import { UnsavedChangesModal } from '../UnsavedChangesModal/UnsavedChangesModal.jsx';
 import './RegexManager.css';
 
 const PLACEMENT_SHORT_LABELS = {
@@ -103,7 +104,8 @@ export function RegexManager({
 
   // Modals state
   const [editorTarget, setEditorTarget] = useState(null); // { script, isNew }
-  const [folderModal, setFolderModal] = useState(null); // { mode: 'create'|'rename', folderId?, name }
+  const [folderModal, setFolderModal] = useState(null); // { mode: 'create'|'rename', folderId?, name, initialName? }
+  const [folderUnsavedOpen, setFolderUnsavedOpen] = useState(false);
   const [assignModal, setAssignModal] = useState(null); // { scriptIds: string[] }
 
   const currentScripts = useMemo(() => {
@@ -325,6 +327,22 @@ export function RegexManager({
       );
       onSaveFolders?.(nextFolders, scopeAssignments);
     }
+    setFolderUnsavedOpen(false);
+    setFolderModal(null);
+  };
+
+  const isFolderModalDirty = Boolean(
+    folderModal &&
+      String(folderModal.name || '').trim() !==
+        String(folderModal.initialName ?? '').trim(),
+  );
+
+  const handleRequestCloseFolderModal = () => {
+    if (isFolderModalDirty) {
+      setFolderUnsavedOpen(true);
+      return;
+    }
+    setFolderUnsavedOpen(false);
     setFolderModal(null);
   };
 
@@ -545,7 +563,7 @@ export function RegexManager({
           {
             label: 'New Folder',
             icon: 'folderPlus',
-            onClick: () => setFolderModal({ mode: 'create', name: '' }),
+            onClick: () => setFolderModal({ mode: 'create', name: '', initialName: '' }),
           },
         ]
       : []),
@@ -771,6 +789,7 @@ export function RegexManager({
                               mode: 'rename',
                               folderId: folder.id,
                               name: folder.name,
+                              initialName: folder.name,
                             }),
                         },
                         {
@@ -851,14 +870,14 @@ export function RegexManager({
 
       <Modal
         open={Boolean(folderModal)}
-        onClose={() => setFolderModal(null)}
+        onClose={handleRequestCloseFolderModal}
         title={folderModal?.mode === 'rename' ? 'Rename Regex Folder' : 'New Regex Folder'}
         subtitle={`Organize rules inside ${scopeLabel}`}
         icon="folder"
         width={400}
         footer={
           <>
-            <Button variant="b1" emphasis="outlined" onClick={() => setFolderModal(null)}>
+            <Button variant="b1" emphasis="outlined" onClick={handleRequestCloseFolderModal}>
               Cancel
             </Button>
             <Button
@@ -933,12 +952,32 @@ export function RegexManager({
       <RegexEditorModal
         open={Boolean(editorTarget)}
         script={editorTarget?.script || null}
+        isNew={Boolean(editorTarget?.isNew)}
         scopeLabel={scopeLabel}
         charName={scenarioName || 'Character'}
         userName={userName}
         sampleSeedText={sampleSeedText}
         onClose={() => setEditorTarget(null)}
         onSave={handleSaveEditedScript}
+      />
+
+      <UnsavedChangesModal
+        open={folderUnsavedOpen && Boolean(folderModal)}
+        subtitle={`Regex Folder · ${scopeLabel}`}
+        itemName={
+          String(folderModal?.name || '').trim() ||
+          folderModal?.initialName ||
+          'Regex Folder'
+        }
+        saveLabel={folderModal?.mode === 'rename' ? 'Rename' : 'Create Folder'}
+        canSave={Boolean(String(folderModal?.name || '').trim())}
+        cannotSaveReason="Folder name cannot be empty."
+        onCancel={() => setFolderUnsavedOpen(false)}
+        onDiscard={() => {
+          setFolderUnsavedOpen(false);
+          setFolderModal(null);
+        }}
+        onSave={handleConfirmFolderModal}
       />
     </div>
   );

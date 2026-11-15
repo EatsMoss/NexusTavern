@@ -1,4 +1,12 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { Button } from '../../atoms/Button/Button.jsx';
 import { Input } from '../../atoms/Input/Input.jsx';
@@ -108,15 +116,19 @@ function serializePromptDraftSnapshot(mode, draft) {
  * PromptEditorSheet — Full-height M3 Sheet organism for editing a prompt block
  * or an XML prompt group in the central workspace column (matching Selected Scenario Expand).
  */
-export function PromptEditorSheet({
-  mode = 'prompt', // 'prompt' | 'group'
-  target = null,
-  isInherited = false,
-  onClose,
-  onSavePrompt,
-  onSaveGroup,
-  className = '',
-}) {
+export const PromptEditorSheet = forwardRef(function PromptEditorSheet(
+  {
+    mode = 'prompt', // 'prompt' | 'group'
+    target = null,
+    isInherited = false,
+    onClose,
+    onSavePrompt,
+    onSaveGroup,
+    onDirtyChange,
+    className = '',
+  },
+  ref,
+) {
   const [draft, setDraft] = useState(() => buildNormalizedDraft(mode, target));
   const [baselineSnapshot, setBaselineSnapshot] = useState(() =>
     serializePromptDraftSnapshot(mode, buildNormalizedDraft(mode, target)),
@@ -201,6 +213,38 @@ export function PromptEditorSheet({
     setDraft(restored);
     setBaselineSnapshot(serializePromptDraftSnapshot(mode, restored));
   }, [mode, target]);
+
+  useEffect(() => {
+    const label = draft
+      ? mode === 'group'
+        ? String(draft.groupName || draft.xmlTag || 'Prompt Group').trim()
+        : String(draft.name || draft.identifier || 'Prompt').trim()
+      : '';
+    onDirtyChange?.({
+      isDirty,
+      canSave: Boolean(draft),
+      cannotSaveReason: '',
+      itemName: label,
+      subtitle: mode === 'group' ? 'XML Prompt Group' : 'Prompt Editor',
+    });
+  }, [isDirty, draft, mode, onDirtyChange]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      isDirty,
+      canSave: Boolean(draft),
+      save: async () => {
+        if (!draft) return false;
+        handleApply();
+        return true;
+      },
+      discard: () => {
+        handleDiscard();
+      },
+    }),
+    [isDirty, draft, handleApply, handleDiscard],
+  );
 
   useEffect(() => {
     if (!draft) return undefined;
@@ -626,5 +670,5 @@ export function PromptEditorSheet({
       )}
     </div>
   );
-}
+});
 

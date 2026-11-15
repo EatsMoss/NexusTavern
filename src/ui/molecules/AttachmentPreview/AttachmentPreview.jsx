@@ -124,6 +124,9 @@ export function AttachmentLightbox({
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose?.();
       }}
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
     >
       <header className="bb-attach-lightbox__topbar">
         <div className="bb-attach-lightbox__info">

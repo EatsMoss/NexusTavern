@@ -1,4 +1,12 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import {
   BookmarkRibbons,
   Button,
@@ -24,15 +32,19 @@ const CREATE_EDITOR_TABS = [
   { id: 'notes', label: "III. Creator's Notes" },
 ];
 
-export function CreateScenarioSheet({
-  initialMode = 'create',
-  availableTags = [],
-  submitting = false,
-  statusMsg = '',
-  onClose,
-  onCreateScenario,
-  onImportScenarioFiles,
-}) {
+export const CreateScenarioSheet = forwardRef(function CreateScenarioSheet(
+  {
+    initialMode = 'create',
+    availableTags = [],
+    submitting = false,
+    statusMsg = '',
+    onClose,
+    onCreateScenario,
+    onImportScenarioFiles,
+    onDirtyChange,
+  },
+  ref,
+) {
   const [mode, setMode] = useState(initialMode === 'import' ? 'import' : 'create');
   const [editorTab, setEditorTab] = useState('description');
   const [name, setName] = useState('');
@@ -103,16 +115,16 @@ export function CreateScenarioSheet({
   };
 
   const handleSubmit = useCallback(async () => {
-    if (submitting) return;
+    if (submitting) return false;
     if (mode === 'import') {
-      if (importFiles.length === 0) return;
+      if (importFiles.length === 0) return false;
       await onImportScenarioFiles?.(importFiles, { importEmbeddedTags });
       setImportFiles([]);
-      return;
+      return true;
     }
 
     const cleanName = name.trim();
-    if (!cleanName) return;
+    if (!cleanName) return false;
     const parsedTags = tagsText
       .split(',')
       .map((s) => s.trim())
@@ -130,6 +142,7 @@ export function CreateScenarioSheet({
         spec: specVersion,
       },
     });
+    return true;
   }, [
     submitting,
     mode,
@@ -162,6 +175,62 @@ export function CreateScenarioSheet({
 
   const canSubmit =
     !submitting && (mode === 'create' ? Boolean(name.trim()) : importFiles.length > 0);
+
+  const isDirty = useMemo(() => {
+    if (mode === 'import') {
+      return importFiles.length > 0;
+    }
+    return Boolean(
+      name.trim() ||
+        creatorNotes.trim() ||
+        description.trim() ||
+        firstMes.trim() ||
+        tagsText.trim() ||
+        avatarPngBase64,
+    );
+  }, [mode, importFiles.length, name, creatorNotes, description, firstMes, tagsText, avatarPngBase64]);
+
+  const handleDiscardDraft = useCallback(() => {
+    setName('');
+    setCreatorNotes('');
+    setDescription('');
+    setFirstMes('');
+    setTagsText('');
+    setAvatarPreviewUrl('');
+    setAvatarPngBase64(null);
+    setImportFiles([]);
+  }, []);
+
+  useEffect(() => {
+    const label =
+      mode === 'import'
+        ? `${importFiles.length} queued card file${importFiles.length === 1 ? '' : 's'}`
+        : name.trim() || 'New Scenario';
+    onDirtyChange?.({
+      isDirty,
+      canSave: canSubmit,
+      cannotSaveReason:
+        !canSubmit && mode === 'create'
+          ? 'Enter a Scenario Name before creating the card, or discard changes.'
+          : '',
+      saveLabel: mode === 'import' ? 'Import & Close' : 'Create & Close',
+      itemName: label,
+      subtitle: mode === 'import' ? 'Import Scenario Cards' : 'Create New Scenario',
+      busy: submitting,
+    });
+  }, [isDirty, canSubmit, mode, importFiles.length, name, submitting, onDirtyChange]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      isDirty,
+      canSave: canSubmit,
+      save: handleSubmit,
+      discard: handleDiscardDraft,
+    }),
+    [isDirty, canSubmit, handleSubmit, handleDiscardDraft],
+  );
+
   return (
     <div className="bb-create-scen-sheet">
       <header className="bb-create-scen-sheet__header">
@@ -482,4 +551,4 @@ export function CreateScenarioSheet({
       </footer>
     </div>
   );
-}
+});

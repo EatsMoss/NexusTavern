@@ -8,6 +8,7 @@ import { Dropdown } from '../../molecules/Dropdown/Dropdown.jsx';
 import { RegexPatternInput } from '../../molecules/RegexPatternInput/RegexPatternInput.jsx';
 import { MessageDecorator } from '../../molecules/MessageDecorator/MessageDecorator.jsx';
 import { Modal } from '../Modal/Modal.jsx';
+import { UnsavedChangesModal } from '../UnsavedChangesModal/UnsavedChangesModal.jsx';
 import {
   REGEX_PLACEMENT,
   SUBSTITUTE_FIND_REGEX,
@@ -92,9 +93,35 @@ function resolveSelectedModes(draft) {
   return modes;
 }
 
+function serializeRegexDraftSnapshot(draft, trimText = '') {
+  if (!draft) return '';
+  const norm = normalizeRegexScript({
+    ...draft,
+    scriptName: String(draft.scriptName || '').trim(),
+    trimStrings: String(trimText || '')
+      .split(/\r?\n/)
+      .filter((line) => line.length > 0),
+  });
+  return JSON.stringify({
+    scriptName: norm.scriptName,
+    findRegex: norm.findRegex,
+    replaceString: norm.replaceString,
+    trimStrings: norm.trimStrings,
+    placement: [...(norm.placement || [])].sort((a, b) => a - b),
+    disabled: Boolean(norm.disabled),
+    markdownOnly: Boolean(norm.markdownOnly),
+    promptOnly: Boolean(norm.promptOnly),
+    runOnEdit: Boolean(norm.runOnEdit),
+    substituteRegex: Number(norm.substituteRegex || 0),
+    minDepth: norm.minDepth ?? null,
+    maxDepth: norm.maxDepth ?? null,
+  });
+}
+
 export function RegexEditorModal({
   open = false,
   script = null,
+  isNew = false,
   scopeLabel = 'Global',
   charName = 'Character',
   userName = 'User',
@@ -104,16 +131,24 @@ export function RegexEditorModal({
 }) {
   const [draft, setDraft] = useState(() => normalizeRegexScript({}));
   const [trimDraftText, setTrimDraftText] = useState('');
+  const [baselineSnapshot, setBaselineSnapshot] = useState('');
+  const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
   const [testOpen, setTestOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [testInput, setTestInput] = useState('');
   const [rawPreview, setRawPreview] = useState(false);
 
   useEffect(() => {
-    if (!open || !script) return;
+    if (!open || !script) {
+      setUnsavedPromptOpen(false);
+      return;
+    }
     const norm = normalizeRegexScript(script);
+    const initialTrim = (norm.trimStrings || []).join('\n');
     setDraft(norm);
-    setTrimDraftText((norm.trimStrings || []).join('\n'));
+    setTrimDraftText(initialTrim);
+    setBaselineSnapshot(serializeRegexDraftSnapshot(norm, initialTrim));
+    setUnsavedPromptOpen(false);
     setTestOpen(false);
     setMoreOpen(
       norm.minDepth !== null ||
@@ -147,12 +182,30 @@ export function RegexEditorModal({
     [open, draft, trimDraftText, testInput, charName, userName],
   );
 
+  const currentSnapshot = useMemo(
+    () => (open && script ? serializeRegexDraftSnapshot(draft, trimDraftText) : ''),
+    [open, script, draft, trimDraftText],
+  );
+
+  const isDirty = Boolean(
+    open && baselineSnapshot && currentSnapshot && currentSnapshot !== baselineSnapshot,
+  );
+  const isRegexValid = !(debugResult && !debugResult.valid);
+
   if (!open || !script) return null;
 
   const selectedPlacements = Array.isArray(draft.placement) && draft.placement.length > 0
     ? draft.placement
     : [REGEX_PLACEMENT.AI_OUTPUT];
   const selectedModes = resolveSelectedModes(draft);
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setUnsavedPromptOpen(true);
+      return;
+    }
+    onClose?.();
+  };
 
   const handleChangeApplyTo = (nextPlacements) => {
     const clean = Array.isArray(nextPlacements)
@@ -196,6 +249,7 @@ export function RegexEditorModal({
   };
 
   const handleSaveClick = () => {
+    if (!isRegexValid) return;
     const cleanScript = normalizeRegexScript({
       ...draft,
       scriptName: String(draft.scriptName || '').trim() || 'Untitled Rule',
@@ -203,6 +257,7 @@ export function RegexEditorModal({
         .split(/\r?\n/)
         .filter((line) => line.length > 0),
     });
+    setUnsavedPromptOpen(false);
     onSave?.(cleanScript);
     onClose?.();
   };
@@ -214,9 +269,10 @@ export function RegexEditorModal({
     trimDraftText.trim().length > 0;
 
   return (
+    <>
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={handleRequestClose}
       title={draft.scriptName ? draft.scriptName : 'Regex Rule'}
       subtitle={scopeLabel}
       icon="regex"
@@ -234,14 +290,14 @@ export function RegexEditorModal({
             inlineLabel="Enabled"
           />
           <div className="bb-rx-modal-footer__actions">
-            <Button variant="b1" emphasis="outlined" onClick={onClose}>
+            <Button variant="b1" emphasis="outlined" onClick={handleRequestClose}>
               Cancel
             </Button>
             <Button
               variant="b1"
               emphasis="filled"
               icon="check"
-              disabled={debugResult && !debugResult.valid}
+              disabled={!isRegexValid}
               onClick={handleSaveClick}
             >
               Save
@@ -481,6 +537,26 @@ export function RegexEditorModal({
         </div>
       </div>
     </Modal>
+
+    <UnsavedChangesModal
+      open={unsavedPromptOpen}
+      subtitle={`Regex Rule · ${scopeLabel}`}
+      itemName={String(draft.scriptName || '').trim() || (isNew ? 'New Regex Rule' : 'Untitled Rule')}
+      saveLabel="Save & Close"
+      canSave={isRegexValid}
+      cannotSaveReason={
+        !isRegexValid
+          ? 'Fix the regular expression syntax error before saving, or discard changes.'
+          : ''
+      }
+      onCancel={() => setUnsavedPromptOpen(false)}
+      onDiscard={() => {
+        setUnsavedPromptOpen(false);
+        onClose?.();
+      }}
+      onSave={handleSaveClick}
+    />
+    </>
   );
 }
 
