@@ -370,6 +370,28 @@
   cursor: default;
 }
 
+.bb-persona-picker__kebab .bb-kebab-menu__trigger.bb-btn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--bb-ink-muted);
+  box-shadow: none;
+}
+
+.bb-persona-picker__kebab .bb-kebab-menu__trigger.bb-btn:hover:not(:disabled) {
+  background: var(--bb-btn-flat-bg, #2f2f37);
+  border-color: var(--bb-page-border-mid);
+  color: var(--bb-ink-heading);
+}
+
+.bb-persona-picker__kebab.is-open .bb-kebab-menu__trigger.bb-btn {
+  background: var(--bb-btn-flat-hover-bg, #3b3e49);
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  color: var(--bb-ink-heading);
+}
+
 .bb-persona-picker__link-btn.has-linked-avatar {
   padding: 0;
 }
@@ -457,6 +479,12 @@
 .bb-persona-picker__swap-pill.is-target {
   border-color: var(--bb-accent-border, var(--md-sys-color-primary));
   background: var(--bb-sheet-item-selected, #2d3452);
+}
+
+.bb-persona-picker__swap-pill.is-danger {
+  border-color: var(--bb-danger-border, var(--md-sys-color-error));
+  background: var(--bb-danger-surface);
+  color: var(--bb-danger-ink);
 }
 
 .bb-persona-picker__swap-img,
@@ -566,9 +594,11 @@
     height: 46px;
   }
 
-  .bb-persona-picker__action-btn {
+  .bb-persona-picker__action-btn,
+  .bb-persona-picker__kebab .bb-kebab-menu__trigger.bb-btn {
     width: 40px;
     height: 40px;
+    min-width: 40px;
   }
 
   .bb-persona-picker__linked-badge {

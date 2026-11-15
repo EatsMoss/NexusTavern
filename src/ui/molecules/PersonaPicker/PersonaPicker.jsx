@@ -5,6 +5,7 @@ import { Button } from '@ui/atoms/Button/Button.jsx';
 import { SafeImage } from '@ui/atoms/SafeImage/SafeImage.jsx';
 import { OverlayScrollArea } from '@ui/atoms/OverlayScrollArea/OverlayScrollArea.jsx';
 import { PersonaChip } from '@ui/molecules/PersonaChip/PersonaChip.jsx';
+import { KebabMenu } from '@ui/molecules/KebabMenu/KebabMenu.jsx';
 import './PersonaPicker.css';
 
 function buildSnippet(text = '') {
@@ -75,11 +76,15 @@ export function PersonaPicker({
   onToggleBindActiveCharacter,
   onOpenManageModal,
   onOpenCreateModal,
+  onDuplicatePersona,
+  onDeletePersona,
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [pendingTarget, setPendingTarget] = useState(null);
+  const [pendingDeleteTarget, setPendingDeleteTarget] = useState(null);
   const [busyConfirm, setBusyConfirm] = useState(false);
+  const [busyAction, setBusyAction] = useState('');
   const [popoverPos, setPopoverPos] = useState({ left: 0, bottom: 0, width: 420 });
 
   const wrapRef = useRef(null);
@@ -145,6 +150,7 @@ export function PersonaPicker({
   const closePicker = useCallback(() => {
     setOpen(false);
     setPendingTarget(null);
+    setPendingDeleteTarget(null);
     setQuery('');
   }, []);
 
@@ -156,6 +162,7 @@ export function PersonaPicker({
     }
     updatePosition();
     setPendingTarget(null);
+    setPendingDeleteTarget(null);
     setQuery('');
     setOpen(true);
   };
@@ -168,12 +175,18 @@ export function PersonaPicker({
       const target = e.target;
       if (wrapRef.current?.contains(target)) return;
       if (popoverRef.current?.contains(target)) return;
+      if (target?.closest?.('.bb-kebab-menu__popover')) return;
       closePicker();
     };
 
     const onKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (pendingTarget) {
+        if (typeof document !== 'undefined' && document.querySelector('.bb-kebab-menu__popover')) {
+          return;
+        }
+        if (pendingDeleteTarget) {
+          setPendingDeleteTarget(null);
+        } else if (pendingTarget) {
           setPendingTarget(null);
         } else {
           closePicker();
@@ -189,12 +202,13 @@ export function PersonaPicker({
       document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('keydown', onKeyDown, true);
     };
-  }, [open, pendingTarget, updatePosition, closePicker]);
+  }, [open, pendingTarget, pendingDeleteTarget, updatePosition, closePicker]);
 
   useEffect(() => {
     if (
       open &&
       !pendingTarget &&
+      !pendingDeleteTarget &&
       personas.length >= 6 &&
       typeof window !== 'undefined' &&
       window.innerWidth > 600
@@ -203,7 +217,7 @@ export function PersonaPicker({
       return () => cancelAnimationFrame(id);
     }
     return undefined;
-  }, [open, pendingTarget, personas.length]);
+  }, [open, pendingTarget, pendingDeleteTarget, personas.length]);
 
   const handlePickRow = async (persona) => {
     if (!persona) return;
@@ -225,6 +239,17 @@ export function PersonaPicker({
     try {
       await onConfirmReplacePersonaInChat?.(pendingTarget);
       closePicker();
+    } finally {
+      setBusyConfirm(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteTarget || busyConfirm) return;
+    setBusyConfirm(true);
+    try {
+      await onDeletePersona?.(pendingDeleteTarget.avatar);
+      setPendingDeleteTarget(null);
     } finally {
       setBusyConfirm(false);
     }
@@ -273,7 +298,53 @@ export function PersonaPicker({
           </div>
         </div>
 
-        {pendingTarget ? (
+        {pendingDeleteTarget ? (
+          <div className="bb-persona-picker__confirm">
+            <div className="bb-persona-picker__confirm-swap">
+              <div className="bb-persona-picker__swap-pill is-danger">
+                <SafeImage
+                  src={pendingDeleteTarget.thumbnailUrl || pendingDeleteTarget.avatarUrl}
+                  alt=""
+                  className="bb-persona-picker__swap-img"
+                  fallback={
+                    <span className="bb-persona-picker__swap-fallback">
+                      {String(pendingDeleteTarget.name || 'ME').slice(0, 2).toUpperCase()}
+                    </span>
+                  }
+                />
+                <span className="bb-persona-picker__swap-name">{pendingDeleteTarget.name}</span>
+              </div>
+            </div>
+
+            <div className="bb-persona-picker__confirm-text">
+              <strong>Delete this persona?</strong>
+              <span>
+                Permanently removes <strong>{pendingDeleteTarget.name}</strong> along with its
+                portrait, description, and scenario bindings.
+              </span>
+            </div>
+
+            <div className="bb-persona-picker__confirm-actions">
+              <Button
+                variant="b2"
+                size="sm"
+                disabled={busyConfirm}
+                onClick={() => setPendingDeleteTarget(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="b4"
+                size="sm"
+                icon="trash"
+                disabled={busyConfirm}
+                onClick={handleConfirmDelete}
+              >
+                {busyConfirm ? 'Deleting...' : 'Delete Persona'}
+              </Button>
+            </div>
+          </div>
+        ) : pendingTarget ? (
           <div className="bb-persona-picker__confirm">
             <div className="bb-persona-picker__confirm-swap">
               <div className="bb-persona-picker__swap-pill">
@@ -503,19 +574,52 @@ export function PersonaPicker({
                           </button>
                         )}
 
-                        <button
-                          type="button"
-                          className="bb-persona-picker__action-btn bb-persona-picker__edit-btn"
-                          title={`Edit ${p.name}`}
-                          aria-label={`Edit ${p.name}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            closePicker();
-                            onOpenManageModal?.(p.avatar);
-                          }}
-                        >
-                          <Icon name="edit" size={15} />
-                        </button>
+                        <KebabMenu
+                          className="bb-persona-picker__kebab"
+                          title={`${p.name} actions`}
+                          items={[
+                            {
+                              id: 'edit',
+                              label: 'Edit',
+                              icon: 'edit',
+                              onClick: () => {
+                                closePicker();
+                                onOpenManageModal?.(p.avatar);
+                              },
+                            },
+                            {
+                              id: 'duplicate',
+                              label: 'Duplicate',
+                              icon: 'copy',
+                              disabled: Boolean(busyAction) || !onDuplicatePersona,
+                              onClick: async () => {
+                                if (!onDuplicatePersona || busyAction) return;
+                                setBusyAction(p.avatar);
+                                try {
+                                  await onDuplicatePersona(p.avatar);
+                                } finally {
+                                  setBusyAction('');
+                                }
+                              },
+                            },
+                            {
+                              id: 'delete',
+                              label: 'Delete',
+                              icon: 'trash',
+                              danger: true,
+                              disabled:
+                                Boolean(busyAction) || personas.length <= 1 || !onDeletePersona,
+                              title:
+                                personas.length <= 1
+                                  ? 'Cannot delete the only persona'
+                                  : `Delete ${p.name}`,
+                              onClick: () => {
+                                if (personas.length <= 1 || !onDeletePersona) return;
+                                setPendingDeleteTarget(p);
+                              },
+                            },
+                          ]}
+                        />
                       </div>
                     </div>
                   );

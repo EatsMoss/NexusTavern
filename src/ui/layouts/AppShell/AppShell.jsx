@@ -2702,6 +2702,13 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       personasRef.current = res.personas;
       setPersonas(res.personas);
     }
+    setPersonaModalTargetAvatar((prevTarget) => {
+      if (prevTarget && prevTarget === avatar) {
+        setPersonaModalOpen(false);
+        return '';
+      }
+      return prevTarget;
+    });
     if (res?.activePersonaAvatar) {
       activePersonaAvatarRef.current = res.activePersonaAvatar;
       setActivePersonaAvatar(res.activePersonaAvatar);
@@ -6376,6 +6383,8 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             onToggleBindPersonaToActiveCard={handleToggleBindPersonaToActiveCard}
             onOpenManagePersonaModal={handleOpenManagePersonaModal}
             onOpenCreatePersonaModal={handleOpenCreatePersonaModal}
+            onDuplicatePersona={handleDuplicatePersona}
+            onDeletePersona={handleDeletePersona}
             onClickPersonaBadge={() => handleOpenManagePersonaModal(activePersonaAvatar)}
             modelLabel={selectedModelLabel}
             hubConnections={apiHubState?.connections || []}

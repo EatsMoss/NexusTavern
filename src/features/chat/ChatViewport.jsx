@@ -173,6 +173,8 @@ export function ChatViewport({
   onToggleBindPersonaToActiveCard,
   onOpenManagePersonaModal,
   onOpenCreatePersonaModal,
+  onDuplicatePersona,
+  onDeletePersona,
   onClickPersonaBadge,
   modelLabel = 'No Model Selected',
   onClickModelBadge,
@@ -1706,6 +1708,8 @@ export function ChatViewport({
             onToggleBindActiveCharacter={onToggleBindPersonaToActiveCard}
             onOpenManageModal={onOpenManagePersonaModal || onClickPersonaBadge}
             onOpenCreateModal={onOpenCreatePersonaModal || onClickPersonaBadge}
+            onDuplicatePersona={onDuplicatePersona}
+            onDeletePersona={onDeletePersona}
           />
         </div>
       </form>
