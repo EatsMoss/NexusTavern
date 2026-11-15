@@ -84,19 +84,19 @@ export function MessageRecapManager({
       id: 'restore-defaults',
       label: 'Restore Default Prompts & Regex',
       icon: 'refresh',
-      onSelect: () => onResetDefaults?.(),
+      onClick: () => onResetDefaults?.(),
     },
     {
       id: 'export-config',
       label: 'Export Config (.json)',
       icon: 'download',
-      onSelect: handleExportJson,
+      onClick: handleExportJson,
     },
     {
       id: 'import-config',
       label: 'Import Config (.json)',
       icon: 'upload',
-      onSelect: () => fileInputRef.current?.click(),
+      onClick: () => fileInputRef.current?.click(),
     },
   ];
 
@@ -155,21 +155,22 @@ export function MessageRecapManager({
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
-          <KebabMenu items={menuItems} title="Message Recap actions" />
           <Switch
-            bare
+            size="sm"
             checked={resolved.enabled}
             onChange={(val) => onPatchConfig?.({ enabled: val }, { immediate: true })}
-            aria-label="Enable Message Recap plugin"
+            title={resolved.enabled ? 'Message Recap enabled' : 'Message Recap paused'}
           />
+          <KebabMenu items={menuItems} size="sm" title="Message Recap actions" />
           {collapsible && (
             <button
               type="button"
               className={`bb-mr-sheet__chevron ${isOpen ? 'is-open' : ''}`}
               aria-label={isOpen ? 'Collapse Message Recap' : 'Expand Message Recap'}
+              title={isOpen ? 'Collapse' : 'Expand'}
               onClick={handleHeaderToggle}
             >
-              <Icon name="chevronDown" size={18} />
+              <Icon name="chevronDown" size={17} />
             </button>
           )}
         </div>

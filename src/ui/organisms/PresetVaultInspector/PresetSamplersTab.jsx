@@ -399,7 +399,7 @@ export function PresetSamplersTab({
         title="Reasoning & Effort"
         subtitle="Chain-of-Thought depth, thinking budget & output effort"
         icon="lightbulb"
-        defaultOpen
+        defaultOpen={false}
       >
         {caps.samplers.reasoning_effort && (
           <Dropdown
@@ -444,7 +444,7 @@ export function PresetSamplersTab({
         title="Prompt Processing & Behavior"
         subtitle="Role post-processing, character names, continue & inline media"
         icon="sparkles"
-        defaultOpen
+        defaultOpen={false}
       >
         <Dropdown
           label="Prompt Post-Processing"

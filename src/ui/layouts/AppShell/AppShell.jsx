@@ -139,6 +139,7 @@ import {
 import { ChatViewport } from '@features/chat/ChatViewport.jsx';
 import { ChatsTomePanel } from '@features/chat/ChatsTomePanel.jsx';
 import { useChatStreaming } from '@features/chat/useChatStreaming.js';
+import { useConsoleStream } from '@features/chat/useConsoleStream.js';
 import { CharacterTome } from '@features/characters/CharacterTome.jsx';
 import {
   CharacterSheet,
@@ -497,6 +498,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   const [loadingChat, setLoadingChat] = useState(false);
   const [editingMsgIndex, setEditingMsgIndex] = useState(null);
   const [editingMsgText, setEditingMsgText] = useState('');
+  const consoleStream = useConsoleStream();
   const loadedSessionRef = useRef({ cardId: null, chatFile: null });
   const chatWindowSeqRef = useRef(0);
   const cardLoadSeqRef = useRef(0);
@@ -6655,6 +6657,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                       title="Last Message Shader"
                       subtitle="Both shader variants available"
                       icon="sparkles"
+                      defaultOpen={false}
                     >
                       <SegmentedGroup
                         fullWidth
@@ -6976,6 +6979,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
             onSendMessage={handleSend}
             isGenerating={isGenerating}
             onStopGeneration={handleStopGeneration}
+            consoleStream={consoleStream}
             recapCompressDepth={
               messageRecap.config.enabled && messageRecap.config.stripEnabled
                 ? messageRecap.config.keepFullDepth
@@ -7123,19 +7127,19 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
               <div className="bb-rc-plugins-stack">
                 <StImporterTomePanel
                   collapsible
-                  defaultOpen
+                  defaultOpen={false}
                   importer={stImporter}
                 />
                 <RecapTomePanel
                   collapsible
-                  defaultOpen
+                  defaultOpen={false}
                   recap={messageRecap}
                   tokenContext={promptTokenContext}
                   savedChatTokens={chatHistoryTokenBreakdown.savedTokens}
                 />
                 <RefusalCatcherManager
                   collapsible
-                  defaultOpen
+                  defaultOpen={false}
                   enabled={refusalCatcher.enabled}
                   delayMs={refusalCatcher.delayMs}
                   bannedPhrases={refusalCatcher.bannedPhrases}
@@ -7162,7 +7166,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                 />
                 <RegexTomePanel
                   collapsible
-                  defaultOpen
+                  defaultOpen={false}
                   workspace={regexWorkspace}
                   hasActiveScenario={hasActiveScenario}
                   activeCharacterName={activeCharacter?.name || ''}

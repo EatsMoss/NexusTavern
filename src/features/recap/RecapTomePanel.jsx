@@ -9,7 +9,7 @@ export function RecapTomePanel({
   tokenContext = null,
   savedChatTokens = 0,
   collapsible = true,
-  defaultOpen = true,
+  defaultOpen = false,
 }) {
   if (!recap) return null;
 

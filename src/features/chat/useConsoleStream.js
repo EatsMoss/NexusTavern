@@ -7,13 +7,15 @@ import {
 const MAX_CLIENT_LOGS = 250;
 const RECONNECT_DELAY_MS = 2200;
 
-export function useConsoleStream() {
+export function useConsoleStream({ enabled = true } = {}) {
   const [entries, setEntries] = useState([]);
   const [connected, setConnected] = useState(false);
 
   const latestSeqRef = useRef(0);
+  const sessionBootedRef = useRef(false);
 
   useEffect(() => {
+    if (!enabled) return undefined;
     let cancelled = false;
     let abortCtrl = null;
     let retryTimer = null;
@@ -21,11 +23,13 @@ export function useConsoleStream() {
     const connect = async () => {
       if (cancelled) return;
       abortCtrl = new AbortController();
+      const isFreshBoot = !sessionBootedRef.current;
 
       try {
         setConnected(true);
         await streamConsoleLogs({
           afterSeq: latestSeqRef.current,
+          freshSession: isFreshBoot,
           signal: abortCtrl.signal,
           onEvent: (evt) => {
             if (!evt || cancelled) return;
@@ -36,7 +40,8 @@ export function useConsoleStream() {
             }
 
             if (evt.type === 'snapshot' && Array.isArray(evt.entries)) {
-              if (Number(evt.latestSeq) > latestSeqRef.current) {
+              sessionBootedRef.current = true;
+              if (Number.isFinite(Number(evt.latestSeq)) && Number(evt.latestSeq) >= latestSeqRef.current) {
                 latestSeqRef.current = Number(evt.latestSeq);
               }
               if (evt.entries.length > 0) {

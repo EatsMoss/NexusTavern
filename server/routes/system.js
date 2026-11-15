@@ -198,6 +198,9 @@ systemRouter.post('/logs/client', (req, res) => {
 function handleLogsSseStream(req, res) {
   const useE2EE = req.headers['x-bb-e2ee'] === '1';
   const afterSeq = Number(req.body?.afterSeq ?? req.query?.afterSeq ?? 0) || 0;
+  const freshSession = Boolean(
+    req.body?.freshSession === true || req.query?.freshSession === '1',
+  );
 
   res.status(200);
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -214,7 +217,7 @@ function handleLogsSseStream(req, res) {
     res.write(`data: ${JSON.stringify(wire)}\n\n`);
   };
 
-  const initial = getConsoleLogsSnapshot({ afterSeq });
+  const initial = getConsoleLogsSnapshot({ afterSeq, freshSession });
   writeSse({
     type: 'snapshot',
     entries: initial.entries,

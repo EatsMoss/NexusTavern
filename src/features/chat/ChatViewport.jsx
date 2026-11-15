@@ -222,6 +222,7 @@ export function ChatViewport({
   onSendMessage,
   isGenerating = false,
   onStopGeneration,
+  consoleStream = null,
   recapCompressDepth = null,
   hasActiveScenario = true,
   switchingScenario = false,
@@ -241,11 +242,13 @@ export function ChatViewport({
 
   const [composerEmojiOpen, setComposerEmojiOpen] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const internalConsoleStream = useConsoleStream({ enabled: !consoleStream });
+  const activeConsoleStream = consoleStream || internalConsoleStream;
   const {
     entries: consoleEntries,
     connected: consoleConnected,
     clearLogs: clearConsoleLogs,
-  } = useConsoleStream();
+  } = activeConsoleStream;
   const prevLoggedChatKeyRef = useRef('');
   const [composerDragOver, setComposerDragOver] = useState(false);
   const composerDragCounterRef = useRef(0);

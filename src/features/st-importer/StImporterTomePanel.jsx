@@ -7,7 +7,7 @@ import { StImporterManager } from '@ui/index.js';
 export function StImporterTomePanel({
   importer,
   collapsible = true,
-  defaultOpen = true,
+  defaultOpen = false,
 }) {
   if (!importer) return null;
 

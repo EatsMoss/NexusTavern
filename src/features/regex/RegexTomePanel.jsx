@@ -13,7 +13,7 @@ export function RegexTomePanel({
   latestMessageText = '',
   onNotify,
   collapsible = false,
-  defaultOpen = true,
+  defaultOpen = false,
 }) {
   if (!workspace) return null;
 

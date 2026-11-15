@@ -19,9 +19,14 @@ export async function postClientConsoleLog(payload = {}) {
   });
 }
 
-export async function streamConsoleLogs({ afterSeq = 0, signal, onEvent } = {}) {
+export async function streamConsoleLogs({
+  afterSeq = 0,
+  freshSession = false,
+  signal,
+  onEvent,
+} = {}) {
   return apiFetchSse('/api/system/logs/stream', {
-    body: { afterSeq },
+    body: { afterSeq, freshSession },
     signal,
     onEvent,
   });

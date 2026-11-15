@@ -438,7 +438,17 @@ export function recordConsoleLog({
   return entry;
 }
 
-export function getConsoleLogsSnapshot({ afterSeq = 0 } = {}) {
+export function getConsoleLogsSnapshot({ afterSeq = 0, freshSession = false } = {}) {
+  if (freshSession) {
+    if (subscribers.size === 0) {
+      logBuffer.length = 0;
+    }
+    return {
+      entries: [],
+      latestSeq: nextSeq - 1,
+      totalBuffered: logBuffer.length,
+    };
+  }
   const minSeq = Number(afterSeq) || 0;
   const entries = minSeq > 0 ? logBuffer.filter((e) => e.seq > minSeq) : [...logBuffer];
   return {
