@@ -150,7 +150,7 @@ import {
   toServerIntroMetaPayload,
 } from '@features/characters/CharacterSheet/IntrosTab.jsx';
 import { ApiHubModal } from '@features/api-hub/ApiHubModal.jsx';
-import { PersonaModal } from '@features/personas/PersonaModal.jsx';
+import { PersonaSheet } from '@features/personas/PersonaSheet.jsx';
 import { RegexTomePanel } from '@features/regex/RegexTomePanel.jsx';
 import { useRegexWorkspace } from '@features/regex/useRegexWorkspace.js';
 import { useRefusalCatcher } from '@features/refusal/useRefusalCatcher.js';
@@ -2605,20 +2605,40 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       const found = personas.find((p) => p.avatar === resolvedAv);
       if (found) {
         setPersonaModalTargetAvatar(found.avatar);
-        setPersonaName(found.name);
-        setPersonaDesc(found.description || '');
+      } else {
+        setPersonaModalTargetAvatar(resolvedAv || '');
+      }
+      setChatListOpen(false);
+      setTimelinesOpen(false);
+      setEditingPromptSelection(null);
+      setEditingIntroTarget(null);
+      setCreateScenarioModalOpen(false);
+      setSheetExpanded(false);
+      if (isMobile) {
+        setLeftOpen(false);
+        setRightOpen(false);
       }
       setPersonaModalMode('manage');
       setPersonaModalOpen(true);
     },
-    [personas, activePersonaAvatar],
+    [personas, activePersonaAvatar, isMobile],
   );
 
   const handleOpenCreatePersonaModal = useCallback(() => {
+    setChatListOpen(false);
+    setTimelinesOpen(false);
+    setEditingPromptSelection(null);
+    setEditingIntroTarget(null);
+    setCreateScenarioModalOpen(false);
+    setSheetExpanded(false);
+    if (isMobile) {
+      setLeftOpen(false);
+      setRightOpen(false);
+    }
     setPersonaModalTargetAvatar('');
     setPersonaModalMode('create');
     setPersonaModalOpen(true);
-  }, []);
+  }, [isMobile]);
 
   const handleCreatePersona = useCallback(
     async (payload) => {
@@ -2818,6 +2838,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         }
       }
       setCreateScenarioModalOpen(false);
+      setPersonaModalOpen(false);
       setSelectedCardId(id);
     },
     [recordSessionPointer],
@@ -2838,6 +2859,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       setEditingPromptSelection(null);
       setEditingIntroTarget(null);
       setCreateScenarioModalOpen(false);
+      setPersonaModalOpen(false);
       setLeftTab('chats');
     },
     [recordSessionPointer],
@@ -2936,6 +2958,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       setEditingPromptSelection(null);
       setEditingIntroTarget(null);
       setSheetExpanded(false);
+      setPersonaModalOpen(false);
       if (isMobile) {
         setLeftOpen(false);
         setRightOpen(false);
@@ -4154,6 +4177,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     setEditingPromptSelection(null);
     setEditingIntroTarget(null);
     setCreateScenarioModalOpen(false);
+    setPersonaModalOpen(false);
     setSheetExpanded((wasExpanded) => {
       if (wasExpanded) {
         setRightTab('selected');
@@ -4192,6 +4216,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         setEditingPromptSelection(null);
         setEditingIntroTarget(null);
         setCreateScenarioModalOpen(false);
+        setPersonaModalOpen(false);
         setSheetExpanded((wasExpanded) => {
           if (wasExpanded) setRightTab('selected');
           return false;
@@ -4215,6 +4240,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     setEditingPromptSelection(null);
     setEditingIntroTarget(null);
     setCreateScenarioModalOpen(false);
+    setPersonaModalOpen(false);
     setSheetExpanded((wasExpanded) => {
       if (wasExpanded) {
         setRightTab('selected');
@@ -5667,6 +5693,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         setSheetExpanded(false);
         setEditingIntroTarget(null);
         setCreateScenarioModalOpen(false);
+        setPersonaModalOpen(false);
         if (isMobile) {
           setRightOpen(false);
         }
@@ -5697,6 +5724,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         setTimelinesOpen(false);
         setEditingPromptSelection(null);
         setCreateScenarioModalOpen(false);
+        setPersonaModalOpen(false);
         if (isMobile) {
           setRightOpen(false);
         }
@@ -5835,6 +5863,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       setEditingPromptSelection(null);
       setEditingIntroTarget(null);
       setCreateScenarioModalOpen(false);
+      setPersonaModalOpen(false);
       setSheetExpanded(true);
       setRightOpen(true);
       setRightTab('selected');
@@ -5847,6 +5876,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           setEditingPromptSelection(null);
           setEditingIntroTarget(null);
           setCreateScenarioModalOpen(false);
+          setPersonaModalOpen(false);
           if (!isMobile) {
             setRightOpen(true);
           }
@@ -6149,7 +6179,9 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           onToggleTimelines={handleToggleTimelines}
           sheetExpanded={sheetExpanded}
           promptEditorOpen={Boolean(resolvedEditingPrompt)}
-          workspaceSheetOpen={Boolean(resolvedEditingIntro || createScenarioModalOpen)}
+          workspaceSheetOpen={Boolean(
+            resolvedEditingIntro || createScenarioModalOpen || personaModalOpen,
+          )}
           onBackToChat={handleBackToChat}
           qrModalOpen={qrModalOpen}
           tunnelActive={Boolean(serverStatus?.tunnel?.active)}
@@ -6211,6 +6243,33 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                 onClose={() => setCreateScenarioModalOpen(false)}
                 onCreateScenario={handleCreateScenario}
                 onImportScenarioFiles={handleImportScenarioFiles}
+              />
+            </div>
+          </section>
+        ) : personaModalOpen ? (
+          <section className="bb-center-column__sheet" aria-label="Persona workspace">
+            <div className="bb-center-column__sheet-surface">
+              <PersonaSheet
+                initialMode={personaModalMode}
+                initialTargetAvatar={personaModalTargetAvatar}
+                personas={personas}
+                activePersonaAvatar={activePersonaAvatar}
+                cards={cards}
+                groups={groups}
+                activeCharacter={activeCharacter}
+                hasUserMessages={effectiveHasUserMessages}
+                userMessageCount={effectiveUserMessageCount}
+                onClose={() => {
+                  setPersonaModalOpen(false);
+                  scrollToChatBottom();
+                }}
+                onCreatePersona={handleCreatePersona}
+                onSavePersona={handleSavePersonaById}
+                onUploadPersonaAvatar={handleUploadPersonaAvatar}
+                onDuplicatePersona={handleDuplicatePersona}
+                onDeletePersona={handleDeletePersona}
+                onSelectPersonaInChat={handleSelectPersona}
+                onConfirmReplacePersonaInChat={handleConfirmReplacePersonaInChat}
               />
             </div>
           </section>
@@ -6555,27 +6614,6 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         hubState={apiHubState}
         onClose={() => setApiModalOpen(false)}
         onCreateCustomProvider={handleCreateCustomHubConn}
-      />
-
-      <PersonaModal
-        open={personaModalOpen}
-        initialMode={personaModalMode}
-        initialTargetAvatar={personaModalTargetAvatar}
-        personas={personas}
-        activePersonaAvatar={activePersonaAvatar}
-        cards={cards}
-        groups={groups}
-        activeCharacter={activeCharacter}
-        hasUserMessages={effectiveHasUserMessages}
-        userMessageCount={effectiveUserMessageCount}
-        onClose={() => setPersonaModalOpen(false)}
-        onCreatePersona={handleCreatePersona}
-        onSavePersona={handleSavePersonaById}
-        onUploadPersonaAvatar={handleUploadPersonaAvatar}
-        onDuplicatePersona={handleDuplicatePersona}
-        onDeletePersona={handleDeletePersona}
-        onSelectPersonaInChat={handleSelectPersona}
-        onConfirmReplacePersonaInChat={handleConfirmReplacePersonaInChat}
       />
 
       <Modal

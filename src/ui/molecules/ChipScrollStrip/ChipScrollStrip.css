@@ -1,0 +1,104 @@
+/* ==========================================================================
+   M3 ChipScrollStrip — Horizontal Overflow Strip with Floating M3 Arrow Pills
+   ========================================================================== */
+
+.bb-chip-scroll-strip {
+  --bb-chip-strip-fade-bg: var(--bb-sheet-bg, var(--bb-page-card-bg, #1e1e25));
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.bb-chip-scroll-strip__track {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+}
+
+.bb-chip-scroll-strip__edge {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 46px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.bb-chip-scroll-strip__edge--left {
+  left: 0;
+  justify-content: flex-start;
+  background: linear-gradient(
+    90deg,
+    var(--bb-chip-strip-fade-bg) 54%,
+    transparent 100%
+  );
+}
+
+.bb-chip-scroll-strip__edge--right {
+  right: 0;
+  justify-content: flex-end;
+  background: linear-gradient(
+    270deg,
+    var(--bb-chip-strip-fade-bg) 54%,
+    transparent 100%
+  );
+}
+
+.bb-chip-scroll-strip__arrow {
+  pointer-events: auto;
+  appearance: none;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-btn-flat-bg, var(--md-sys-color-surface-container-high));
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  box-shadow: var(--md-sys-elevation-2, 0 3px 10px rgba(0, 0, 0, 0.34));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 100ms ease;
+}
+
+.bb-chip-scroll-strip__arrow:hover {
+  background: var(--bb-btn-flat-hover-bg, var(--md-sys-color-surface-container-highest));
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+}
+
+.bb-chip-scroll-strip__arrow:active {
+  transform: scale(0.94);
+}
+
+.bb-chip-scroll-strip__arrow:focus-visible {
+  outline: 2px solid var(--bb-accent-border, var(--md-sys-color-primary));
+  outline-offset: 1px;
+}
+
+@media (max-width: 640px) {
+  .bb-chip-scroll-strip__edge {
+    width: 52px;
+  }
+
+  .bb-chip-scroll-strip__arrow {
+    width: 32px;
+    height: 32px;
+  }
+}

@@ -15,6 +15,7 @@ import {
   OverlayScrollArea,
   TagChip,
   ToggleGroup,
+  ChipScrollStrip,
   TagPicker,
   CharacterCardTile,
   CharacterCardRow,
@@ -1420,6 +1421,32 @@ export function AtomsMoleculesShowcase() {
             <FloatingPaletteReadout>2 / 5</FloatingPaletteReadout>
             <FloatingPaletteButton iconRight="chevronRight" title="Next">Next</FloatingPaletteButton>
           </FloatingPalette>
+        </div>
+      </FolderCard>
+
+      <FolderCard
+        title="M3 Horizontal Chip Scroll Strip (ChipScrollStrip)"
+        subtitle="Auto-detects horizontal overflow and reveals floating circular M3 chevron controls with soft surface fade"
+        icon="sliders"
+        defaultOpen
+      >
+        <div style={{ maxWidth: 380, paddingTop: 4 }}>
+          <ChipScrollStrip fadeBg="var(--bb-page-card-bg)" ariaLabel="Demo overflowing filter chips">
+            {[
+              'All (48)',
+              'Pinned ★',
+              'Claude',
+              'Gemini',
+              'DeepSeek',
+              'GPT',
+              'Grok',
+              'Mistral',
+              'Llama',
+              'Qwen',
+            ].map((label, idx) => (
+              <TagChip key={label} label={label} state={idx === 0 ? 'include' : 'neutral'} />
+            ))}
+          </ChipScrollStrip>
         </div>
       </FolderCard>
 

@@ -260,19 +260,6 @@ export function PersonaPicker({
           <div className="bb-persona-picker__header-actions">
             <button
               type="button"
-              className="bb-persona-picker__hdr-btn"
-              title="Manage & edit personas"
-              onClick={() => {
-                const currentAv = activePersonaAvatar;
-                closePicker();
-                onOpenManageModal?.(currentAv);
-              }}
-            >
-              <Icon name="sliders" size={13} />
-              <span>Manage</span>
-            </button>
-            <button
-              type="button"
               className="bb-persona-picker__hdr-btn is-primary"
               title="Create new persona"
               onClick={() => {

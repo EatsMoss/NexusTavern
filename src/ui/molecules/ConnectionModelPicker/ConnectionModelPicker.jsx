@@ -4,6 +4,7 @@ import { Icon } from '@ui/atoms/Icon/Icon.jsx';
 import { Button } from '@ui/atoms/Button/Button.jsx';
 import { Input } from '@ui/atoms/Input/Input.jsx';
 import { OverlayScrollArea } from '@ui/atoms/OverlayScrollArea/OverlayScrollArea.jsx';
+import { ChipScrollStrip } from '@ui/molecules/ChipScrollStrip/ChipScrollStrip.jsx';
 import './ConnectionModelPicker.css';
 
 function formatTokensShort(val) {
@@ -962,7 +963,10 @@ export function ConnectionModelPicker({
                   )}
                 </div>
 
-                <div className="bb-conn-picker__chips bb-scrollbar--hidden">
+                <ChipScrollStrip
+                  trackClassName="bb-conn-picker__chips"
+                  ariaLabel="Filter models by provider or family"
+                >
                   <button
                     type="button"
                 className={`bb-conn-picker__chip ${familyFilter === 'all' ? 'is-active' : ''}`}
@@ -1031,7 +1035,7 @@ export function ConnectionModelPicker({
               >
                 <Icon name="plus" size={11} />
               </button>
-            </div>
+                </ChipScrollStrip>
 
             {addingFamily && (
               <div className="bb-conn-picker__inline-form">

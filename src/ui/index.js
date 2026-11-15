@@ -36,6 +36,7 @@ export { Dropdown } from './molecules/Dropdown/Dropdown.jsx';
 export { KebabMenu } from './molecules/KebabMenu/KebabMenu.jsx';
 export { MessageDecorator } from './molecules/MessageDecorator/MessageDecorator.jsx';
 export { ToggleGroup } from './molecules/ToggleGroup/ToggleGroup.jsx';
+export { ChipScrollStrip } from './molecules/ChipScrollStrip/ChipScrollStrip.jsx';
 export { TagPicker } from './molecules/TagPicker/TagPicker.jsx';
 export { CharacterCardTile } from './molecules/CharacterCardTile/CharacterCardTile.jsx';
 export {
