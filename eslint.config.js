@@ -199,9 +199,9 @@ export default [
   // Strict per-feature isolation rules
   ...featureIsolationConfigs,
 
-  // Backend Server & Tooling (Node.js ESM)
+  // Backend Server (Node.js ESM)
   {
-    files: ['server/**/*.js', 'tests/**/*.js', '*.config.js'],
+    files: ['server/**/*.js'],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -219,6 +219,16 @@ export default [
           ],
         },
       ],
+    },
+  },
+
+  // Tests & Root Tooling (Node.js ESM)
+  {
+    files: ['tests/**/*.js', '*.config.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
     },
   },
 ];

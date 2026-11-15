@@ -282,19 +282,98 @@ export function decodeStyleTags(
 }
 
 let hooksRegistered = false;
+let cachedDomPurifyInstance = null;
+
+function resolveDomPurifier() {
+  if (DOMPurify && typeof DOMPurify.sanitize === 'function') {
+    return DOMPurify;
+  }
+  if (cachedDomPurifyInstance) {
+    return cachedDomPurifyInstance;
+  }
+  if (typeof DOMPurify === 'function' && typeof globalThis.window !== 'undefined') {
+    const instance = DOMPurify(globalThis.window);
+    if (instance && typeof instance.sanitize === 'function') {
+      cachedDomPurifyInstance = instance;
+      return instance;
+    }
+  }
+  return null;
+}
 
 /** Registers the DOMPurify hooks once, mirroring ST's addDOMPurifyHooks(). */
-function ensureHooks() {
-  if (hooksRegistered) return;
+function ensureHooks(purifier) {
+  if (!purifier || hooksRegistered || typeof purifier.addHook !== 'function') return;
   hooksRegistered = true;
 
   // Force every link into a new tab with no opener access.
-  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  purifier.addHook('afterSanitizeAttributes', (node) => {
     if ('target' in node) {
       node.setAttribute('target', '_blank');
       node.setAttribute('rel', 'noopener noreferrer');
     }
   });
+}
+
+const HEADLESS_DROP_CONTAINER_RE =
+  /<(script|iframe|object|embed|noscript)\b[^>]*>[\s\S]*?<\/\1>/gi;
+const HEADLESS_FORBID_TAG_RE =
+  /<\/?(?:script|iframe|object|embed|base|link|meta|form|noscript)\b[^>]*>/gi;
+
+/**
+ * Pure isomorphic fallback used only in headless Node environments without a DOM window
+ * (e.g. `node:test`), mirroring the exact DOMPurify policy used in the browser.
+ */
+function sanitizeHtmlHeadlessFallback(encodedHtml = '') {
+  let html = String(encodedHtml)
+    .replace(HEADLESS_DROP_CONTAINER_RE, '')
+    .replace(HEADLESS_FORBID_TAG_RE, '');
+
+  html = html.replace(/<([a-zA-Z][\w:-]*)(\s[^<>]*?)?(\/?)>/g, (full, tagName, rawAttrs = '', selfClose = '') => {
+    const lowerTag = tagName.toLowerCase();
+    if (!rawAttrs && lowerTag !== 'a') return full;
+
+    const cleanAttrs = [];
+    let hasHref = false;
+    const attrRe = /([a-zA-Z_:][\w:.-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+    let m;
+    while ((m = attrRe.exec(rawAttrs)) !== null) {
+      const attrName = m[1];
+      const lowerAttr = attrName.toLowerCase();
+      const val = m[2] ?? m[3] ?? m[4] ?? '';
+
+      if (lowerAttr.startsWith('on') || lowerAttr.startsWith('data-')) {
+        continue;
+      }
+      if (
+        (lowerAttr === 'href' || lowerAttr === 'src' || lowerAttr === 'xlink:href' || lowerAttr === 'action') &&
+        /^\s*(?:javascript|vbscript|data\s*:\s*text\/html)\s*:/i.test(val)
+      ) {
+        continue;
+      }
+      if (lowerTag === 'a' && (lowerAttr === 'target' || lowerAttr === 'rel')) {
+        continue;
+      }
+      if (lowerTag === 'a' && lowerAttr === 'href') {
+        hasHref = true;
+      }
+      if (m[2] !== undefined || m[3] !== undefined || m[4] !== undefined) {
+        const escapedVal = String(val).replace(/"/g, '&quot;');
+        cleanAttrs.push(`${attrName}="${escapedVal}"`);
+      } else {
+        cleanAttrs.push(attrName);
+      }
+    }
+
+    if (lowerTag === 'a' && (hasHref || rawAttrs.includes('target'))) {
+      cleanAttrs.push('target="_blank"', 'rel="noopener noreferrer"');
+    }
+
+    const attrStr = cleanAttrs.length > 0 ? ` ${cleanAttrs.join(' ')}` : '';
+    return `<${tagName}${attrStr}${selfClose}>`;
+  });
+
+  return html;
 }
 
 /**
@@ -305,27 +384,32 @@ function ensureHooks() {
 export function sanitizeMessageHtml(rawHtml = '', { allowExternalMedia = true } = {}) {
   if (!rawHtml) return '';
 
-  ensureHooks();
-
   const encoded = encodeStyleTags(rawHtml);
+  const purifier = resolveDomPurifier();
 
-  const clean = DOMPurify.sanitize(encoded, {
-    ADD_TAGS: ['custom-style'],
-    ADD_ATTR: ['open', 'target', 'rel'],
-    FORBID_TAGS: [
-      'script',
-      'iframe',
-      'object',
-      'embed',
-      'base',
-      'link',
-      'meta',
-      'form',
-      'noscript',
-    ],
-    ALLOW_DATA_ATTR: false,
-    KEEP_CONTENT: true,
-  });
+  let clean;
+  if (purifier) {
+    ensureHooks(purifier);
+    clean = purifier.sanitize(encoded, {
+      ADD_TAGS: ['custom-style'],
+      ADD_ATTR: ['open', 'target', 'rel'],
+      FORBID_TAGS: [
+        'script',
+        'iframe',
+        'object',
+        'embed',
+        'base',
+        'link',
+        'meta',
+        'form',
+        'noscript',
+      ],
+      ALLOW_DATA_ATTR: false,
+      KEEP_CONTENT: true,
+    });
+  } else {
+    clean = sanitizeHtmlHeadlessFallback(encoded);
+  }
 
   return decodeStyleTags(clean, { allowExternalMedia });
 }

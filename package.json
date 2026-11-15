@@ -10,6 +10,7 @@
     "dev:client": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "node --import ./tests/setupAliases.js --test \"tests/*.test.js\"",
     "start": "node server/index.js --open",
     "preview": "vite preview --host 0.0.0.0 --open http://localhost:4173"
   },
