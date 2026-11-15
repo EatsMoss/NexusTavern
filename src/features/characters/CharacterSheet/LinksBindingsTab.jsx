@@ -38,6 +38,15 @@ export function LinksBindingsTab({
   onUnbindPersona,
   onUnbindAllPersonas,
   onSelectActivePersona,
+  openaiPresets = [],
+  starredPresets = [],
+  onToggleStarPreset,
+  activePresetName = '',
+  boundPresetName = '',
+  onBindPreset,
+  onUnbindPreset,
+  onActivatePreset,
+  onOpenPresetInspector,
   onChangePrimaryWorld,
   onAddAuxWorld,
   onRemoveAuxWorld,
@@ -99,6 +108,28 @@ export function LinksBindingsTab({
           meta: p.isActive ? 'Active' : '',
         })),
     [personas, avatar],
+  );
+
+  const boundPresetObj = useMemo(
+    () => openaiPresets.find((p) => p.name === boundPresetName) || null,
+    [openaiPresets, boundPresetName],
+  );
+
+  const presetPickerOptions = useMemo(
+    () =>
+      openaiPresets
+        .filter((p) => p.name !== boundPresetName)
+        .map((p) => ({
+          value: p.name,
+          label: p.name,
+          meta:
+            p.name === activePresetName
+              ? 'Active'
+              : p.promptsCount !== undefined
+                ? `${p.promptsCount} prompts`
+                : '',
+        })),
+    [openaiPresets, boundPresetName, activePresetName],
   );
 
   const primaryWorld = String(card?.extensions?.world || '').trim();
@@ -352,6 +383,109 @@ export function LinksBindingsTab({
               allowStars={false}
               placeholder="+ Bind Persona to Scenario..."
               searchPlaceholder="Search personas..."
+            />
+          )}
+        </div>
+      </FolderCard>
+
+      <FolderCard
+        title="Bound Completion Preset"
+        subtitle={
+          boundPresetName
+            ? `Auto-activates "${boundPresetName}" when opening this scenario`
+            : 'Auto-switch prompt preset when opening this scenario'
+        }
+        icon="sliders"
+        defaultOpen
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {boundPresetName ? (
+            <div className="bb-cs-persona-list">
+              <div className="bb-cs-persona-row">
+                <button
+                  type="button"
+                  className="bb-cs-persona-row__main"
+                  title={
+                    boundPresetName === activePresetName
+                      ? `"${boundPresetName}" is currently active`
+                      : `Click to activate "${boundPresetName}" now`
+                  }
+                  onClick={() => {
+                    if (boundPresetObj && boundPresetName !== activePresetName) {
+                      onActivatePreset?.(boundPresetName);
+                    }
+                  }}
+                >
+                  <span
+                    className={`bb-cs-preset-row__icon ${
+                      boundPresetName === activePresetName ? 'is-active' : ''
+                    }`}
+                  >
+                    <Icon name="sliders" size={17} />
+                  </span>
+                  <span className="bb-cs-preset-row__info">
+                    <span className="bb-cs-persona-row__name">{boundPresetName}</span>
+                    <span className="bb-cs-preset-row__sub">
+                      {boundPresetObj
+                        ? boundPresetObj.promptsCount !== undefined
+                          ? `${boundPresetObj.promptsCount} prompt blocks`
+                          : 'Chat Completion Preset'
+                        : 'Preset file not found on disk'}
+                    </span>
+                  </span>
+                  {boundPresetName === activePresetName && (
+                    <span className="bb-cs-badge">Active</span>
+                  )}
+                </button>
+                <div className="bb-cs-preset-row__actions">
+                  {onOpenPresetInspector && boundPresetObj && (
+                    <Button
+                      variant="b2"
+                      size="sm"
+                      icon="sliders"
+                      disabled={busyAction}
+                      title="Open Prompts inspector"
+                      onClick={() => {
+                        if (boundPresetName !== activePresetName) {
+                          onActivatePreset?.(boundPresetName);
+                        }
+                        onOpenPresetInspector();
+                      }}
+                    />
+                  )}
+                  <Button
+                    variant="b2"
+                    size="sm"
+                    icon="unlink"
+                    disabled={busyAction}
+                    title={`Unbind "${boundPresetName}" from this scenario`}
+                    onClick={() => onUnbindPreset?.()}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bb-caption-text">
+              No completion preset is bound to this scenario.
+            </div>
+          )}
+
+          {presetPickerOptions.length > 0 && (
+            <Dropdown
+              options={presetPickerOptions}
+              value=""
+              onChange={(presetName) => {
+                if (presetName) onBindPreset?.(presetName);
+              }}
+              starredValues={starredPresets}
+              onToggleStar={onToggleStarPreset}
+              allowStars={Boolean(onToggleStarPreset)}
+              placeholder={
+                boundPresetName
+                  ? 'Switch Bound Preset...'
+                  : '+ Bind Preset to Scenario...'
+              }
+              searchPlaceholder="Search presets..."
             />
           )}
         </div>

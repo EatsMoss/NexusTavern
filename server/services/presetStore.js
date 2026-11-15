@@ -327,6 +327,30 @@ async function writePresetsMetaStore(store) {
   await writeFileAtomic(PRESETS_META_FILE, JSON.stringify(store, null, 2), 'utf8');
 }
 
+function normalizeCharacterBindingsMap(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const [rawAvatar, rawPreset] of Object.entries(raw)) {
+    const safeAvatar = path.basename(String(rawAvatar || '').trim());
+    const cleanPreset = String(rawPreset || '').trim();
+    if (safeAvatar && cleanPreset) {
+      out[safeAvatar] = cleanPreset;
+    }
+  }
+  return out;
+}
+
+function listBoundCharactersForPreset(characterBindings, presetName) {
+  if (!characterBindings || !presetName) return [];
+  const out = [];
+  for (const [avatar, boundName] of Object.entries(characterBindings)) {
+    if (boundName === presetName) {
+      out.push(avatar);
+    }
+  }
+  return out;
+}
+
 export function getCategoryPresetsMeta(category) {
   const cfg = resolveCategoryConfig(category);
   const store = readPresetsMetaStore();
@@ -338,6 +362,7 @@ export function getCategoryPresetsMeta(category) {
       catMeta.presetFolders && typeof catMeta.presetFolders === 'object'
         ? { ...catMeta.presetFolders }
         : {},
+    characterBindings: normalizeCharacterBindingsMap(catMeta.characterBindings),
   };
 }
 
@@ -358,6 +383,7 @@ export async function updateCategoryPresetsMeta(category, patch = {}) {
   let starred = [...current.starred];
   let folders = [...current.folders];
   const presetFolders = { ...current.presetFolders };
+  let characterBindings = { ...current.characterBindings };
 
   if (Array.isArray(patch.starred)) {
     starred = Array.from(new Set(patch.starred.map(String).filter(Boolean)));
@@ -425,15 +451,110 @@ export async function updateCategoryPresetsMeta(category, patch = {}) {
     }
   }
 
+  if (patch.characterBindings && typeof patch.characterBindings === 'object') {
+    characterBindings = normalizeCharacterBindingsMap(patch.characterBindings);
+  }
+
+  if (patch.bindCharacter && typeof patch.bindCharacter === 'object') {
+    const safeAvatar = path.basename(String(patch.bindCharacter.avatar || '').trim());
+    const cleanPreset =
+      patch.bindCharacter.presetName === null || patch.bindCharacter.presetName === undefined
+        ? ''
+        : String(patch.bindCharacter.presetName).trim();
+    if (safeAvatar) {
+      if (!cleanPreset) {
+        delete characterBindings[safeAvatar];
+      } else {
+        characterBindings[safeAvatar] = cleanPreset;
+      }
+    }
+  }
+
+  if (typeof patch.unbindPresetCharacters === 'string' && patch.unbindPresetCharacters.trim()) {
+    const targetPreset = patch.unbindPresetCharacters.trim();
+    for (const [av, boundPreset] of Object.entries(characterBindings)) {
+      if (boundPreset === targetPreset) {
+        delete characterBindings[av];
+      }
+    }
+  }
+
   store.categories[cfg.id] = {
     starred,
     folders,
     presetFolders,
+    characterBindings,
   };
 
   await writePresetsMetaStore(store);
   categoryListCache.delete(cfg.id);
   return getCategoryPresetsMeta(cfg.id);
+}
+
+/**
+ * Copies character preset bindings when a character card is duplicated.
+ */
+export async function duplicateCharacterPresetBindings(srcAvatar, destAvatar) {
+  const safeSrc = path.basename(String(srcAvatar || '').trim());
+  const safeDest = path.basename(String(destAvatar || '').trim());
+  if (!safeSrc || !safeDest || safeSrc === safeDest) return;
+
+  const store = readPresetsMetaStore();
+  let dirty = false;
+
+  for (const catKey of Object.keys(store.categories || {})) {
+    const catMeta = store.categories[catKey];
+    if (!catMeta || typeof catMeta !== 'object') continue;
+    const bindings = normalizeCharacterBindingsMap(catMeta.characterBindings);
+    if (bindings[safeSrc]) {
+      bindings[safeDest] = bindings[safeSrc];
+      catMeta.characterBindings = bindings;
+      categoryListCache.delete(catKey);
+      dirty = true;
+    }
+  }
+
+  if (dirty) {
+    await writePresetsMetaStore(store);
+  }
+}
+
+/**
+ * Removes character preset bindings when one or more character cards are deleted.
+ */
+export async function removeCharacterPresetBindings(avatarFilenames = []) {
+  if (!Array.isArray(avatarFilenames) || avatarFilenames.length === 0) return;
+  const targets = new Set(
+    avatarFilenames
+      .map((raw) => path.basename(String(raw || '').trim()))
+      .filter(Boolean),
+  );
+  if (targets.size === 0) return;
+
+  const store = readPresetsMetaStore();
+  let dirty = false;
+
+  for (const catKey of Object.keys(store.categories || {})) {
+    const catMeta = store.categories[catKey];
+    if (!catMeta || typeof catMeta !== 'object' || !catMeta.characterBindings) continue;
+    const bindings = normalizeCharacterBindingsMap(catMeta.characterBindings);
+    let catDirty = false;
+    for (const av of targets) {
+      if (Object.prototype.hasOwnProperty.call(bindings, av)) {
+        delete bindings[av];
+        catDirty = true;
+      }
+    }
+    if (catDirty) {
+      catMeta.characterBindings = bindings;
+      categoryListCache.delete(catKey);
+      dirty = true;
+    }
+  }
+
+  if (dirty) {
+    await writePresetsMetaStore(store);
+  }
 }
 
 /**
@@ -457,6 +578,7 @@ function buildPresetSummary(category, fileName, stat, data, catMeta = null) {
     updatedAtMs: Math.round(stat.mtimeMs),
     folderId: catMeta?.presetFolders?.[name] || null,
     starred: Array.isArray(catMeta?.starred) ? catMeta.starred.includes(name) : false,
+    boundCharacters: listBoundCharactersForPreset(catMeta?.characterBindings, name),
   };
 
   if (category === 'openai' && data && typeof data === 'object') {
@@ -514,6 +636,7 @@ export function listCategoryPresets(category) {
       ...item,
       folderId: catMeta.presetFolders?.[item.name] || null,
       starred: catMeta.starred.includes(item.name),
+      boundCharacters: listBoundCharactersForPreset(catMeta.characterBindings, item.name),
     }));
     return {
       category: cfg.id,
@@ -1029,6 +1152,38 @@ export async function renamePresetByName(category, oldNameOrFile, newNameRaw) {
   categoryListCache.delete(cfg.id);
 
   const oldBaseName = path.basename(oldPath).replace(/\.(json|settings)$/i, '');
+  if (oldBaseName !== newBaseName) {
+    const store = readPresetsMetaStore();
+    const catMeta = store.categories?.[cfg.id];
+    if (catMeta && typeof catMeta === 'object') {
+      let metaDirty = false;
+      if (Array.isArray(catMeta.starred) && catMeta.starred.includes(oldBaseName)) {
+        catMeta.starred = Array.from(
+          new Set(catMeta.starred.map((s) => (s === oldBaseName ? newBaseName : s))),
+        );
+        metaDirty = true;
+      }
+      if (catMeta.presetFolders && catMeta.presetFolders[oldBaseName]) {
+        catMeta.presetFolders[newBaseName] = catMeta.presetFolders[oldBaseName];
+        delete catMeta.presetFolders[oldBaseName];
+        metaDirty = true;
+      }
+      if (catMeta.characterBindings && typeof catMeta.characterBindings === 'object') {
+        const bindings = normalizeCharacterBindingsMap(catMeta.characterBindings);
+        for (const [av, boundName] of Object.entries(bindings)) {
+          if (boundName === oldBaseName) {
+            bindings[av] = newBaseName;
+            metaDirty = true;
+          }
+        }
+        catMeta.characterBindings = bindings;
+      }
+      if (metaDirty) {
+        await writePresetsMetaStore(store);
+      }
+    }
+  }
+
   const currentSettings = getConnectionAndPresetSettings();
   if (currentSettings.activePresets?.[cfg.id] === oldBaseName) {
     await updateConnectionAndPresetSettings({
@@ -1180,7 +1335,7 @@ export function deletePresetByName(category, nameOrFile) {
   presetFileCache.delete(filePath);
   categoryListCache.delete(cfg.id);
 
-  // Clean up folder/star references in presets-meta.json if present
+  // Clean up folder/star/character-binding references in presets-meta.json if present
   try {
     const store = readPresetsMetaStore();
     const catMeta = store.categories?.[cfg.id];
@@ -1190,6 +1345,13 @@ export function deletePresetByName(category, nameOrFile) {
       }
       if (catMeta.presetFolders && catMeta.presetFolders[baseName]) {
         delete catMeta.presetFolders[baseName];
+      }
+      if (catMeta.characterBindings && typeof catMeta.characterBindings === 'object') {
+        for (const [av, boundName] of Object.entries(catMeta.characterBindings)) {
+          if (boundName === baseName) {
+            delete catMeta.characterBindings[av];
+          }
+        }
       }
       fs.writeFileSync(PRESETS_META_FILE, JSON.stringify(store, null, 2), 'utf8');
     }

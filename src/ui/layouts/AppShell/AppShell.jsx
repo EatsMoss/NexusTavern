@@ -87,6 +87,7 @@ import {
   importPresetFiles,
   bulkRemovePresetFiles,
   patchCategoryPresetsMeta,
+  resolveCharacterBoundPreset,
 } from '@core/presets/presetsApi.js';
 import {
   fetchApiHubState,
@@ -484,9 +485,11 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   });
   const [starredPresets, setStarredPresets] = useState([]);
   const [presetCategoryMeta, setPresetCategoryMeta] = useState({
-    openai: { starred: [], folders: [], presetFolders: {} },
-    textgen: { starred: [], folders: [], presetFolders: {} },
+    openai: { starred: [], folders: [], presetFolders: {}, characterBindings: {} },
+    textgen: { starred: [], folders: [], presetFolders: {}, characterBindings: {} },
   });
+  const [presetsBootDone, setPresetsBootDone] = useState(false);
+  const lastAutoPresetCardRef = useRef('');
   const [cleanOpenaiSnapshot, setCleanOpenaiSnapshot] = useState('');
   const [cleanTextgenSnapshot, setCleanTextgenSnapshot] = useState('');
   const [activeOpenaiDoc, setActiveOpenaiDoc] = useState(null);
@@ -647,6 +650,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         }
       }
       presetsBootReadyRef.current = true;
+      setPresetsBootDone(true);
     } catch {
       // Keep fallback UI state if server is unreachable
     }
@@ -875,6 +879,83 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     }
     return false;
   }, [mainApi, activeOpenaiDoc, activeTextgenDoc, cleanOpenaiSnapshot, cleanTextgenSnapshot]);
+
+  const handleBindPresetToCharacter = useCallback(
+    async (avatar, presetName, category = 'openai') => {
+      const cleanAvatar = String(avatar || '').trim();
+      if (!cleanAvatar) return;
+      const cleanPreset = presetName ? String(presetName).trim() : '';
+      await handlePresetMetaPatch(category, {
+        bindCharacter: {
+          avatar: cleanAvatar,
+          presetName: cleanPreset || null,
+        },
+      });
+      if (
+        cleanPreset &&
+        cleanAvatar === selectedCardId &&
+        activePresets[category] !== cleanPreset &&
+        !isCurrentPresetDirty
+      ) {
+        await handleSelectPreset(category, cleanPreset);
+      }
+    },
+    [selectedCardId, activePresets, isCurrentPresetDirty],
+  );
+
+  const handleUnbindAllCharactersFromPreset = useCallback(
+    async (presetName, category = 'openai') => {
+      const cleanPreset = String(presetName || '').trim();
+      if (!cleanPreset) return;
+      await handlePresetMetaPatch(category, {
+        unbindPresetCharacters: cleanPreset,
+      });
+    },
+    [],
+  );
+
+  // Auto-activate character-bound preset whenever the active scenario changes
+  useEffect(() => {
+    if (!presetsBootDone || !selectedCardId || isDemoCardId(selectedCardId)) {
+      return;
+    }
+    if (lastAutoPresetCardRef.current === selectedCardId) {
+      return;
+    }
+    lastAutoPresetCardRef.current = selectedCardId;
+
+    const activeCategory = mainApi === 'openai' ? 'openai' : 'textgen';
+    const bindings = presetCategoryMeta[activeCategory]?.characterBindings || {};
+    const boundPreset = resolveCharacterBoundPreset(bindings, selectedCardId);
+    if (!boundPreset) return;
+
+    const list = activeCategory === 'openai' ? openaiPresets : textgenPresets;
+    const exists = list.some((p) => p.name === boundPreset);
+    if (!exists || activePresets[activeCategory] === boundPreset) {
+      return;
+    }
+
+    if (isCurrentPresetDirty) {
+      pushToast({
+        variant: 'info',
+        icon: 'sliders',
+        message: `Kept unsaved preset draft (bound preset "${boundPreset}" was not auto-applied)`,
+      });
+      return;
+    }
+
+    handleSelectPreset(activeCategory, boundPreset);
+  }, [
+    presetsBootDone,
+    selectedCardId,
+    mainApi,
+    presetCategoryMeta,
+    openaiPresets,
+    textgenPresets,
+    activePresets,
+    isCurrentPresetDirty,
+    pushToast,
+  ]);
 
   // Persist unsaved prompt/sampler changes for the active preset (without overwriting its .json file)
   useEffect(() => {
@@ -2836,7 +2917,10 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       setGalleryStatus(`Duplicating ${id}...`);
       try {
         const cloned = await duplicateCharacterCard(id);
-        await loadCardsAndPersonas();
+        await Promise.all([
+          loadCardsAndPersonas(),
+          refreshCategoryListState('openai').catch(() => null),
+        ]);
         setGalleryStatus(cloned ? `Duplicated as ${cloned.avatar}` : 'Duplicated');
       } catch (err) {
         setGalleryStatus(`Duplicate failed: ${err.message}`);
@@ -3318,7 +3402,10 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           } else {
             await deleteCharacterCard(id, { deleteChats });
           }
-          await loadCardsAndPersonas();
+          await Promise.all([
+            loadCardsAndPersonas(),
+            refreshCategoryListState('openai').catch(() => null),
+          ]);
           pushToast({
             variant: 'info',
             icon: 'trash',
@@ -3608,7 +3695,10 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
           groupIds: serverGroups,
           deleteChats,
         });
-        await loadCardsAndPersonas();
+        await Promise.all([
+          loadCardsAndPersonas(),
+          refreshCategoryListState('openai').catch(() => null),
+        ]);
         setGalleryStatus(`Deleted ${items.length} item(s)`);
       } catch (err) {
         setGalleryStatus(`Bulk delete failed: ${err.message}`);
@@ -5804,6 +5894,28 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       onUnbindPersona: handleUnbindPersonaFromActiveCard,
       onUnbindAllPersonas: handleUnbindAllPersonasFromActiveCard,
       onSelectActivePersona: handleSelectPersona,
+      openaiPresets,
+      starredPresets: presetCategoryMeta.openai?.starred || starredPresets,
+      onToggleStarPreset: (val) => handlePresetMetaPatch('openai', { toggleStar: val }),
+      activePresetName: activePresets?.openai || '',
+      boundPresetName: resolveCharacterBoundPreset(
+        presetCategoryMeta.openai?.characterBindings,
+        activeCardFull?.avatar || selectedCardId,
+      ),
+      onBindPreset: (presetName) =>
+        handleBindPresetToCharacter(
+          activeCardFull?.avatar || selectedCardId,
+          presetName,
+          'openai',
+        ),
+      onUnbindPreset: () =>
+        handleBindPresetToCharacter(
+          activeCardFull?.avatar || selectedCardId,
+          null,
+          'openai',
+        ),
+      onActivatePreset: (presetName) => handleSelectPreset('openai', presetName),
+      onOpenPresetInspector: () => setRightTab('aiconfig'),
       onChangePrimaryWorld: handleChangePrimaryWorld,
       onAddAuxWorld: (wName) => {
         const cur = Array.isArray(activeCardFull?.auxWorlds)
@@ -6348,6 +6460,28 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
                 activeModelMeta={activeModelMeta}
                 editingPromptSelection={editingPromptSelection}
                 onChangeEditingPromptSelection={handleChangeEditingPromptSelection}
+                cards={cards}
+                activeCharacter={activeCharacter}
+                hasActiveScenario={hasActiveScenario}
+                characterBindings={
+                  mainApi === 'openai'
+                    ? presetCategoryMeta.openai?.characterBindings || {}
+                    : presetCategoryMeta.textgen?.characterBindings || {}
+                }
+                onBindCharacterPreset={(avatar, presetName) =>
+                  handleBindPresetToCharacter(
+                    avatar,
+                    presetName,
+                    mainApi === 'openai' ? 'openai' : 'textgen',
+                  )
+                }
+                onUnbindAllCharactersFromPreset={(presetName) =>
+                  handleUnbindAllCharactersFromPreset(
+                    presetName,
+                    mainApi === 'openai' ? 'openai' : 'textgen',
+                  )
+                }
+                onSelectCharacter={handleSelectCard}
               />
             )}
 

@@ -82,6 +82,8 @@ export function Dropdown({
   onAssignFolder,
   enableBulkEdit = false,
   onBulkDelete,
+  renderTriggerTail,
+  renderOptionTail,
   placeholder = 'Select an option...',
   searchPlaceholder = 'Filter options...',
   disabled = false,
@@ -383,6 +385,15 @@ export function Dropdown({
             )}
           </div>
         )}
+
+        {!bulkMode && renderOptionTail && (
+          <div
+            className="bb-dropdown-item-tail"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {renderOptionTail(opt, { isSelected, isStarred })}
+          </div>
+        )}
       </div>
     );
   };
@@ -525,7 +536,10 @@ export function Dropdown({
           )}
           <span>{selectedOption ? selectedOption.label : placeholder}</span>
         </span>
-        <Icon name="chevronDown" size={16} className="bb-custom-select-trigger-caret" />
+        <span className="bb-custom-select-trigger-right">
+          {renderTriggerTail ? renderTriggerTail(selectedOption) : null}
+          <Icon name="chevronDown" size={16} className="bb-custom-select-trigger-caret" />
+        </span>
       </button>
       {hint && <span className="bb-dropdown-hint">{hint}</span>}
 

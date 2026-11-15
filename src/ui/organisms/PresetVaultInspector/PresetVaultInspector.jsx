@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { Button } from '../../atoms/Button/Button.jsx';
 import { ProgressIndicator } from '../../atoms/ProgressIndicator/ProgressIndicator.jsx';
@@ -6,6 +6,11 @@ import { BookmarkRibbons } from '../../molecules/BookmarkRibbons/BookmarkRibbons
 import { FolderCard } from '../../molecules/FolderCard/FolderCard.jsx';
 import { Dropdown } from '../../molecules/Dropdown/Dropdown.jsx';
 import { KebabMenu } from '../../molecules/KebabMenu/KebabMenu.jsx';
+import { AvatarStack } from '../../molecules/AvatarStack/AvatarStack.jsx';
+import {
+  ScenarioLinkActionButton,
+  ScenarioBindingBar,
+} from '../../molecules/ScenarioBindingBar/ScenarioBindingBar.jsx';
 import { PromptManager } from '../PromptManager/PromptManager.jsx';
 import { PresetSamplersTab } from './PresetSamplersTab.jsx';
 import { PresetPromptsUtilities } from './PresetPromptsUtilities.jsx';
@@ -101,6 +106,13 @@ export function PresetVaultInspector({
   activeModelMeta = null,
   editingPromptSelection = null,
   onChangeEditingPromptSelection,
+  cards = [],
+  activeCharacter = null,
+  hasActiveScenario = false,
+  characterBindings = {},
+  onBindCharacterPreset,
+  onUnbindAllCharactersFromPreset,
+  onSelectCharacter,
 }) {
   const [internalAiSubTab, setInternalAiSubTab] = useState('prompts'); // 'prompts' | 'samplers'
   const rawSubTab = controlledAiSubTab || internalAiSubTab;
@@ -122,6 +134,50 @@ export function PresetVaultInspector({
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 
   const fileInputRef = useRef(null);
+
+  const cardsByAvatar = useMemo(() => {
+    const map = new Map();
+    for (const c of cards) {
+      const av = c?.avatar || c?.id;
+      if (av) map.set(av, c);
+    }
+    return map;
+  }, [cards]);
+
+  const boundScenariosByPreset = useMemo(() => {
+    const byPreset = new Map();
+    if (!characterBindings || typeof characterBindings !== 'object') return byPreset;
+    for (const [avatar, presetName] of Object.entries(characterBindings)) {
+      if (!avatar || !presetName) continue;
+      const cardObj = cardsByAvatar.get(avatar);
+      if (!cardObj) continue;
+      const list = byPreset.get(presetName) || [];
+      list.push(cardObj);
+      byPreset.set(presetName, list);
+    }
+    return byPreset;
+  }, [characterBindings, cardsByAvatar]);
+
+  const enrichedAvailableScenarios = useMemo(
+    () =>
+      cards
+        .filter((c) => c && (c.avatar || c.id) && !String(c.id || '').startsWith('c_'))
+        .map((c) => {
+          const av = c.avatar || c.id;
+          return {
+            ...c,
+            boundPresetName: characterBindings?.[av] || '',
+          };
+        }),
+    [cards, characterBindings],
+  );
+
+  const effectiveActiveScenario = useMemo(() => {
+    if (!hasActiveScenario || !activeCharacter) return null;
+    const av = activeCharacter.avatar || activeCharacter.id || '';
+    if (!av || av.startsWith('c_')) return null;
+    return cardsByAvatar.get(av) || activeCharacter;
+  }, [hasActiveScenario, activeCharacter, cardsByAvatar]);
 
   if (mode === 'aiconfig') {
     const isOpenai = true;
@@ -317,7 +373,80 @@ export function PresetVaultInspector({
               }
               enableBulkEdit
               onBulkDelete={(names) => onBulkDeletePresets?.(currentCategory, names)}
+              renderTriggerTail={() => {
+                const selectedBound =
+                  boundScenariosByPreset.get(currentSelectedName) || [];
+                if (selectedBound.length === 0) return null;
+                return (
+                  <AvatarStack
+                    size={20}
+                    maxVisible={3}
+                    overlap={0.35}
+                    items={selectedBound.map((sc) => ({
+                      id: sc.avatar || sc.id,
+                      name: sc.name || sc.avatar,
+                      initials: sc.initials,
+                      avatarUrl: sc.thumbnailUrl || sc.avatarUrl || null,
+                      title: `Bound to ${sc.name || sc.avatar}`,
+                    }))}
+                  />
+                );
+              }}
+              renderOptionTail={(opt) => {
+                const rowBound = boundScenariosByPreset.get(opt.value) || [];
+                const activeAv =
+                  effectiveActiveScenario?.avatar || effectiveActiveScenario?.id || '';
+                const activeCurrentPreset = activeAv
+                  ? characterBindings?.[activeAv] || ''
+                  : '';
+                return (
+                  <ScenarioLinkActionButton
+                    targetLabel={opt.label}
+                    linkedScenarios={rowBound}
+                    activeScenario={effectiveActiveScenario}
+                    activeScenarioBoundOther={
+                      activeCurrentPreset && activeCurrentPreset !== opt.value
+                        ? activeCurrentPreset
+                        : ''
+                    }
+                    onToggleActiveScenario={
+                      activeAv && onBindCharacterPreset
+                        ? (nextBound) =>
+                            onBindCharacterPreset(
+                              activeAv,
+                              nextBound ? opt.value : null,
+                            )
+                        : undefined
+                    }
+                  />
+                );
+              }}
             />
+
+            {currentSelectedName && (
+              <ScenarioBindingBar
+                entityName={currentSelectedName}
+                linkedScenarios={boundScenariosByPreset.get(currentSelectedName) || []}
+                availableScenarios={enrichedAvailableScenarios}
+                activeScenario={effectiveActiveScenario}
+                activeScenarioBoundOther={(() => {
+                  const activeAv =
+                    effectiveActiveScenario?.avatar || effectiveActiveScenario?.id || '';
+                  const cur = activeAv ? characterBindings?.[activeAv] || '' : '';
+                  return cur && cur !== currentSelectedName ? cur : '';
+                })()}
+                onBindScenario={(av) =>
+                  onBindCharacterPreset?.(av, currentSelectedName)
+                }
+                onUnbindScenario={(av) => onBindCharacterPreset?.(av, null)}
+                onUnbindAll={
+                  onUnbindAllCharactersFromPreset
+                    ? () => onUnbindAllCharactersFromPreset(currentSelectedName)
+                    : undefined
+                }
+                onSelectScenario={onSelectCharacter}
+              />
+            )}
             {isPresetDirty && (
               <div className="bb-preset-dirty-banner">
                 <span>Unsaved changes in “{currentSelectedName}”</span>

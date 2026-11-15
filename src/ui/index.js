@@ -67,6 +67,10 @@ export {
 } from './molecules/AttachmentPreview/attachmentModel.js';
 export { AvatarStack } from './molecules/AvatarStack/AvatarStack.jsx';
 export {
+  ScenarioLinkActionButton,
+  ScenarioBindingBar,
+} from './molecules/ScenarioBindingBar/ScenarioBindingBar.jsx';
+export {
   FloatingPalette,
   FloatingPaletteButton,
   FloatingPaletteDivider,

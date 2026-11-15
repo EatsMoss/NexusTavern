@@ -45,6 +45,10 @@ import {
 import { ensureThumbnailFile } from '../services/thumbnails.js';
 import { invalidateChatStoreCaches } from '../services/chatStore.js';
 import { readSession, saveSession } from '../services/sessionStore.js';
+import {
+  duplicateCharacterPresetBindings,
+  removeCharacterPresetBindings,
+} from '../services/presetStore.js';
 
 export const charactersRouter = Router();
 
@@ -255,6 +259,7 @@ charactersRouter.post('/bulk/delete', async (req, res) => {
       invalidateChatStoreCaches();
     }
     if (cardResult.deleted.length > 0) {
+      await removeCharacterPresetBindings(cardResult.deleted).catch(() => {});
       const clearMap = {};
       for (const av of cardResult.deleted) clearMap[av] = null;
       const curSession = readSession();
@@ -355,6 +360,9 @@ charactersRouter.get('/:avatar/export', (req, res) => {
 charactersRouter.post('/:avatar/duplicate', async (req, res) => {
   try {
     const card = await duplicateCharacterCard(req.params.avatar);
+    if (card?.avatar) {
+      await duplicateCharacterPresetBindings(req.params.avatar, card.avatar).catch(() => {});
+    }
     res.json({ ok: true, card });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -574,6 +582,7 @@ charactersRouter.delete('/:avatar', async (req, res) => {
     if (deleteChats) {
       invalidateChatStoreCaches();
     }
+    await removeCharacterPresetBindings(result.deleted).catch(() => {});
     const clearMap = {};
     for (const av of result.deleted) clearMap[av] = null;
     const curSession = readSession();

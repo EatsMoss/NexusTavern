@@ -24,6 +24,8 @@ import {
   ConnectionModelPicker,
   PersonaChip,
   AvatarStack,
+  ScenarioLinkActionButton,
+  ScenarioBindingBar,
   Tooltip,
   ModelIcon,
   ToastStack,
@@ -138,6 +140,30 @@ export function AtomsMoleculesShowcase() {
     },
   ];
   const [sandboxAttachments, setSandboxAttachments] = useState(INITIAL_DEMO_ATTACHMENTS);
+  const demoBindScenarios = [
+    {
+      avatar: 'elowen.png',
+      name: 'Elowen Vane',
+      initials: 'EV',
+      avatarUrl:
+        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="120"><rect width="80" height="120" fill="%2336426e"/><circle cx="40" cy="38" r="16" fill="%23e5e9ff"/><path d="M16 98c4-22 14-34 24-34s20 12 24 34" fill="%23e5e9ff"/></svg>',
+    },
+    {
+      avatar: 'seraphina.png',
+      name: 'Seraphina',
+      initials: 'SR',
+      avatarUrl:
+        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="120"><rect width="80" height="120" fill="%236a3c58"/><circle cx="40" cy="38" r="16" fill="%23ffe4f2"/><path d="M16 98c4-22 14-34 24-34s20 12 24 34" fill="%23ffe4f2"/></svg>',
+    },
+    {
+      avatar: 'alden.png',
+      name: 'Alden Thorne',
+      initials: 'AT',
+      avatarUrl:
+        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="120"><rect width="80" height="120" fill="%237a5240"/><circle cx="40" cy="38" r="16" fill="%23ffe7d6"/><path d="M16 98c4-22 14-34 24-34s20 12 24 34" fill="%23ffe7d6"/></svg>',
+    },
+  ];
+  const [demoBoundAvatars, setDemoBoundAvatars] = useState(['elowen.png', 'seraphina.png']);
   const {
     toasts: sandboxToasts,
     pushToast: pushSandboxToast,
@@ -1018,6 +1044,66 @@ export function AtomsMoleculesShowcase() {
               { id: 'g2', name: 'Seraphina', initials: 'SR' },
               { id: 'g3', name: 'Alden', initials: 'AT' },
             ]}
+          />
+        </div>
+      </FolderCard>
+
+      <FolderCard
+        title="ScenarioBindingBar & ScenarioLinkActionButton (Preset ↔ Scenario Bindings)"
+        subtitle="M3 circular row-tail link button (with +N badge) and tonal bound-scenarios chip strip"
+        icon="link"
+        defaultOpen
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="bb-caption-text">Row-tail badges:</span>
+            <ScenarioLinkActionButton
+              targetLabel="Prose Engine v3"
+              linkedScenarios={demoBindScenarios.filter((s) =>
+                demoBoundAvatars.includes(s.avatar),
+              )}
+              activeScenario={demoBindScenarios[0]}
+              onToggleActiveScenario={(next) =>
+                setDemoBoundAvatars((prev) =>
+                  next
+                    ? Array.from(new Set([...prev, 'elowen.png']))
+                    : prev.filter((x) => x !== 'elowen.png'),
+                )
+              }
+            />
+            <ScenarioLinkActionButton
+              targetLabel="Unbound Preset"
+              linkedScenarios={[]}
+              activeScenario={demoBindScenarios[0]}
+              onToggleActiveScenario={() =>
+                pushSandboxToast({
+                  variant: 'info',
+                  message: 'Toggled scenario link from row action button',
+                })
+              }
+            />
+          </div>
+
+          <ScenarioBindingBar
+            entityName="NexusTavern Prose v3"
+            linkedScenarios={demoBindScenarios.filter((s) =>
+              demoBoundAvatars.includes(s.avatar),
+            )}
+            availableScenarios={demoBindScenarios}
+            activeScenario={demoBindScenarios[0]}
+            onBindScenario={(av) =>
+              setDemoBoundAvatars((prev) => Array.from(new Set([...prev, av])))
+            }
+            onUnbindScenario={(av) =>
+              setDemoBoundAvatars((prev) => prev.filter((x) => x !== av))
+            }
+            onUnbindAll={() => setDemoBoundAvatars([])}
+            onSelectScenario={(av) =>
+              pushSandboxToast({
+                variant: 'info',
+                message: `Selected bound scenario: ${av}`,
+              })
+            }
           />
         </div>
       </FolderCard>

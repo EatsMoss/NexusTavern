@@ -121,13 +121,32 @@ export async function bulkRemovePresetFiles(category, names) {
 }
 
 /**
- * Updates preset organization metadata (folders, folder assignments, starred presets) for a category.
+ * Updates preset organization & character binding metadata for a category.
  */
 export async function patchCategoryPresetsMeta(category, patch) {
   return apiFetchJson(`/api/presets/${encodeURIComponent(category)}/meta`, {
     method: 'PATCH',
     body: patch,
   });
+}
+
+/**
+ * Resolves the preset name bound to a character avatar (`1 character -> max 1 preset`).
+ */
+export function resolveCharacterBoundPreset(characterBindings, cardAvatar) {
+  if (!characterBindings || typeof characterBindings !== 'object' || !cardAvatar) {
+    return '';
+  }
+  const cleanAvatar = String(cardAvatar).trim();
+  if (!cleanAvatar) return '';
+  if (characterBindings[cleanAvatar]) {
+    return String(characterBindings[cleanAvatar]);
+  }
+  const stem = cleanAvatar.replace(/\.(png|json)$/i, '');
+  if (stem && characterBindings[stem]) {
+    return String(characterBindings[stem]);
+  }
+  return '';
 }
 
 /**

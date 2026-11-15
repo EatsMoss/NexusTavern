@@ -1,0 +1,341 @@
+/* ==========================================================================
+   NEXUSTAVERN UI — SCENARIO BINDING BAR & ROW LINK BADGE (Pure M3)
+   ========================================================================== */
+
+.bb-scenario-link-btn {
+  appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--bb-control-height-sm, 28px);
+  height: var(--bb-control-height-sm, 28px);
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--md-sys-color-on-surface-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color var(--md-sys-motion-duration-short, 150ms) ease,
+    border-color var(--md-sys-motion-duration-short, 150ms) ease,
+    color var(--md-sys-motion-duration-short, 150ms) ease,
+    opacity var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.bb-scenario-link-btn.is-empty-link {
+  opacity: 0.42;
+}
+
+.bb-starred-dropdown-item:hover .bb-scenario-link-btn.is-empty-link,
+.bb-scenario-link-btn.is-empty-link:hover,
+.bb-scenario-link-btn.is-empty-link:focus-visible {
+  opacity: 1;
+}
+
+.bb-scenario-link-btn:hover:not(:disabled) {
+  background: var(--md-sys-color-surface-container-high);
+  border-color: var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface);
+}
+
+.bb-scenario-link-btn:disabled {
+  cursor: default;
+}
+
+.bb-scenario-link-btn__badge {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--md-sys-color-primary-container);
+  border: 1.5px solid var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-scenario-link-btn.is-linked-current .bb-scenario-link-btn__badge {
+  border-color: var(--md-sys-color-primary);
+}
+
+.bb-scenario-link-btn__img {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
+}
+
+.bb-scenario-link-btn__initials {
+  font-family: var(--bb-font-body);
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--md-sys-color-on-primary-container);
+  letter-spacing: 0.02em;
+}
+
+.bb-scenario-link-btn__more {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--md-sys-color-surface-container-highest);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--bb-font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bb-scenario-bind-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px 10px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface-container-low);
+}
+
+.bb-scenario-bind-bar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bb-scenario-bind-bar__title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bb-scenario-bind-bar__icon {
+  color: var(--md-sys-color-primary);
+  flex-shrink: 0;
+}
+
+.bb-scenario-bind-bar__title {
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-label-size);
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface);
+}
+
+.bb-scenario-bind-bar__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  background: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--bb-font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bb-scenario-bind-bar__actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.bb-scenario-bind-bar__quick-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: var(--bb-control-height-sm, 28px);
+  max-width: 210px;
+  padding: 0 10px 0 4px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.bb-scenario-bind-bar__quick-btn:hover:not(:disabled) {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+.bb-scenario-bind-bar__quick-btn.is-bound {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container) 55%,
+    var(--md-sys-color-surface-container-high)
+  );
+  border-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.bb-scenario-bind-bar__quick-btn.is-bound:hover:not(:disabled) {
+  border-color: var(--md-sys-color-error);
+  color: var(--md-sys-color-error);
+}
+
+.bb-scenario-bind-bar__quick-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--md-sys-color-primary-container);
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.bb-scenario-bind-bar__quick-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
+}
+
+.bb-scenario-bind-bar__quick-initials {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.bb-scenario-bind-bar__quick-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bb-scenario-bind-bar__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.bb-scenario-bind-chip {
+  display: inline-flex;
+  align-items: center;
+  height: var(--bb-control-height-sm, 28px);
+  max-width: 100%;
+  padding: 0 4px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.bb-scenario-bind-chip.is-current {
+  border-color: var(--md-sys-color-primary);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container) 45%,
+    var(--md-sys-color-surface-container-high)
+  );
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.bb-scenario-bind-chip__main {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px 0 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-label-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bb-scenario-bind-chip__avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--md-sys-color-primary-container);
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.bb-scenario-bind-chip__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
+}
+
+.bb-scenario-bind-chip__initials {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.bb-scenario-bind-chip__name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bb-scenario-bind-chip__rm {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  background: transparent;
+  color: var(--md-sys-color-on-surface-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.bb-scenario-bind-chip__rm:hover:not(:disabled) {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+.bb-scenario-bind-bar__empty {
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size);
+  color: var(--md-sys-color-on-surface-muted);
+  line-height: 1.35;
+}

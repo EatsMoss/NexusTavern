@@ -78,6 +78,13 @@
   flex-shrink: 0;
 }
 
+.bb-custom-select-trigger-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
 .bb-custom-select-trigger-caret {
   color: var(--bb-ink-muted);
   flex: 0 0 auto;
@@ -509,6 +516,13 @@
 .bb-dropdown-item-folder-wrap {
   position: relative;
   display: inline-flex;
+}
+
+.bb-dropdown-item-tail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .bb-dropdown-item-folder-btn {
