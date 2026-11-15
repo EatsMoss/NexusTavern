@@ -1634,7 +1634,7 @@ export async function streamChatGeneration({
   let finalCleanText = rawCleanText;
   let finalCleanReasoning = rawCleanReasoning;
 
-  if (!stoppedByUser && activeRegexScripts.length > 0) {
+  if (activeRegexScripts.length > 0) {
     if (finalCleanText && normalizedMode !== 'continue') {
       finalCleanText = applyRegexPipeline(finalCleanText, activeRegexScripts, {
         placement: REGEX_PLACEMENT.AI_OUTPUT,

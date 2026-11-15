@@ -415,6 +415,7 @@ export function shouldRunRegexScript(
     isMarkdown = false,
     isPrompt = false,
     isPermanent = false,
+    isStreaming = false,
     isEdit = false,
     depth = null,
   } = {},
@@ -432,7 +433,14 @@ export function shouldRunRegexScript(
     if (mdOnly || prOnly) return false;
     if (isEdit && !script.runOnEdit) return false;
   } else if (isMarkdown && !isPrompt) {
-    if (!mdOnly) return false;
+    if (isStreaming) {
+      // During live token streaming, server-side permanent persistence has not run yet,
+      // so both Visual (`markdownOnly`) and Permanent (`!mdOnly && !prOnly`) rules must execute live.
+      const isPermanentRule = !mdOnly && !prOnly;
+      if (!mdOnly && !isPermanentRule) return false;
+    } else if (!mdOnly) {
+      return false;
+    }
   } else if (isPrompt && !isMarkdown) {
     if (!prOnly) return false;
   }
@@ -456,6 +464,7 @@ export function applyRegexPipeline(
     isMarkdown = false,
     isPrompt = false,
     isPermanent = false,
+    isStreaming = false,
     isEdit = false,
     depth = null,
     charName = 'Character',
@@ -474,6 +483,7 @@ export function applyRegexPipeline(
         isMarkdown,
         isPrompt,
         isPermanent,
+        isStreaming,
         isEdit,
         depth,
       })

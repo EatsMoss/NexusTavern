@@ -8,7 +8,7 @@
   flex-direction: column;
   border-radius: var(--bb-control-radius, 8px);
   border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
-  background: var(--bb-sheet-bg, #1e1e25);
+  background: var(--bb-list-surface-bg, var(--bb-sheet-bg, #1e1e25));
   color: var(--bb-ink-main, var(--md-sys-color-on-surface));
   overflow: hidden;
 }
@@ -172,17 +172,15 @@
 .bb-rx-sheet__body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px 10px 12px;
+  gap: var(--bb-list-card-gap, 6px);
+  padding: 6px 12px 12px;
 }
 
 .bb-rx-folder {
   display: flex;
   flex-direction: column;
-  border-radius: var(--bb-control-radius, 8px);
-  background: var(--bb-sheet-well-bg, #131318);
-  border: 1px solid var(--bb-page-border, var(--md-sys-color-outline-variant));
-  overflow: hidden;
+  border: none;
+  background: transparent;
 }
 
 .bb-rx-folder__header {
@@ -190,15 +188,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 42px;
+  min-height: var(--bb-list-row-height, 42px);
   padding: 6px 10px;
-  background: var(--bb-sheet-header-bg, #18181e);
+  border-radius: var(--bb-list-card-radius, 6px);
+  border: 1px solid var(--bb-list-card-border, var(--md-sys-color-outline-variant));
+  background: var(--bb-list-card-bg, var(--bb-sheet-well-bg, #131318));
   cursor: pointer;
   user-select: none;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .bb-rx-folder__header:hover {
-  background: var(--bb-sheet-item-hover, #282832);
+  background: var(--bb-list-card-hover-bg, var(--bb-sheet-item-hover, #282832));
+  border-color: var(--bb-list-card-hover-border, var(--md-sys-color-outline));
 }
 
 .bb-rx-folder__left {
@@ -218,7 +220,8 @@
   color: var(--bb-ink-muted);
   padding: 1px 7px;
   border-radius: 999px;
-  background: var(--bb-btn-flat-bg, #2f2f37);
+  border: 1px solid var(--bb-list-card-border, var(--md-sys-color-outline-variant));
+  background: var(--bb-list-surface-bg, var(--bb-sheet-bg, #1e1e25));
 }
 
 .bb-rx-folder__right {
@@ -231,35 +234,45 @@
 .bb-rx-folder__body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 6px;
+  gap: var(--bb-list-card-gap, 6px);
+  padding: 6px 0 2px 0;
+}
+
+.bb-rx-folder__body .bb-sortable-stack,
+.bb-rx-list.bb-sortable-stack {
+  gap: var(--bb-list-card-gap, 6px);
+}
+
+.bb-rx-folder__body .bb-rx-item {
+  box-shadow: inset 3px 0 0 var(--bb-accent-border, var(--md-sys-color-primary));
 }
 
 .bb-rx-list {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--bb-list-card-gap, 6px);
 }
 
-/* Clean M3 List Row (Matches PersonaPicker rows) */
+/* Unified M3 Plugin List Card (1:1 with PromptManager rows: dark card on lighter sheet) */
 .bb-rx-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 54px;
-  padding: 6px 8px;
-  border-radius: var(--md-sys-shape-corner-xs, 6px);
-  border: 1px solid transparent;
-  background: transparent;
+  min-height: 52px;
+  padding: 6px 10px 6px 8px;
+  border-radius: var(--bb-list-card-radius, 6px);
+  border: 1px solid var(--bb-list-card-border, var(--md-sys-color-outline-variant));
+  background: var(--bb-list-card-bg, var(--bb-sheet-well-bg, #131318));
   transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
 }
 
 .bb-rx-item:hover {
-  background: var(--bb-sheet-item-hover, #282832);
+  background: var(--bb-list-card-hover-bg, var(--bb-sheet-item-hover, #282832));
+  border-color: var(--bb-list-card-hover-border, var(--md-sys-color-outline));
 }
 
 .bb-rx-item.is-selected {
-  background: var(--bb-sheet-item-selected, #2d3452);
+  background: var(--bb-list-card-selected-bg, var(--bb-sheet-item-selected, #2d3452));
   border-color: var(--bb-accent-border, var(--md-sys-color-primary));
 }
 
@@ -320,8 +333,8 @@
   flex-shrink: 0;
   padding: 1px 7px;
   border-radius: 999px;
-  background: var(--bb-sheet-well-bg, #131318);
-  border: 1px solid var(--bb-page-border, var(--md-sys-color-outline-variant));
+  background: var(--bb-list-surface-bg, var(--bb-sheet-bg, #1e1e25));
+  border: 1px solid var(--bb-list-card-border, var(--md-sys-color-outline-variant));
   color: var(--bb-ink-muted);
   font-size: 11px;
   font-weight: 600;
@@ -371,7 +384,10 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 24px 16px;
+  padding: 20px 16px;
+  border: 1px dashed var(--bb-list-card-border, var(--md-sys-color-outline-variant));
+  border-radius: var(--bb-list-card-radius, 6px);
+  background: var(--bb-list-card-bg, var(--bb-sheet-well-bg, #131318));
   text-align: center;
   color: var(--bb-ink-muted);
   font-size: 13px;
@@ -395,10 +411,16 @@
   gap: 8px;
 }
 
+.bb-rx-editor-modal.bb-modal-frame {
+  height: min(540px, 80dvh);
+  max-height: min(540px, 80dvh);
+}
+
 .bb-rx-editor {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .bb-rx-field-group {
@@ -578,6 +600,11 @@
 }
 
 @media (max-width: 640px) {
+  .bb-rx-editor-modal.bb-modal-frame {
+    height: 78dvh !important;
+    max-height: 78dvh !important;
+  }
+
   .bb-rx-search-input,
   .bb-rx-mono-textarea {
     font-size: 16px;

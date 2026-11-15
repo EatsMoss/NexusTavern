@@ -9,7 +9,7 @@
   padding: 12px 14px;
   border-radius: var(--bb-control-radius, 8px);
   border: 1px solid var(--bb-page-border);
-  background: var(--bb-sheet-bg, var(--bb-page-card-bg));
+  background: var(--bb-list-surface-bg, var(--bb-sheet-bg, var(--bb-page-card-bg)));
   box-shadow: var(--md-sys-elevation-1);
   box-sizing: border-box;
   user-select: none;
@@ -361,9 +361,9 @@
   gap: 8px;
   min-height: var(--bb-list-row-height, 42px);
   padding: 4px 10px 4px 7px;
-  border-radius: var(--md-sys-shape-corner-xs, 6px);
-  border: 1px solid var(--bb-page-border-mid, var(--bb-page-border));
-  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  border-radius: var(--bb-list-card-radius, 6px);
+  border: 1px solid var(--bb-list-card-border, var(--bb-page-border));
+  background: var(--bb-list-card-bg, var(--bb-page-input-bg));
   box-sizing: border-box;
   cursor: pointer;
   touch-action: pan-y;
@@ -371,8 +371,8 @@
 }
 
 .bb-pm-row:hover {
-  background: var(--bb-sheet-item-hover, var(--bb-page-input-hover));
-  border-color: var(--bb-page-border-strong);
+  background: var(--bb-list-card-hover-bg, var(--bb-page-input-hover));
+  border-color: var(--bb-list-card-hover-border);
 }
 
 .bb-pm-row:active {

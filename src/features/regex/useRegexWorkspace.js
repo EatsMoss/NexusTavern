@@ -6,12 +6,15 @@ import {
   saveRegexFoldersMeta,
   transferRegexScriptBetweenScopes,
 } from '@core/regex/regexApi.js';
+import { normalizeRegexScript } from '@core/regex/regexEngine.js';
 import { setRegexDisplayState } from '@core/regex/regexDisplayStore.js';
 
 export function useRegexWorkspace({
   activeCardAvatar = '',
   hasActiveScenario = false,
   activePresetName = '',
+  liveCardScripts = null,
+  livePresetScripts = null,
   onRefreshActiveCard,
   onRefreshActivePresetScripts,
   onNotify,
@@ -55,6 +58,28 @@ export function useRegexWorkspace({
   useEffect(() => {
     syncWorkspace();
   }, [syncWorkspace]);
+
+  useEffect(() => {
+    if (!Array.isArray(livePresetScripts)) return;
+    const normalized = livePresetScripts
+      .filter((s) => s && typeof s === 'object')
+      .map((s) => normalizeRegexScript(s));
+    setPresetScripts(normalized);
+    setRegexDisplayState({ presetScripts: normalized });
+  }, [livePresetScripts]);
+
+  useEffect(() => {
+    if (!hasActiveScenario) {
+      setRegexDisplayState({ cardScripts: [] });
+      return;
+    }
+    if (!Array.isArray(liveCardScripts)) return;
+    const normalized = liveCardScripts
+      .filter((s) => s && typeof s === 'object')
+      .map((s) => normalizeRegexScript(s));
+    setCardScripts(normalized);
+    setRegexDisplayState({ cardScripts: normalized });
+  }, [hasActiveScenario, liveCardScripts]);
 
   const currentScopeKey =
     activeScope === 'card'

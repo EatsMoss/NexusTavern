@@ -8,7 +8,7 @@
   flex-direction: column;
   border-radius: var(--bb-control-radius, 8px);
   border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
-  background: var(--bb-sheet-bg, #1e1e25);
+  background: var(--bb-list-surface-bg, var(--bb-sheet-bg, #1e1e25));
   color: var(--bb-ink-main, var(--md-sys-color-on-surface));
   overflow: hidden;
 }
@@ -293,23 +293,21 @@
   cursor: default;
 }
 
-/* Existing Banned Words Well & List */
+/* Existing Banned Words List (Unified 1:1 with PromptManager: lighter sheet + dark cards) */
 .bb-rc-well {
-  border-radius: var(--bb-control-radius, 8px);
-  border: 1px solid var(--bb-page-border, var(--md-sys-color-outline-variant));
-  background: var(--bb-sheet-well-bg, #131318);
-  overflow: hidden;
+  border: none;
+  background: transparent;
 }
 
 .bb-rc-scroll {
-  max-height: 264px;
+  max-height: 272px;
 }
 
 .bb-rc-list {
   display: flex;
   flex-direction: column;
-  padding: 4px;
-  gap: 3px;
+  padding: 2px 0;
+  gap: var(--bb-list-card-gap, 6px);
 }
 
 .bb-rc-item {
@@ -317,17 +315,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 38px;
-  padding: 4px 6px 4px 11px;
-  border-radius: 6px;
-  background: var(--bb-sheet-bg, #1e1e25);
-  border: 1px solid transparent;
+  min-height: var(--bb-list-row-height, 42px);
+  padding: 4px 8px 4px 11px;
+  border-radius: var(--bb-list-card-radius, 6px);
+  background: var(--bb-list-card-bg, var(--bb-sheet-well-bg, #131318));
+  border: 1px solid var(--bb-list-card-border, var(--md-sys-color-outline-variant));
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .bb-rc-item:hover {
-  background: var(--bb-sheet-item-hover, #282832);
-  border-color: var(--bb-page-border, var(--md-sys-color-outline-variant));
+  background: var(--bb-list-card-hover-bg, var(--bb-sheet-item-hover, #282832));
+  border-color: var(--bb-list-card-hover-border, var(--md-sys-color-outline));
 }
 
 .bb-rc-item__phrase {
@@ -374,6 +372,9 @@
   justify-content: center;
   gap: 8px;
   padding: 20px 14px;
+  border: 1px dashed var(--bb-list-card-border, var(--md-sys-color-outline-variant));
+  border-radius: var(--bb-list-card-radius, 6px);
+  background: var(--bb-list-card-bg, var(--bb-sheet-well-bg, #131318));
   text-align: center;
   font-family: var(--bb-font-body);
   font-size: 12.5px;

@@ -11,6 +11,7 @@ const INLINE_TOKEN_REGEX =
   /(`[^`\n]+`|\*\*[\s\S]+?\*\*|\*[^*\n]+\*|"[^"\n]+"|“[^”\n]+”|«[^»\n]+»)/g;
 
 const THINKING_REGEX = /<(?:think|thinking|reasoning)>([\s\S]*?)<\/(?:think|thinking|reasoning)>/gi;
+const OPEN_STREAM_THINKING_REGEX = /<(?:think|thinking|reasoning)\b[^>]*>([\s\S]*)$/i;
 
 const HTML_ESCAPE_MAP = {
   '&': '&amp;',
@@ -25,10 +26,15 @@ export function escapeHtml(value = '') {
 }
 
 /**
- * Extracts <think>…</think> blocks and merges them with explicit reasoning
+ * Extracts <think>…</think> blocks (plus an unclosed trailing <think>… stream
+ * when `isStreaming` is active) and merges them with explicit reasoning
  * metadata. Returns the reasoning text plus the remaining body.
  */
-export function extractThinkingAndCleanBody(rawText = '', explicitReasoning = '') {
+export function extractThinkingAndCleanBody(
+  rawText = '',
+  explicitReasoning = '',
+  { isStreaming = false } = {},
+) {
   let body = String(rawText || '');
   const collected = [];
 
@@ -43,6 +49,17 @@ export function extractThinkingAndCleanBody(rawText = '', explicitReasoning = ''
     }
     return '';
   });
+
+  if (isStreaming) {
+    const openMatch = body.match(OPEN_STREAM_THINKING_REGEX);
+    if (openMatch) {
+      const partialReasoning = String(openMatch[1] || '').trim();
+      if (partialReasoning && !collected.includes(partialReasoning)) {
+        collected.push(partialReasoning);
+      }
+      body = body.slice(0, openMatch.index);
+    }
+  }
 
   return {
     reasoningText: collected.join('\n\n').trim(),

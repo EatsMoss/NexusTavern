@@ -123,8 +123,19 @@ function renderStreamingInlineContent(
     const lastTokIdx = seg.tokens.length - 1;
 
     const children = seg.tokens.map((tok, tokIdx) => {
+      const renderSpaceToken = (spaceStr) => {
+        if (!spaceStr.includes('\n')) return spaceStr;
+        const parts = spaceStr.split('\n');
+        return parts.map((part, pIdx) => (
+          <React.Fragment key={`${prefix}br-${tok.offset}-${pIdx}`}>
+            {pIdx > 0 && <br />}
+            {part}
+          </React.Fragment>
+        ));
+      };
+
       const tokEl = tok.isSpace ? (
-        tok.text
+        renderSpaceToken(tok.text)
       ) : animateWords ? (
         <span key={`${prefix}w-${tok.offset}`} className="bb-stream-word">
           {tok.text}
@@ -366,7 +377,9 @@ export function MessageDecorator({
 
   const { reasoningText, blocks, htmlBody, streamingHtmlNodes } = useMemo(() => {
     const macroResolved = replaceDisplayMacros(text, userName, charName);
-    const extracted = extractThinkingAndCleanBody(macroResolved, reasoning);
+    const extracted = extractThinkingAndCleanBody(macroResolved, reasoning, {
+      isStreaming,
+    });
     let resolvedReasoning = replaceDisplayMacros(
       extracted.reasoningText,
       userName,
@@ -379,6 +392,7 @@ export function MessageDecorator({
         bodyBeforeSanitize = applyRegexPipeline(bodyBeforeSanitize, activeDisplayScripts, {
           placement: isUser ? REGEX_PLACEMENT.USER_INPUT : REGEX_PLACEMENT.AI_OUTPUT,
           isMarkdown: true,
+          isStreaming,
           depth,
           charName,
           userName,
@@ -388,6 +402,7 @@ export function MessageDecorator({
         resolvedReasoning = applyRegexPipeline(resolvedReasoning, activeDisplayScripts, {
           placement: REGEX_PLACEMENT.REASONING,
           isMarkdown: true,
+          isStreaming,
           depth,
           charName,
           userName,

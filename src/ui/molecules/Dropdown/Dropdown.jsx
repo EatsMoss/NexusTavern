@@ -68,6 +68,9 @@ export function Dropdown({
   options = [],
   value,
   onChange,
+  multiple = false,
+  minSelected = 0,
+  renderMultipleLabel,
   starredValues = [],
   onToggleStar,
   searchable = true,
@@ -113,10 +116,30 @@ export function Dropdown({
 
   const starSet = useMemo(() => new Set(starredValues), [starredValues]);
   const bulkSet = useMemo(() => new Set(bulkSelected), [bulkSelected]);
-  const selectedOption = useMemo(
-    () => options.find((opt) => opt.value === value) || null,
-    [options, value],
+  const multiValues = useMemo(
+    () => (multiple && Array.isArray(value) ? value : []),
+    [multiple, value],
   );
+  const multiSet = useMemo(() => new Set(multiValues), [multiValues]);
+  const selectedOptions = useMemo(
+    () => (multiple ? options.filter((opt) => multiSet.has(opt.value)) : []),
+    [multiple, options, multiSet],
+  );
+  const selectedOption = useMemo(
+    () => (!multiple ? options.find((opt) => opt.value === value) || null : null),
+    [multiple, options, value],
+  );
+  const triggerDisplayText = useMemo(() => {
+    if (!multiple) {
+      return selectedOption ? selectedOption.label : placeholder;
+    }
+    if (typeof renderMultipleLabel === 'function') {
+      const custom = renderMultipleLabel(selectedOptions, multiValues);
+      if (custom) return custom;
+    }
+    if (selectedOptions.length === 0) return placeholder;
+    return selectedOptions.map((opt) => opt.shortLabel || opt.label).join(' + ');
+  }, [multiple, selectedOption, selectedOptions, multiValues, placeholder, renderMultipleLabel]);
 
   const updatePopoverPosition = useCallback(() => {
     const triggerEl = triggerRef.current;
@@ -242,6 +265,21 @@ export function Dropdown({
       setBulkConfirmDelete(false);
       return;
     }
+    if (multiple) {
+      const exists = multiSet.has(val);
+      if (exists && multiValues.length <= minSelected) {
+        return;
+      }
+      const nextRaw = exists
+        ? multiValues.filter((x) => x !== val)
+        : [...multiValues, val];
+      const optionOrder = new Map(options.map((o, idx) => [o.value, idx]));
+      nextRaw.sort(
+        (a, b) => (optionOrder.get(a) ?? 9999) - (optionOrder.get(b) ?? 9999),
+      );
+      onChange?.(nextRaw);
+      return;
+    }
     onChange?.(val);
     setIsOpen(false);
     setQuery('');
@@ -280,8 +318,10 @@ export function Dropdown({
     allFilteredValues.every((v) => bulkSet.has(v));
   const renderRow = (opt, contextKey = '') => {
     const isStarred = starSet.has(opt.value);
-    const isSelected = opt.value === value;
+    const isSelected = multiple ? multiSet.has(opt.value) : opt.value === value;
     const isChecked = bulkSet.has(opt.value);
+    const isLockedMin =
+      multiple && !bulkMode && isSelected && multiValues.length <= minSelected;
     const isFolderMenuOpen = itemMoveFolderFor === `${contextKey}:${opt.value}`;
 
     return (
@@ -289,7 +329,7 @@ export function Dropdown({
         key={`${contextKey}-${opt.value}`}
         role="option"
         aria-selected={bulkMode ? isChecked : isSelected}
-        draggable={enableFolders && !bulkMode}
+        draggable={enableFolders && !bulkMode && !multiple}
         onDragStart={() => setDraggedValue(opt.value)}
         onDragEnd={() => {
           setDraggedValue(null);
@@ -305,6 +345,15 @@ export function Dropdown({
             variant="plain"
             size="sm"
             checked={isChecked}
+            interactive={false}
+            className="bb-dropdown-item-check"
+          />
+        ) : multiple ? (
+          <Checkbox
+            variant="plain"
+            size="sm"
+            checked={isSelected}
+            disabled={isLockedMin}
             interactive={false}
             className="bb-dropdown-item-check"
           />
@@ -531,13 +580,18 @@ export function Dropdown({
         }}
       >
         <span className="bb-custom-select-trigger-text">
-          {allowStars && selectedOption && starSet.has(selectedOption.value) && (
+          {!multiple && allowStars && selectedOption && starSet.has(selectedOption.value) && (
             <Icon name="star" size={14} className="bb-custom-select-trigger-star" />
           )}
-          <span>{selectedOption ? selectedOption.label : placeholder}</span>
+          <span>{triggerDisplayText}</span>
         </span>
         <span className="bb-custom-select-trigger-right">
-          {renderTriggerTail ? renderTriggerTail(selectedOption) : null}
+          {multiple && selectedOptions.length > 0 && !renderTriggerTail ? (
+            <span className="bb-custom-select-trigger-count">{selectedOptions.length}</span>
+          ) : null}
+          {renderTriggerTail
+            ? renderTriggerTail(multiple ? selectedOptions : selectedOption)
+            : null}
           <Icon name="chevronDown" size={16} className="bb-custom-select-trigger-caret" />
         </span>
       </button>
@@ -551,6 +605,7 @@ export function Dropdown({
               ref={popoverRef}
               className="bb-starred-dropdown-popover"
               role="listbox"
+              aria-multiselectable={multiple || undefined}
               style={popoverStyle}
               onClick={(e) => e.stopPropagation()}
             >

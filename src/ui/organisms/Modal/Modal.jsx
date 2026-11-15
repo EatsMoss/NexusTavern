@@ -12,10 +12,12 @@ export function Modal({
   subtitle,
   icon = 'window',
   width,
+  height,
   zIndex,
   className = '',
   bodyClassName = '',
   bodyScrollable = true,
+  scrollWatchValue,
   footer,
   children,
 }) {
@@ -45,6 +47,14 @@ export function Modal({
   const stackOrder = existingIdx !== -1 ? existingIdx : openModalStack.length;
   const computedZIndex = zIndex ?? 3000 + stackOrder * 20;
 
+  const frameStyle = {};
+  if (width) {
+    frameStyle.width = typeof width === 'number' ? `min(${width}px, 94vw)` : width;
+  }
+  if (height) {
+    frameStyle.height = typeof height === 'number' ? `min(${height}px, 84dvh)` : height;
+  }
+
   return (
     <div
       className="bb-modal-overlay"
@@ -65,7 +75,7 @@ export function Modal({
     >
       <div
         className={`bb-modal-frame ${className}`.trim()}
-        style={width ? { width: `min(${width}px, 94vw)` } : undefined}
+        style={Object.keys(frameStyle).length > 0 ? frameStyle : undefined}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bb-modal-grabber" aria-hidden="true" />
@@ -92,6 +102,7 @@ export function Modal({
           className="bb-modal-body-wrap"
           viewportClassName={`bb-modal-body ${bodyClassName}`.trim()}
           disabled={!bodyScrollable}
+          watchValue={scrollWatchValue}
         >
           {children}
         </OverlayScrollArea>

@@ -15,47 +15,63 @@ import {
   debugRegexScript,
 } from '@core/regex/regexEngine.js';
 
-const APPLY_TO_PRESETS = [
+const APPLY_TO_OPTIONS = [
   {
-    value: 'ai',
+    value: REGEX_PLACEMENT.AI_OUTPUT,
     label: 'AI Replies',
+    shortLabel: 'AI',
     meta: 'Assistant',
-    placement: [REGEX_PLACEMENT.AI_OUTPUT],
   },
   {
-    value: 'user',
+    value: REGEX_PLACEMENT.USER_INPUT,
     label: 'User Messages',
+    shortLabel: 'User',
     meta: 'You',
-    placement: [REGEX_PLACEMENT.USER_INPUT],
   },
   {
-    value: 'ai_user',
-    label: 'AI & User',
-    meta: 'Messages',
-    placement: [REGEX_PLACEMENT.AI_OUTPUT, REGEX_PLACEMENT.USER_INPUT],
-  },
-  {
-    value: 'reasoning',
+    value: REGEX_PLACEMENT.REASONING,
     label: 'Reasoning',
+    shortLabel: 'Thoughts',
     meta: 'Thoughts',
-    placement: [REGEX_PLACEMENT.REASONING],
   },
   {
-    value: 'worldinfo',
+    value: REGEX_PLACEMENT.WORLD_INFO,
     label: 'World Info',
+    shortLabel: 'Lore',
     meta: 'Lorebook',
-    placement: [REGEX_PLACEMENT.WORLD_INFO],
   },
   {
-    value: 'all',
-    label: 'All Streams',
-    meta: 'Everywhere',
-    placement: [
-      REGEX_PLACEMENT.AI_OUTPUT,
-      REGEX_PLACEMENT.USER_INPUT,
-      REGEX_PLACEMENT.REASONING,
-      REGEX_PLACEMENT.WORLD_INFO,
-    ],
+    value: REGEX_PLACEMENT.SLASH_COMMAND,
+    label: 'Slash Commands',
+    shortLabel: 'Slash',
+    meta: 'Commands',
+  },
+];
+
+const MODE_OPTIONS = [
+  {
+    value: 'display',
+    label: 'Visual Only',
+    shortLabel: 'Visual',
+    meta: 'Chat view',
+  },
+  {
+    value: 'prompt',
+    label: 'Prompt Only',
+    shortLabel: 'Prompt',
+    meta: 'Sent to AI',
+  },
+  {
+    value: 'permanent',
+    label: 'Save to Chat',
+    shortLabel: 'Saved',
+    meta: 'Permanent',
+  },
+  {
+    value: 'runOnEdit',
+    label: 'Run on Edit',
+    shortLabel: 'On Edit',
+    meta: 'When edited',
   },
 ];
 
@@ -65,40 +81,15 @@ const SUBSTITUTE_OPTIONS = [
   { value: SUBSTITUTE_FIND_REGEX.RAW, label: 'Raw {{char}} / {{user}}', meta: 'Regex' },
 ];
 
-function sameNumberSet(a = [], b = []) {
-  if (a.length !== b.length) return false;
-  const setA = new Set(a);
-  if (setA.size !== b.length) return false;
-  return b.every((item) => setA.has(item));
-}
-
-function resolvePlacementPresetValue(placement = []) {
-  const clean = Array.isArray(placement) ? placement : [REGEX_PLACEMENT.AI_OUTPUT];
-  for (const preset of APPLY_TO_PRESETS) {
-    if (sameNumberSet(clean, preset.placement)) {
-      return preset.value;
-    }
-  }
-  return 'custom';
-}
-
-function formatCustomPlacementLabel(placement = []) {
-  const names = [];
-  if (placement.includes(REGEX_PLACEMENT.AI_OUTPUT)) names.push('AI');
-  if (placement.includes(REGEX_PLACEMENT.USER_INPUT)) names.push('User');
-  if (placement.includes(REGEX_PLACEMENT.REASONING)) names.push('Thoughts');
-  if (placement.includes(REGEX_PLACEMENT.WORLD_INFO)) names.push('Lore');
-  if (placement.includes(REGEX_PLACEMENT.SLASH_COMMAND)) names.push('Slash');
-  return names.length > 0 ? names.join(' + ') : 'Custom';
-}
-
-function resolveExecutionMode(draft) {
+function resolveSelectedModes(draft) {
   const md = Boolean(draft?.markdownOnly);
   const pr = Boolean(draft?.promptOnly);
-  if (md && pr) return 'both';
-  if (md) return 'display';
-  if (pr) return 'prompt';
-  return 'permanent';
+  const modes = [];
+  if (md) modes.push('display');
+  if (pr) modes.push('prompt');
+  if (!md && !pr) modes.push('permanent');
+  if (draft?.runOnEdit) modes.push('runOnEdit');
+  return modes;
 }
 
 export function RegexEditorModal({
@@ -158,42 +149,49 @@ export function RegexEditorModal({
 
   if (!open || !script) return null;
 
-  const execMode = resolveExecutionMode(draft);
-  const placementValue = resolvePlacementPresetValue(draft.placement);
+  const selectedPlacements = Array.isArray(draft.placement) && draft.placement.length > 0
+    ? draft.placement
+    : [REGEX_PLACEMENT.AI_OUTPUT];
+  const selectedModes = resolveSelectedModes(draft);
 
-  const applyToOptions =
-    placementValue === 'custom'
-      ? [
-          {
-            value: 'custom',
-            label: formatCustomPlacementLabel(draft.placement),
-            meta: 'Custom',
-          },
-          ...APPLY_TO_PRESETS.map(({ value, label, meta }) => ({ value, label, meta })),
-        ]
-      : APPLY_TO_PRESETS.map(({ value, label, meta }) => ({ value, label, meta }));
-
-  const modeOptions = [
-    { value: 'display', label: 'Visual Only', meta: 'Chat view' },
-    { value: 'prompt', label: 'Prompt Only', meta: 'Sent to AI' },
-    { value: 'permanent', label: 'Save to Chat', meta: 'Permanent' },
-    ...(execMode === 'both'
-      ? [{ value: 'both', label: 'Visual + Prompt', meta: 'Both' }]
-      : []),
-  ];
-
-  const handleChangeApplyTo = (nextVal) => {
-    const found = APPLY_TO_PRESETS.find((item) => item.value === nextVal);
-    if (!found) return;
-    setDraft((prev) => ({ ...prev, placement: [...found.placement] }));
+  const handleChangeApplyTo = (nextPlacements) => {
+    const clean = Array.isArray(nextPlacements)
+      ? nextPlacements.map((n) => Number(n)).filter((n) => Number.isInteger(n))
+      : [];
+    if (clean.length === 0) return;
+    setDraft((prev) => ({ ...prev, placement: clean }));
   };
 
-  const handleSetExecMode = (modeVal) => {
+  const handleChangeModes = (nextModes) => {
+    const nextList = Array.isArray(nextModes) ? nextModes : [];
     setDraft((prev) => {
-      if (modeVal === 'display') return { ...prev, markdownOnly: true, promptOnly: false };
-      if (modeVal === 'prompt') return { ...prev, markdownOnly: false, promptOnly: true };
-      if (modeVal === 'both') return { ...prev, markdownOnly: true, promptOnly: true };
-      return { ...prev, markdownOnly: false, promptOnly: false };
+      const prevModes = resolveSelectedModes(prev);
+      const added = nextList.filter((m) => !prevModes.includes(m));
+      const removed = prevModes.filter((m) => !nextList.includes(m));
+
+      const nextRunOnEdit = nextList.includes('runOnEdit');
+      let md = Boolean(prev.markdownOnly);
+      let pr = Boolean(prev.promptOnly);
+
+      if (added.includes('permanent')) {
+        md = false;
+        pr = false;
+      } else {
+        if (added.includes('display')) md = true;
+        if (added.includes('prompt')) pr = true;
+        if (removed.includes('display')) md = false;
+        if (removed.includes('prompt')) pr = false;
+        if (removed.includes('permanent') && !md && !pr) {
+          md = true;
+        }
+      }
+
+      return {
+        ...prev,
+        markdownOnly: md,
+        promptOnly: pr,
+        runOnEdit: nextRunOnEdit,
+      };
     });
   };
 
@@ -223,6 +221,9 @@ export function RegexEditorModal({
       subtitle={scopeLabel}
       icon="regex"
       width={500}
+      height={540}
+      className="bb-rx-editor-modal"
+      scrollWatchValue={`${testOpen}-${moreOpen}-${rawPreview}-${draft.findRegex?.length || 0}`}
       footer={
         <div className="bb-rx-modal-footer">
           <Switch
@@ -258,7 +259,9 @@ export function RegexEditorModal({
         />
 
         <RegexPatternInput
+          key={draft.id || 'rx-pattern'}
           label="Find Pattern"
+          allowExpertToggle
           value={draft.findRegex || ''}
           onChange={(nextVal) => setDraft((prev) => ({ ...prev, findRegex: nextVal }))}
           placeholder="e.g. <status>([\\s\\S]*?)<\\/status>"
@@ -279,19 +282,33 @@ export function RegexEditorModal({
         <div className="bb-rx-select-grid">
           <Dropdown
             label="Apply To"
-            options={applyToOptions}
-            value={placementValue}
+            multiple
+            minSelected={1}
+            options={APPLY_TO_OPTIONS}
+            value={selectedPlacements}
             onChange={handleChangeApplyTo}
             searchable={false}
             allowStars={false}
+            renderMultipleLabel={(opts) =>
+              opts.length === 1
+                ? opts[0].label
+                : opts.map((o) => o.shortLabel || o.label).join(' + ')
+            }
           />
           <Dropdown
             label="Mode"
-            options={modeOptions}
-            value={execMode}
-            onChange={handleSetExecMode}
+            multiple
+            minSelected={1}
+            options={MODE_OPTIONS}
+            value={selectedModes}
+            onChange={handleChangeModes}
             searchable={false}
             allowStars={false}
+            renderMultipleLabel={(opts) =>
+              opts.length === 1
+                ? opts[0].label
+                : opts.map((o) => o.shortLabel || o.label).join(' + ')
+            }
           />
         </div>
 
@@ -459,15 +476,6 @@ export function RegexEditorModal({
                 onChange={(e) => setTrimDraftText(e.target.value)}
                 placeholder="Optional substrings stripped from match before replacement"
               />
-
-              {execMode === 'permanent' && (
-                <Switch
-                  size="sm"
-                  checked={Boolean(draft.runOnEdit)}
-                  onChange={(checked) => setDraft((prev) => ({ ...prev, runOnEdit: checked }))}
-                  label="Re-apply when editing messages"
-                />
-              )}
             </div>
           )}
         </div>

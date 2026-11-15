@@ -5005,6 +5005,8 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     activeCardAvatar: hasActiveScenario ? activeCharacter.avatar || activeCharacter.id : '',
     hasActiveScenario,
     activePresetName: activePresets?.openai || 'Default',
+    liveCardScripts: hasActiveScenario ? activeCardFull?.extensions?.regex_scripts ?? null : null,
+    livePresetScripts: activeOpenaiDoc?.data?.extensions?.regex_scripts ?? null,
     onRefreshActiveCard: (updatedCard) => {
       if (updatedCard && updatedCard.avatar === selectedCardId) {
         setActiveCardFull(updatedCard);

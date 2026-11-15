@@ -22,7 +22,42 @@
 .bb-rx-pattern-field__extra {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+}
+
+.bb-rx-pattern-expert {
+  width: 100%;
+  min-height: 76px;
+  padding: 9px 12px;
+  box-sizing: border-box;
+  border-radius: var(--bb-control-radius, 8px);
+  background: var(--bb-sheet-well-bg, #131318);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  font-family: var(--bb-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+  outline: none;
+  transition: border-color 140ms ease;
+}
+
+.bb-rx-pattern-expert::placeholder {
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  opacity: 0.7;
+}
+
+.bb-rx-pattern-expert:focus {
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+}
+
+.bb-rx-pattern-field.is-invalid .bb-rx-pattern-expert {
+  border-color: var(--md-sys-color-error);
+}
+
+.bb-rx-pattern-field.is-danger .bb-rx-pattern-expert,
+.bb-rx-pattern-field.is-warning .bb-rx-pattern-expert {
+  border-color: var(--md-sys-color-warning);
 }
 
 .bb-rx-pattern-box {
@@ -137,7 +172,8 @@
     padding: 6px 10px;
   }
 
-  .bb-rx-pattern-box__input {
+  .bb-rx-pattern-box__input,
+  .bb-rx-pattern-expert {
     font-size: 16px;
   }
 

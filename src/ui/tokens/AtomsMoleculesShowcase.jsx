@@ -507,7 +507,8 @@ export function AtomsMoleculesShowcase() {
               onChange={(e) => setScenarioPrompt(e.target.value)}
             />
             <RegexPatternInput
-              label="RegexPatternInput (M3 Flag Chips + ReDoS Guard)"
+              label="RegexPatternInput (M3 Flag Chips + Expert Mode + ReDoS Guard)"
+              allowExpertToggle
               value={demoRegexPattern}
               onChange={setDemoRegexPattern}
             />

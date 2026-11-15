@@ -76,6 +76,7 @@ export function OrganismsShowcase() {
   const [starredModels, setStarredModels] = useState(['claude-3-7-sonnet', 'gemini-2.5-pro']);
   const [selectedPreset, setSelectedPreset] = useState('nexustavern-prose-v3');
   const [starredPresets, setStarredPresets] = useState(['nexustavern-prose-v3']);
+  const [selectedStreams, setSelectedStreams] = useState(['ai', 'thoughts']);
   const [cards, setCards] = useState(INITIAL_CARDS);
   const [selectedCardId, setSelectedCardId] = useState('c1');
   const [modalOpen, setModalOpen] = useState(false);
@@ -222,6 +223,21 @@ export function OrganismsShowcase() {
               starredValues={starredPresets}
               sortable
               onToggleStar={(val) => toggleStar(starredPresets, setStarredPresets, val)}
+            />
+            <Dropdown
+              label="Multi-Select Checkbox Dropdown"
+              multiple
+              minSelected={1}
+              searchable={false}
+              allowStars={false}
+              options={[
+                { value: 'ai', label: 'AI Replies', shortLabel: 'AI', meta: 'Assistant' },
+                { value: 'user', label: 'User Messages', shortLabel: 'User', meta: 'You' },
+                { value: 'thoughts', label: 'Reasoning', shortLabel: 'Thoughts', meta: 'CoT' },
+                { value: 'lore', label: 'World Info', shortLabel: 'Lore', meta: 'Lorebook' },
+              ]}
+              value={selectedStreams}
+              onChange={setSelectedStreams}
             />
           </FolderCard>
 

@@ -148,6 +148,10 @@
   min-height: 0;
 }
 
+.bb-modal-body:not(.is-scroll-disabled) > * {
+  flex-shrink: 0;
+}
+
 .bb-modal-footer {
   display: flex;
   align-items: center;
