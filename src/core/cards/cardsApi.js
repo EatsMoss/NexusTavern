@@ -1,5 +1,9 @@
 import { apiFetchJson, getAuthorizedAssetUrl } from '@core/api/apiClient.js';
 
+export function isDemoCardId(id) {
+  return /^(?:c\d+|c_\d+)$/.test(String(id || ''));
+}
+
 function appendCacheVersion(url, lastModified) {
   if (!url) return url;
   const ts = lastModified ? new Date(lastModified).getTime() : 0;

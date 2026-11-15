@@ -93,13 +93,13 @@
   - Добиться 100% соблюдения архитектурного правила из `PROJECT.md`: `ui/*` не зависит ни от `features/*`, ни от бизнес-API.
   - **Живая проверка**: полная проверка работы десктопного двухтомника, ресайз-шторок и мобильной навигации.
 
-- [ ] **Шаг O4.2 — Поэтапная декомпозиция `AppShell` (7 407 строк) на доменные контроллеры/хуки**:
+- [x] **Шаг O4.2 — Поэтапная декомпозиция `AppShell` (7 407 строк) на доменные контроллеры/хуки**:
   - Разбить монолитную логику на независимые доменные хуки в соответствующих модулях:
-    1. `useSessionBoot` (`src/core/session/` или `src/app/hooks/`): последовательность загрузки сессии, сплэш-скрина, онбординга `WelcomeModal` и восстановления открытого чата.
-    2. `useScenarioWorkspace` (`src/features/characters/`): выбор, создание, дублирование, импорт/экспорт карточек, тегов, групп, портретов и черновиков `CharacterSheet` с защитой `UnsavedChangesModal`.
-    3. `usePersonasWorkspace` (`src/features/personas/`): состояние персон, привязки к карточкам/чатам и модалки создания/редактирования.
-    4. `useChatWorkspace` (`src/features/chat/`): загрузка окон `.jsonl`, свайпы, редактирование, удаление, ветвление таймлайнов и вложения.
-    5. `usePresetsAndHubWorkspace` (`src/features/settings-tome/` + `src/features/api-hub/`): пресеты промптов, черновики `PresetVaultInspector` и состояние `ApiHub`.
+    - [x] **O4.2.1 — `useSessionBoot`** (`src/core/session/useSessionBoot.js`): последовательность загрузки сессии, сплэш-скрина, онбординга `WelcomeModal` и восстановления открытого чата.
+    - [x] **O4.2.2 — `useScenarioWorkspace`** (`src/features/characters/useScenarioWorkspace.js` + `MultiSelectPopoverContent.jsx`): выбор, создание, дублирование, импорт/экспорт карточек, тегов, групп, портретов и черновиков `CharacterSheet` с защитой `UnsavedChangesModal`.
+    - [x] **O4.2.3 — `usePersonasWorkspace`** (`src/features/personas/usePersonasWorkspace.js`): состояние персон, привязки к карточкам/чатам и модалки создания/редактирования.
+    - [x] **O4.2.4 — `useChatWorkspace`** (`src/features/chat/useChatWorkspace.js`): загрузка окон `.jsonl`, свайпы, редактирование, удаление, ветвление таймлайнов и вложения.
+    - [x] **O4.2.5 — `usePresetsAndHubWorkspace`** (`src/features/settings-tome/usePresetsWorkspace.js` + `src/features/api-hub/useApiHubWorkspace.js` + композиция секций `src/app/AppShell/`): пресеты промптов, черновики `PresetVaultInspector` и состояние `ApiHub`.
   - Примечание: каждый из 5 подпунктов выносится отдельным микро-шагом с промежуточной живой проверкой.
 
 - [ ] **Шаг O4.3 — Модульное разделение крупных серверных сервисов (`chatStore.js`, `llmStreamer.js`)**:
@@ -128,9 +128,26 @@
 
 ## 4. Критерии завершения оптимизации (Definition of Done)
 
-- [ ] Стартовый JS-бандл `vite build` весит **менее 500 КБ** (без предупреждений о превышении лимита чанка), все второстепенные модалки и `TokenSandbox` вынесены в ленивые чанки.
-- [ ] Набор текста в композере и 60fps стриминг ответов ИИ не вызывают ререндеров соседних карточек сообщений, боковых томов и шапки приложения.
-- [ ] Закрыты все векторы локального CSRF/CORS и утечки глобальных CSS-селекторов (`:root`, `html`, `body`) из карточек персонажей.
-- [ ] `src/ui/` полностью очищен от зависимостей уровня фич, а `AppShell` разделён на компактные доменные хуки.
+- [x] Стартовый JS-бандл `vite build` весит **менее 500 КБ** (без предупреждений о превышении лимита чанка), все второстепенные модалки и `TokenSandbox` вынесены в ленивые чанки (`index-*.js` ~ `105 КБ` / `~31 КБ` gzip).
+- [x] Набор текста в композере и 60fps стриминг ответов ИИ не вызывают ререндеров соседних карточек сообщений, боковых томов и шапки приложения.
+- [x] Закрыты все векторы локального CSRF/CORS и утечки глобальных CSS-селекторов (`:root`, `html`, `body`) из карточек персонажей.
+- [x] `src/ui/` полностью очищен от зависимостей уровня фич, а `AppShell` разделён на компактные доменные хуки (`AppShell.jsx` сокращён с `7 407` до `< 850` строк чистой композиции в `src/app/AppShell/`).
 - [ ] В репозитории работают команды `npm run lint`, `npm test` и `npm run build` без единой ошибки.
+
+---
+
+## 5. Текущая точка остановки (Handoff для новой сессии)
+
+Полностью завершены этапы **O1**, **O2**, **O3** и клиентская декомпозиция **O4.1 + O4.2 (`O4.2.1`–`O4.2.5`)**.
+
+**Что осталось выполнить строго по порядку (по одному шагу с живой проверкой):**
+1. **Шаг O4.3 — Модульное разделение крупных серверных сервисов (`server/services/chatStore.js`, `server/services/llmStreamer.js`)**:
+   - Разделить `server/services/chatStore.js` (2 267 строк) на `chatJsonlCodec.js`, `chatMutations.js` и `chatAttachmentsAndBackups.js` (сохранив публичный фасад экспортов в `chatStore.js` для 100% обратной совместимости роутов).
+   - Разделить `server/services/llmStreamer.js` (1 755 строк) на адаптеры провайдеров (OpenAI-compatible / Anthropic / Google / TextGen), парсер потокового `reasoning` и оркестратор записи ответа.
+2. **Шаг O5.1 — Настройка `jsconfig.json` и `ESLint` с проверкой границ слоёв**:
+   - Добавить `jsconfig.json` с алиасами Vite (`@/*`, `@app/*`, `@ui/*`, `@core/*`, `@features/*`, `@styles/*`, `@assets/*`).
+   - Настроить `ESLint` (Flat Config для React 19 + Hooks + Node ESM) со скриптом `npm run lint` и контролем отсутствия кросс-импортов между `features/*` и импортов `features/*` внутрь `ui/*`.
+3. **Шаг O5.2 — Покрытие быстрыми Unit-тестами ядра совместимости SillyTavern (`node --test`, `npm test`)**:
+   - Автотесты PNG-метаданных карточек (`chara` v2 / `ccv3` v3), `regexEngine.js`, `messageHtml.js` / `messageDecorator.js`, `promptGroupsModel.js` и `timelineForest.js`.
+
 

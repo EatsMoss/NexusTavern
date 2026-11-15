@@ -71,7 +71,9 @@ export default defineConfig({
             norm.includes('/src/features/characters/CharacterGallery') ||
             norm.includes('/src/features/characters/CharacterTome') ||
             norm.includes('/src/features/characters/PinnedSection') ||
-            norm.includes('/src/features/characters/FolderPopover')
+            norm.includes('/src/features/characters/FolderPopover') ||
+            norm.includes('/src/features/characters/MultiSelectPopoverContent') ||
+            norm.includes('/src/features/characters/useScenarioWorkspace')
           ) {
             return 'feature-characters';
           }
