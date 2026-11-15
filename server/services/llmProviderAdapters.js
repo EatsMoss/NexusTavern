@@ -137,7 +137,7 @@ export function calculateClaudeThinkingConfig(maxTokens, effortRaw, caps) {
     return null;
   }
 
-  let budget = 0;
+  let budget;
   switch (effort) {
     case 'min':
       budget = 1024;

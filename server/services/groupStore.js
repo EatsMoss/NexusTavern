@@ -145,7 +145,7 @@ export async function updateGroup(groupId, patch = {}) {
     throw new Error(`Group not found: ${safeId}`);
   }
 
-  let raw = {};
+  let raw;
   try {
     raw = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
   } catch {

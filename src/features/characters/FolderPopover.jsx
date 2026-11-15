@@ -14,6 +14,7 @@ import { computeSlotDisplacement, computeDropSlotBox } from './PinnedSection.jsx
 
 const FOLDER_INITIAL_CHUNK = 24;
 const FOLDER_CHUNK_STEP = 24;
+const EMPTY_ARRAY = Object.freeze([]);
 
 export function FolderPopover({
   activeFolder = null,
@@ -58,7 +59,7 @@ export function FolderPopover({
     ready: false,
   });
 
-  const members = activeFolder?.items || [];
+  const members = activeFolder?.items || EMPTY_ARRAY;
   const isUserFolder = activeFolder?.type === 'folder';
 
   const [renderedLimit, setRenderedLimit] = useState(FOLDER_INITIAL_CHUNK);

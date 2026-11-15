@@ -54,7 +54,7 @@ export function ScenarioLinkActionButton({
   }
 
   const activeName = activeScenario?.name || 'current scenario';
-  let tooltip = '';
+  let tooltip;
   if (!hasRealActive && leadItem) {
     tooltip = `Bound to ${leadItem.name}${extraCount > 0 ? ` (+${extraCount} more)` : ''}`;
   } else if (isLinkedToActive) {

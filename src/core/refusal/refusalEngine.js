@@ -147,7 +147,7 @@ export function startsWithRpMarker(rawText = '') {
 function extractNormalizedHead(rawText = '', maxChars = DEFAULT_REFUSAL_HEAD_CHARS) {
   const strippedStart = String(rawText || '')
     .replace(/^\s*(?:<[a-zA-Z][\w:-]*>\s*)*/u, '')
-    .replace(/^[\s_#>—–\-]+/u, '');
+    .replace(/^[\s_#>—–-]+/u, '');
   const sliced = strippedStart.slice(0, maxChars);
   return normalizeForRefusalMatch(sliced);
 }

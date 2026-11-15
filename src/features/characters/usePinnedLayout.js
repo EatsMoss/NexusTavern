@@ -341,7 +341,7 @@ export function usePinnedLayout({
 
   // Drop a card onto the center of another Pinned tile -> create a new folder or append to existing folder
   const mergeCardIntoEntry = useCallback(
-    (sourceCardId, targetEntryIndex, fromFolderId = null) => {
+    (sourceCardId, targetEntryIndex, _fromFolderId = null) => {
       if (!sourceCardId) return;
       onSyncCardPinServer?.(sourceCardId, true);
 

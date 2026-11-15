@@ -933,7 +933,7 @@ export function TimelineTree({
         activeChatFile,
         lastVisitedChildMap: lastVisitedChildRef.current,
       }),
-    [navAnchorNode, layout, activeChatFile, selectedFile],
+    [navAnchorNode, layout, activeChatFile],
   );
 
   const handleStepDirection = useCallback(

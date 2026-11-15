@@ -47,7 +47,7 @@ export function CharacterGallery({
   onTogglePin,
   openTagFolderId = null,
   onOpenTag,
-  onToggleTagHidden,
+  onToggleTagHidden: _onToggleTagHidden,
   onCreateTag,
   onOpenCreateModal,
   onDropImportFiles,

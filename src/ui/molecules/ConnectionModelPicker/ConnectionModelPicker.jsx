@@ -130,7 +130,6 @@ export function ConnectionModelPicker({
 
   // Busy & inline feedback
   const [busyConnId, setBusyConnId] = useState(null);
-  const [pinging, setPinging] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: 'ok' | 'error', text: string }
   const [copiedToken, setCopiedToken] = useState('');
 
@@ -262,10 +261,7 @@ export function ConnectionModelPicker({
     document.addEventListener('keydown', onKeyDown, true);
 
     if (openPane === 'provider' && onPingConnections) {
-      setPinging(true);
-      Promise.resolve(onPingConnections())
-        .catch(() => null)
-        .finally(() => setPinging(false));
+      Promise.resolve(onPingConnections()).catch(() => null);
     } else if (openPane === 'model' && activeConn?.id) {
       if (typeof window !== 'undefined' && window.innerWidth > 640) {
         requestAnimationFrame(() => searchRef.current?.focus());

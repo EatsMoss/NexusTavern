@@ -130,9 +130,9 @@ export function hslToHex(h, s, l) {
   const c = (1 - Math.abs(2 * ln - 1)) * sn;
   const x = c * (1 - Math.abs(((hn / 60) % 2) - 1));
   const m = ln - c / 2;
-  let r = 0;
-  let g = 0;
-  let b = 0;
+  let r;
+  let g;
+  let b;
 
   if (hn < 60) { r = c; g = x; b = 0; }
   else if (hn < 120) { r = x; g = c; b = 0; }
@@ -247,9 +247,7 @@ export function applyM3ThemeTokens({
     const accentBorderHex = hslToHex(accH, clamp(accS * 0.65, 0, 46), clamp(accBaseL + 12, 44, 66));
 
     const btnTopHex = hslToHex(h, sLight(13, 20), clamp(surfBaseL + 1.2, 88, 98.5));
-    const btnBotHex = hslToHex(h, sLight(15, 22), clamp(surfBaseL - 3.0, 84, 94.5));
     const btnHoverTopHex = hslToHex(accH, clamp(accS * 0.30, 0, 24), clamp(surfBaseL - 1.5, 86, 96));
-    const btnHoverBotHex = hslToHex(accH, clamp(accS * 0.34, 0, 28), clamp(surfBaseL - 5.5, 82, 92));
 
     const vars = {
       '--bb-page-bg': pageBgRgba,
@@ -370,11 +368,6 @@ export function applyM3ThemeTokens({
   const accentSurfaceTop = hslToHex(accH, clamp(accS * 0.58, 0, 68), clamp(Math.max(accBaseL * 0.46, darkBaseL + 10), 10, 66));
   const accentSurfaceBot = hslToHex(accH, clamp(accS * 0.50, 0, 60), clamp(Math.max(accBaseL * 0.31, darkBaseL + 4), 5, 58));
   const accentBorderHex = hslToHex(accH, clamp(accS * 0.85, 0, 88), clamp(accBaseL + 4, 34, 84));
-
-  const btnTopHex = hslToHex(h, sScaled(13, 14), clamp(darkBaseL + 10, 8, 65));
-  const btnBotHex = hslToHex(h, sScaled(13, 14), clamp(darkBaseL + 8, 6, 60));
-  const btnHoverTopHex = hslToHex(accH, clamp(accS * 0.30, 0, 34), clamp(darkBaseL + 15, 12, 70));
-  const btnHoverBotHex = hslToHex(accH, clamp(accS * 0.28, 0, 32), clamp(darkBaseL + 12, 10, 65));
 
   // User bubbles: one step above the recessed wells, one below regular cards
   const userSurfaceRgba = hslToRgba(h, sScaled(13, 16), clamp(darkBaseL + 3, 9, 52), 0.88);

@@ -29,7 +29,6 @@ import {
 import {
   getConnectionRuntimeTelemetry,
   setConnectionRuntimeTelemetry,
-  clearConnectionRuntimeTelemetry,
   enrichModelWithTelemetry,
   probeSingleConnectionTelemetry,
 } from './proxyTelemetry.js';
@@ -808,7 +807,7 @@ export async function createHubConnection(payload = {}) {
   const store = readApiHubStore();
   const connId = makeShortId('conn');
 
-  let baseUrl = '';
+  let baseUrl;
   let officialProviderId = '';
   let cleanName = String(payload.name || '').trim();
 
@@ -1220,7 +1219,7 @@ export function revealConnectionKeyForCopy(connectionId, keyId = '') {
   const keys = Array.isArray(conn.keys) ? conn.keys : [];
   if (keys.length === 0) throw new Error('No key stored for this connection');
 
-  let target = null;
+  let target;
   if (keyId) {
     target = keys.find((k) => k.id === keyId) || null;
   } else {
@@ -1328,8 +1327,8 @@ export function resolveActiveGenerationTarget({ connectionId = '', modelId = '' 
       (targetModelId.includes('::') ? targetModelId.split('::').pop() : targetModelId),
   ).trim();
 
-  let protocol = 'openai';
-  let endpointUrl = '';
+  let protocol;
+  let endpointUrl;
   let routeId = '';
 
   if (conn.type === 'rp_proxy') {

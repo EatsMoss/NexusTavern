@@ -881,7 +881,7 @@ export function useScenarioWorkspace({
     async (id, forcePin) => {
       const target = cards.find((c) => c.id === id);
       if (!target) return;
-      const nextPinned = forcePin !== undefined ? Boolean(forcePin) : !Boolean(target.pinned);
+      const nextPinned = forcePin !== undefined ? Boolean(forcePin) : !target.pinned;
       if (Boolean(target.pinned) === nextPinned && Boolean(target.fav) === nextPinned) {
         return;
       }
@@ -905,7 +905,7 @@ export function useScenarioWorkspace({
 
   const handleToggleActiveCardPin = useCallback(() => {
     if (!activeCardFull) return;
-    const nextFav = !Boolean(activeCardFull.fav || activeCardFull.pinned);
+    const nextFav = !(activeCardFull.fav || activeCardFull.pinned);
     setActiveCardFull((prev) =>
       prev ? { ...prev, fav: nextFav, pinned: nextFav } : prev,
     );

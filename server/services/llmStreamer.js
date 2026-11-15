@@ -569,7 +569,7 @@ export async function streamChatGeneration({
   const refusalConfig = readRefusalCatcherConfig();
   let activeTarget = primaryTarget;
   let fallbackInfo = null;
-  let attemptResult = null;
+  let attemptResult;
 
   try {
     attemptResult = await executeSingleTargetAttempt({

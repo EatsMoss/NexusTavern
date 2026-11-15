@@ -12,6 +12,8 @@ import {
 } from '@core/refusal/refusalEngine.js';
 import './RefusalCatcherManager.css';
 
+const EMPTY_ARRAY = Object.freeze([]);
+
 export function RefusalCatcherManager({
   enabled = true,
   delayMs = DEFAULT_REFUSAL_DELAY_MS,
@@ -44,7 +46,7 @@ export function RefusalCatcherManager({
   const [draftPhrase, setDraftPhrase] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
 
-  const safePhrases = Array.isArray(bannedPhrases) ? bannedPhrases : [];
+  const safePhrases = Array.isArray(bannedPhrases) ? bannedPhrases : EMPTY_ARRAY;
   const trimmedDraft = draftPhrase.replace(/\s+/g, ' ').trim();
 
   const isDuplicateDraft = useMemo(() => {

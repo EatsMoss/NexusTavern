@@ -7,6 +7,8 @@ import { Dropdown } from '../../molecules/Dropdown/Dropdown.jsx';
 import { KebabMenu } from '../../molecules/KebabMenu/KebabMenu.jsx';
 import './StImporterManager.css';
 
+const EMPTY_ARRAY = Object.freeze([]);
+
 export const ST_IMPORT_CATEGORIES = [
   {
     id: 'backgrounds',
@@ -124,7 +126,7 @@ export function StImporterManager({
   const busy = browsing || scanning || isRunning;
 
   const counts = scanSummary?.counts || null;
-  const profiles = Array.isArray(scanSummary?.profiles) ? scanSummary.profiles : [];
+  const profiles = Array.isArray(scanSummary?.profiles) ? scanSummary.profiles : EMPTY_ARRAY;
 
   const profileOptions = useMemo(
     () => profiles.map((p) => ({ value: p.id, label: p.label || p.id })),

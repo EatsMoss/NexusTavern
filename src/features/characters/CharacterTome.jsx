@@ -83,7 +83,7 @@ function measureGridSlots(gridEl, slotSelector, colsCount) {
 function hitTestGrid(clientX, clientY, metrics, options) {
   if (!metrics) return null;
   const { rects } = metrics;
-  const { isInternalReorder, sourceIndex, canMerge, scope, ghostRect, prevHover } = options;
+  const { isInternalReorder, sourceIndex, canMerge, scope, prevHover } = options;
 
   if (rects.length === 0) {
     return {

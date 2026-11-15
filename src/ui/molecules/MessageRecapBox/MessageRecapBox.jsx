@@ -67,15 +67,6 @@ export function MessageRecapBox({
     }
   };
 
-  if (!recapText && !isStreaming) return null;
-
-  const toggleOpen = () => {
-    if (isEditing) {
-      handleCancelEdit();
-    }
-    setIsOpen((prev) => !prev);
-  };
-
   const barTooltipContent = useMemo(
     () => (
       <div className="bb-m3-tooltip-detail">
@@ -103,6 +94,15 @@ export function MessageRecapBox({
     ),
     [isStreaming, isCompressed, compressedTooltip],
   );
+
+  if (!recapText && !isStreaming) return null;
+
+  const toggleOpen = () => {
+    if (isEditing) {
+      handleCancelEdit();
+    }
+    setIsOpen((prev) => !prev);
+  };
 
   return (
     <div

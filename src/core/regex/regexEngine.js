@@ -197,7 +197,6 @@ export function analyzeRegexSafety(rawFindRegex = '') {
   }
 
   try {
-    // eslint-disable-next-line no-new
     new RegExp(pattern, flags);
   } catch (err) {
     return {

@@ -14,7 +14,7 @@ function CharacterCardTileInner({
   onSelect,
   onOpen,
   onToggleMultiSelect,
-  onTogglePin,
+  onTogglePin: _onTogglePin,
   kebabItems = [],
   kebabItemsFor = null,
   draggable = false,

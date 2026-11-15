@@ -959,7 +959,7 @@ export function compileChatPrompt({
     });
   }
 
-  if (Boolean(oaiData.squash_system_messages)) {
+  if (oaiData.squash_system_messages) {
     compiledMessages = squashConsecutiveSystemMessages(compiledMessages);
   }
 

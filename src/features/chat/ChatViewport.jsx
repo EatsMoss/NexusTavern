@@ -14,8 +14,6 @@ import {
   ProgressIndicator,
   SkeletonMessage,
   Button,
-  Checkbox,
-  KebabMenu,
   MultiSelectBar,
   Modal,
   PearlescentShader,
@@ -42,62 +40,6 @@ const LazyConsoleDrawer = lazy(() =>
     default: m.ConsoleDrawer,
   })),
 );
-
-function parseEmbeddedChatTimestamp(fileName = '') {
-  const m = String(fileName).match(
-    /(\d{4})-(\d{1,2})-(\d{1,2})\s*@\s*(\d{1,2})h\s*(\d{1,2})m\s*(\d{1,2})s(?:\s*(\d{1,3})ms)?/,
-  );
-  if (!m) return 0;
-  const ts = new Date(
-    Number(m[1]),
-    Number(m[2]) - 1,
-    Number(m[3]),
-    Number(m[4]),
-    Number(m[5]),
-    Number(m[6]),
-    Number(m[7] || 0),
-  ).getTime();
-  return Number.isFinite(ts) && ts > 0 ? ts : 0;
-}
-
-function resolveChatTimestampMs(chat) {
-  if (!chat) return 0;
-  if (typeof chat.sortTimestampMs === 'number' && chat.sortTimestampMs > 0) {
-    return chat.sortTimestampMs;
-  }
-  const embedded = parseEmbeddedChatTimestamp(chat.fileName);
-  if (embedded > 0) return embedded;
-  if (typeof chat.lastModifiedMs === 'number' && chat.lastModifiedMs > 0) {
-    return chat.lastModifiedMs;
-  }
-  return 0;
-}
-
-function formatChatDateBadge(chat) {
-  const ts = resolveChatTimestampMs(chat);
-  if (!ts) return chat?.lastSendDate || 'Unknown date';
-  try {
-    const d = new Date(ts);
-    return d.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return chat?.lastSendDate || 'Saved';
-  }
-}
-
-function cleanChatPreview(raw = '') {
-  if (!raw) return '';
-  return String(raw)
-    .replace(/<(?:think|thinking|reasoning)>[\s\S]*?<\/(?:think|thinking|reasoning)>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 /**
  * Normalizes both SillyTavern branch filename conventions:
@@ -138,13 +80,10 @@ function parseChatTitleAndBranch(fileName = '') {
   };
 }
 
-const CHAT_LIST_BATCH_SIZE = 30;
-const CHAT_LIST_BOTTOM_THRESHOLD_PX = 160;
-
 export function ChatViewport({
   streamRef,
   composerRef,
-  isDemoCard = false,
+  isDemoCard: _isDemoCard = false,
   chatListOpen = false,
   timelinesOpen = false,
   timelineChats = [],
@@ -154,15 +93,15 @@ export function ChatViewport({
   leftTomeInset = 0,
   rightTomeInset = 0,
   chatFiles = [],
-  totalChatsCount = null,
-  hasMoreChats = false,
-  loadingMoreChats = false,
-  onLoadMoreChats,
+  totalChatsCount: _totalChatsCount = null,
+  hasMoreChats: _hasMoreChats = false,
+  loadingMoreChats: _loadingMoreChats = false,
+  onLoadMoreChats: _onLoadMoreChats,
   onSelectChatFile,
-  onBranchChatFile,
-  onDeleteChatFiles,
-  onCloseChatList,
-  onCloseTimelines,
+  onBranchChatFile: _onBranchChatFile,
+  onDeleteChatFiles: _onDeleteChatFiles,
+  onCloseChatList: _onCloseChatList,
+  onCloseTimelines: _onCloseTimelines,
   activeChatFile = '',
   chatMetaStats = {},
   loadingChat = false,
@@ -236,8 +175,6 @@ export function ChatViewport({
   const internalComposerRef = useRef(null);
   const resolvedComposerRef = composerRef || internalComposerRef;
   const streamTrackRef = useRef(null);
-  const chatListScrollRef = useRef(null);
-  const chatListLoadGateRef = useRef(false);
   const composerEmojiBtnRef = useRef(null);
 
   const [composerEmojiOpen, setComposerEmojiOpen] = useState(false);
@@ -250,15 +187,6 @@ export function ChatViewport({
     clearLogs: clearConsoleLogs,
   } = activeConsoleStream;
   const prevLoggedChatKeyRef = useRef('');
-  const [visibleChatsLimit, setVisibleChatsLimit] = useState(CHAT_LIST_BATCH_SIZE);
-  const [chatMultiSelectActive, setChatMultiSelectActive] = useState(false);
-  const [selectedChatFiles, setSelectedChatFiles] = useState([]);
-  const [lastSelectedChatClick, setLastSelectedChatClick] = useState({
-    fileName: null,
-    selected: true,
-  });
-  const [chatDeleteConfirm, setChatDeleteConfirm] = useState(null); // string[] | null
-  const [deletingChats, setDeletingChats] = useState(false);
   const [msgMultiSelectActive, setMsgMultiSelectActive] = useState(false);
   const [selectedMsgIndices, setSelectedMsgIndices] = useState([]);
   const [lastMsgSelectClick, setLastMsgSelectClick] = useState({
@@ -926,131 +854,6 @@ export function ChatViewport({
     onGenerateSwipe,
   ]);
 
-  const sortedChatFiles = useMemo(() => {
-    if (!Array.isArray(chatFiles) || chatFiles.length === 0) return [];
-    return [...chatFiles].sort((a, b) => {
-      const diff = resolveChatTimestampMs(b) - resolveChatTimestampMs(a);
-      if (diff !== 0) return diff;
-      return (b.fileSize || 0) - (a.fileSize || 0);
-    });
-  }, [chatFiles]);
-
-  // Reset the 30-item window and multi-select state when opening the chat list or switching character
-  useLayoutEffect(() => {
-    if (chatListOpen) {
-      setVisibleChatsLimit(CHAT_LIST_BATCH_SIZE);
-      setChatMultiSelectActive(false);
-      setSelectedChatFiles([]);
-      setChatDeleteConfirm(null);
-      if (chatListScrollRef.current) {
-        chatListScrollRef.current.scrollTop = 0;
-      }
-    }
-  }, [chatListOpen, characterName]);
-
-  const visibleChatFiles = useMemo(
-    () => sortedChatFiles.slice(0, visibleChatsLimit),
-    [sortedChatFiles, visibleChatsLimit],
-  );
-
-  const handleExitChatMultiSelect = useCallback(() => {
-    setChatMultiSelectActive(false);
-    setSelectedChatFiles([]);
-    setLastSelectedChatClick({ fileName: null, selected: true });
-  }, []);
-
-  useEffect(() => {
-    if (!chatListOpen || !chatMultiSelectActive || chatDeleteConfirm) return undefined;
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        handleExitChatMultiSelect();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [chatListOpen, chatMultiSelectActive, chatDeleteConfirm, handleExitChatMultiSelect]);
-
-  const handleToggleMultiSelectChat = useCallback(
-    (fileName, event) => {
-      if (!fileName) return;
-      if (!chatMultiSelectActive) {
-        setChatMultiSelectActive(true);
-      }
-      setSelectedChatFiles((prev) => {
-        const set = new Set(prev);
-        const targetState = !set.has(fileName);
-        if (
-          event?.shiftKey &&
-          lastSelectedChatClick.fileName &&
-          lastSelectedChatClick.fileName !== fileName
-        ) {
-          const orderedNames = visibleChatFiles.map((c) => c.fileName);
-          const a = orderedNames.indexOf(lastSelectedChatClick.fileName);
-          const b = orderedNames.indexOf(fileName);
-          if (a !== -1 && b !== -1) {
-            const [start, end] = a < b ? [a, b] : [b, a];
-            for (let i = start; i <= end; i += 1) {
-              if (lastSelectedChatClick.selected) set.add(orderedNames[i]);
-              else set.delete(orderedNames[i]);
-            }
-            return Array.from(set);
-          }
-        }
-        if (targetState) set.add(fileName);
-        else set.delete(fileName);
-        setLastSelectedChatClick({ fileName, selected: targetState });
-        return Array.from(set);
-      });
-    },
-    [chatMultiSelectActive, lastSelectedChatClick, visibleChatFiles],
-  );
-
-  const allVisibleChatsSelected = useMemo(() => {
-    if (visibleChatFiles.length === 0) return false;
-    const set = new Set(selectedChatFiles);
-    return visibleChatFiles.every((c) => set.has(c.fileName));
-  }, [visibleChatFiles, selectedChatFiles]);
-
-  const handleToggleSelectAllChats = useCallback(() => {
-    if (allVisibleChatsSelected) {
-      setSelectedChatFiles([]);
-    } else {
-      setSelectedChatFiles(visibleChatFiles.map((c) => c.fileName));
-    }
-  }, [allVisibleChatsSelected, visibleChatFiles]);
-
-  const handleConfirmDeleteChats = useCallback(async () => {
-    if (
-      !Array.isArray(chatDeleteConfirm) ||
-      chatDeleteConfirm.length === 0 ||
-      !onDeleteChatFiles ||
-      deletingChats
-    ) {
-      return;
-    }
-    setDeletingChats(true);
-    try {
-      await onDeleteChatFiles(chatDeleteConfirm);
-      setSelectedChatFiles((prev) =>
-        prev.filter((name) => !chatDeleteConfirm.includes(name)),
-      );
-      if (chatMultiSelectActive && selectedChatFiles.length <= chatDeleteConfirm.length) {
-        setChatMultiSelectActive(false);
-      }
-      setChatDeleteConfirm(null);
-    } finally {
-      setDeletingChats(false);
-    }
-  }, [
-    chatDeleteConfirm,
-    onDeleteChatFiles,
-    deletingChats,
-    chatMultiSelectActive,
-    selectedChatFiles.length,
-  ]);
-
   const selectableMsgIndices = useMemo(() => {
     if (!activeChatFile || !Array.isArray(messages)) return [];
     const out = [];
@@ -1203,37 +1006,6 @@ export function ChatViewport({
     onDeleteMessage,
     handleExitMsgMultiSelect,
   ]);
-
-  const hasMoreLocalChats = visibleChatFiles.length < sortedChatFiles.length;
-  const canLoadMoreChats = hasMoreLocalChats || hasMoreChats;
-  const displayedTotalChats =
-    typeof totalChatsCount === 'number' && totalChatsCount > 0
-      ? Math.max(totalChatsCount, sortedChatFiles.length)
-      : sortedChatFiles.length;
-
-  const handleChatListScroll = useCallback(() => {
-    const el = chatListScrollRef.current;
-    if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distanceFromBottom > CHAT_LIST_BOTTOM_THRESHOLD_PX) return;
-
-    if (hasMoreLocalChats) {
-      setVisibleChatsLimit((prev) => prev + CHAT_LIST_BATCH_SIZE);
-    }
-
-    if (
-      hasMoreChats &&
-      onLoadMoreChats &&
-      !loadingMoreChats &&
-      !chatListLoadGateRef.current
-    ) {
-      chatListLoadGateRef.current = true;
-      setVisibleChatsLimit((prev) => prev + CHAT_LIST_BATCH_SIZE);
-      Promise.resolve(onLoadMoreChats()).finally(() => {
-        chatListLoadGateRef.current = false;
-      });
-    }
-  }, [hasMoreLocalChats, hasMoreChats, onLoadMoreChats, loadingMoreChats]);
 
   const [timelinesMounted, setTimelinesMounted] = useState(Boolean(timelinesOpen));
   const [timelinesAnimState, setTimelinesAnimState] = useState(() =>

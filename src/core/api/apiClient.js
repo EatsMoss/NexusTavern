@@ -289,7 +289,7 @@ export async function apiFetchSse(url, { body: rawBody, signal, onEvent, headers
 
   const dispatchDataLine = async (dataStr) => {
     if (!dataStr || dataStr === '[DONE]') return;
-    let parsed = null;
+    let parsed;
     try {
       parsed = JSON.parse(dataStr);
     } catch {

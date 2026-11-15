@@ -76,7 +76,7 @@ function looksLikeStUserProfileDir(dirPath) {
 
 function listProfilesInsideDataDir(dataDirPath) {
   if (!fs.existsSync(dataDirPath)) return [];
-  let entries = [];
+  let entries;
   try {
     entries = fs.readdirSync(dataDirPath, { withFileTypes: true });
   } catch {
@@ -188,7 +188,7 @@ export function collectRecursiveFiles(rootDir, allowedExts = null) {
   const collected = [];
 
   function walk(currentDir, relPrefix) {
-    let entries = [];
+    let entries;
     try {
       entries = fs.readdirSync(currentDir, { withFileTypes: true });
     } catch {

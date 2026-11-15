@@ -9,6 +9,8 @@ import {
   SafeImage,
 } from '@ui/index.js';
 
+const EMPTY_ARRAY = Object.freeze([]);
+
 function isPersonaLinkedToCard(persona, cardAvatar) {
   if (!persona || !cardAvatar) return false;
   const stem = String(cardAvatar).replace(/\.(png|json)$/i, '');
@@ -133,7 +135,7 @@ export function LinksBindingsTab({
   );
 
   const primaryWorld = String(card?.extensions?.world || '').trim();
-  const auxWorlds = Array.isArray(card?.auxWorlds) ? card.auxWorlds : [];
+  const auxWorlds = Array.isArray(card?.auxWorlds) ? card.auxWorlds : EMPTY_ARRAY;
   const loreEntriesCount = Number(card?.loreEntriesCount || 0);
 
   const worldDropdownOptions = useMemo(() => {

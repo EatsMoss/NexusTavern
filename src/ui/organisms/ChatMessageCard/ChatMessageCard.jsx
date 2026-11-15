@@ -354,6 +354,22 @@ function ChatMessageCardInner({
     }
   }, [multiSelectActive, isEditing]);
 
+  const telemetryCollapsed = useSyncExternalStore(
+    subscribeTelemetryCollapsed,
+    getTelemetryCollapsedSnapshot,
+    () => false,
+  );
+
+  const latestSaveRecapCtxRef = useRef({ message, onSaveEdit });
+  latestSaveRecapCtxRef.current = { message, onSaveEdit };
+
+  const handleQuickSaveRecap = useCallback(async (nextRecapText) => {
+    const { message: curMsg, onSaveEdit: curSave } = latestSaveRecapCtxRef.current;
+    if (!curSave || !curMsg) return false;
+    const updatedRawText = replaceRecapBlockInRawText(curMsg.text || '', nextRecapText);
+    return curSave(curMsg.index, updatedRawText, false, curMsg.reasoning || '');
+  }, []);
+
   if (!message) return null;
 
   const isUser = Boolean(message.isUser);
@@ -393,12 +409,6 @@ function ChatMessageCardInner({
       canCreateBranch ||
       canEdit ||
       canUserTriggerReply);
-
-  const telemetryCollapsed = useSyncExternalStore(
-    subscribeTelemetryCollapsed,
-    getTelemetryCollapsedSnapshot,
-    () => false,
-  );
 
   const timerLabel = formatTimerBadge(message.durationMs, message.tokens);
   const hasModelInfo = !isUser && Boolean(message.model || message.api);
@@ -473,16 +483,6 @@ function ChatMessageCardInner({
     }
     setIsEditing(false);
   };
-
-  const latestSaveRecapCtxRef = useRef({ message, onSaveEdit });
-  latestSaveRecapCtxRef.current = { message, onSaveEdit };
-
-  const handleQuickSaveRecap = useCallback(async (nextRecapText) => {
-    const { message: curMsg, onSaveEdit: curSave } = latestSaveRecapCtxRef.current;
-    if (!curSave || !curMsg) return false;
-    const updatedRawText = replaceRecapBlockInRawText(curMsg.text || '', nextRecapText);
-    return curSave(curMsg.index, updatedRawText, false, curMsg.reasoning || '');
-  }, []);
 
   const kebabItems = [
     {

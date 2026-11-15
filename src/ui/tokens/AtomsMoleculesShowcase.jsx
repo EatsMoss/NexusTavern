@@ -11,7 +11,6 @@ import {
   Slider,
   BookmarkRibbons,
   FolderCard,
-  ScrollIndicator,
   OverlayScrollArea,
   TagChip,
   ToggleGroup,

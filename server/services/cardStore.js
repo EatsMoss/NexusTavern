@@ -488,7 +488,7 @@ export function loadCharacterCardByFilename(filename) {
 
   const ext = path.extname(safeName).toLowerCase();
   const buf = fs.readFileSync(fullPath);
-  let card = null;
+  let card;
 
   if (ext === '.png' && isPngBuffer(buf)) {
     card = readCardFromPngBuffer(buf, safeName);

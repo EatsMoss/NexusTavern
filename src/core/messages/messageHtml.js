@@ -269,7 +269,7 @@ export function decodeStyleTags(
   { allowExternalMedia = true } = {},
 ) {
   return String(text).replaceAll(DECODE_STYLE_REGEX, (_, encodedCss) => {
-    let css = '';
+    let css;
     try {
       css = decodeURIComponent(encodedCss);
     } catch {
