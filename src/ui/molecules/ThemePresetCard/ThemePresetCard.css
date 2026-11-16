@@ -1,0 +1,140 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — M3 THEME PRESET CARD MOLECULE
+   ========================================================================== */
+
+.bb-theme-preset-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 9px 10px 9px 10px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-list-card-border, var(--md-sys-color-outline-variant));
+  background: var(--bb-list-card-bg, var(--bb-sheet-well-bg));
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 130ms ease,
+    border-color 130ms ease,
+    box-shadow 130ms ease;
+}
+
+.bb-theme-preset-card:hover:not(.is-disabled),
+.bb-theme-preset-card:focus-visible {
+  outline: none;
+  background: var(--bb-list-card-hover-bg, var(--bb-sheet-item-hover));
+  border-color: var(--bb-list-card-hover-border, var(--md-sys-color-outline));
+}
+
+.bb-theme-preset-card.is-active {
+  background: var(--bb-list-card-selected-bg, var(--bb-sheet-item-selected));
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.bb-theme-preset-card.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.bb-theme-preset-card__swatches {
+  display: grid;
+  grid-template-columns: repeat(2, 22px);
+  grid-template-rows: repeat(2, 22px);
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.bb-theme-preset-card__dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+[data-theme='light'] .bb-theme-preset-card__dot {
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+.bb-theme-preset-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.bb-theme-preset-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bb-theme-preset-card__name {
+  font-family: var(--bb-font-heading);
+  font-size: calc(13.5px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-theme-preset-card__tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 5px;
+  font-family: var(--bb-font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  flex-shrink: 0;
+}
+
+.bb-theme-preset-card__sub-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.bb-theme-preset-card__mode-icon {
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  flex-shrink: 0;
+}
+
+.bb-theme-preset-card__sub {
+  font-family: var(--bb-font-body);
+  font-size: calc(11.5px * var(--bb-font-scale, 1));
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-theme-preset-card__trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.bb-theme-preset-card__check {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+}

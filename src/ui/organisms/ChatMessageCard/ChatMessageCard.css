@@ -12,7 +12,9 @@
   padding: 13px 24px;
   border-radius: var(--md-sys-shape-corner-xs, 7px);
   border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
-  background: var(--bb-page-card-bg, var(--md-sys-color-surface-container));
+  background: var(--bb-mes-card-bg, var(--bb-page-card-bg, var(--md-sys-color-surface-container)));
+  backdrop-filter: blur(var(--bb-mes-backdrop-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--bb-mes-backdrop-blur, 0px));
   box-shadow: var(--md-sys-elevation-1);
   transition: border-color 140ms ease, background-color 140ms ease;
 }
@@ -810,4 +812,18 @@
 
 .bb-chat-msg-card__file-card:hover .bb-chat-msg-card__file-open {
   color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+}
+
+/* --- Zero-rerender Message Card Visibility Flags (Settings -> Chat & AI) --- */
+[data-hide-msg-timer='true'] .bb-chat-msg-card__pill--timer,
+[data-hide-msg-timestamps='true'] .bb-chat-msg-card__pill--time,
+[data-hide-msg-tokens='true'] .bb-chat-msg-card__pill--tokens,
+[data-hide-model-icons='true'] .bb-chat-msg-card__model-badge,
+[data-hide-msg-ids='true'] .bb-chat-msg-card__avatar-num,
+[data-hide-chat-avatars='true'] .bb-chat-msg-card__avatar {
+  display: none !important;
+}
+
+[data-always-expand-actions='true'] .bb-chat-msg-card__telemetry-dot-btn {
+  display: none;
 }

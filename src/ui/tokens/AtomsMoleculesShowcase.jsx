@@ -48,6 +48,8 @@ import {
   FloatingPaletteDivider,
   FloatingPaletteReadout,
   MessageRecapBox,
+  ColorField,
+  ThemePresetCard,
 } from '@ui/index.js';
 
 const LEFT_TOME_TABS = [
@@ -108,6 +110,12 @@ export function AtomsMoleculesShowcase() {
   const [demoYamlInclude, setDemoYamlInclude] = useState(
     'top_k: 40\nprovider:\n  allow_fallbacks: false',
   );
+  const [demoPrimaryColor, setDemoPrimaryColor] = useState('#6D6D83');
+  const [demoQuoteColor, setDemoQuoteColor] = useState('#DCE2FF');
+  const [demoQuoteAuto, setDemoQuoteAuto] = useState(true);
+  const [demoCodeBgColor, setDemoCodeBgColor] = useState('#2B3354');
+  const [demoCodeBgAlpha, setDemoCodeBgAlpha] = useState(0.65);
+  const [demoActivePresetId, setDemoActivePresetId] = useState('indigo-slate');
   const [multiSelectedIds, setMultiSelectedIds] = useState(['demo-2']);
   const [pickedTileId, setPickedTileId] = useState('demo-1');
   const [demoModelSel, setDemoModelSel] = useState({
@@ -1488,6 +1496,92 @@ export function AtomsMoleculesShowcase() {
               <TagChip key={label} label={label} state={idx === 0 ? 'include' : 'neutral'} />
             ))}
           </ChipScrollStrip>
+        </div>
+      </FolderCard>
+
+      <FolderCard
+        title="M3 Customization Controls (ColorField & ThemePresetCard)"
+        subtitle="Solid M3 HSV Color Picker popover (desktop) / Bottom Sheet (mobile), Auto-link toggle & tonal theme preset cards"
+        icon="palette"
+        defaultOpen
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
+          <ColorField
+            label="Primary Surface Seed"
+            description="Base tonal seed for M3 container hierarchy"
+            value={demoPrimaryColor}
+            defaultValue="#6D6D83"
+            onChange={setDemoPrimaryColor}
+          />
+          <ColorField
+            label="Spoken Dialogue Quotes"
+            description="Automatically tracks active M3 accent unless customized"
+            value={demoQuoteColor}
+            autoValue="#A9B7EC"
+            isAuto={demoQuoteAuto}
+            onToggleAuto={setDemoQuoteAuto}
+            onChange={setDemoQuoteColor}
+          />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, paddingTop: 4 }}>
+            <ColorField
+              variant="compact"
+              label="Inline Code Surface (with Alpha)"
+              value={demoCodeBgColor}
+              alpha={demoCodeBgAlpha}
+              onChange={setDemoCodeBgColor}
+              onAlphaChange={setDemoCodeBgAlpha}
+            />
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+              gap: 8,
+              paddingTop: 6,
+            }}
+          >
+            {[
+              {
+                id: 'indigo-slate',
+                name: 'Indigo Slate',
+                subtitle: 'Dark · Two-Color',
+                themeMode: 'dark',
+                isDefault: true,
+                previewColors: ['#131317', '#1E1E25', '#6D6D83', '#6575B3'],
+              },
+              {
+                id: 'bronze-tome',
+                name: 'Bronze Tome',
+                subtitle: 'Dark · Monochrome',
+                themeMode: 'dark',
+                previewColors: ['#141210', '#1F1B18', '#7D7162', '#C9975B'],
+              },
+              {
+                id: 'ivory-grimoire',
+                name: 'Ivory Grimoire',
+                subtitle: 'Light · Two-Color',
+                themeMode: 'light',
+                previewColors: ['#F6F1E7', '#EDE3D2', '#B08248', '#7A5629'],
+                menuItems: [
+                  { id: 'dup', label: 'Duplicate Preset', icon: 'copy', onClick: () => {} },
+                  { id: 'exp', label: 'Export JSON', icon: 'download', onClick: () => {} },
+                ],
+              },
+            ].map((preset) => (
+              <ThemePresetCard
+                key={preset.id}
+                name={preset.name}
+                subtitle={preset.subtitle}
+                themeMode={preset.themeMode}
+                isDefault={preset.isDefault}
+                previewColors={preset.previewColors}
+                active={demoActivePresetId === preset.id}
+                menuItems={preset.menuItems}
+                onSelect={() => setDemoActivePresetId(preset.id)}
+              />
+            ))}
+          </div>
         </div>
       </FolderCard>
 

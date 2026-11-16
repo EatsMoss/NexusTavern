@@ -1,4 +1,4 @@
-import React, { useState, useMemo, memo } from 'react';
+import React, { useState, useMemo, useSyncExternalStore, memo } from 'react';
 import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { TypingDots } from '../../atoms/TypingDots/TypingDots.jsx';
 import { OverlayScrollArea } from '../../atoms/OverlayScrollArea/OverlayScrollArea.jsx';
@@ -19,8 +19,20 @@ import {
   REGEX_PLACEMENT,
 } from '@core/regex/regexEngine.js';
 import { useRegexDisplayStore } from '@core/regex/regexDisplayStore.js';
+import {
+  subscribeCustomizationRuntime,
+  getCustomizationRuntimeSnapshot,
+} from '@core/customization/customizationRuntimeStore.js';
 import { MessageRecapBox } from '../MessageRecapBox/MessageRecapBox.jsx';
 import './MessageDecorator.css';
+
+function getDecoratorFlagsSnapshot() {
+  const ai = getCustomizationRuntimeSnapshot()?.chatAndAi;
+  if (!ai) return '0|1|0|1';
+  return `${ai.forbidExternalMedia ? 1 : 0}|${ai.reasoningAutoParse !== false ? 1 : 0}|${
+    ai.reasoningAutoExpand ? 1 : 0
+  }|${ai.smoothStreaming !== false ? 1 : 0}`;
+}
 
 /**
  * Splits a plain-text body into structural blocks:
@@ -185,6 +197,13 @@ function renderStreamingInlineContent(
         <em key={`${prefix}s-${seg.offset}`} className="bb-decorator-thought">
           {children}
         </em>
+      );
+    }
+    if (seg.kind === 'apostrophe') {
+      return (
+        <span key={`${prefix}s-${seg.offset}`} className="bb-decorator-apostrophe">
+          {children}
+        </span>
       );
     }
     if (seg.kind === 'quote') {
@@ -374,7 +393,18 @@ export const MessageDecorator = memo(function MessageDecorator({
   recapCompressDepth = null,
   onSaveRecap,
 }) {
-  const [reasoningOpen, setReasoningOpen] = useState(defaultReasoningOpen);
+  const flagsKey = useSyncExternalStore(
+    subscribeCustomizationRuntime,
+    getDecoratorFlagsSnapshot,
+    getDecoratorFlagsSnapshot,
+  );
+  const [fExt, fParse, fExpand, fSmooth] = flagsKey.split('|');
+  const forbidExternalMedia = fExt === '1';
+  const reasoningAutoParse = fParse === '1';
+  const reasoningAutoExpand = fExpand === '1';
+  const smoothStreaming = fSmooth === '1';
+
+  const [manualReasoningOpen, setManualReasoningOpen] = useState(null);
   const [copiedCodeIdx, setCopiedCodeIdx] = useState(null);
   const regexDisplayState = useRegexDisplayStore();
   const activeDisplayScripts =
@@ -383,9 +413,12 @@ export const MessageDecorator = memo(function MessageDecorator({
   const { reasoningText, recapText, isRecapStreaming, blocks, htmlBody, streamingHtmlNodes } =
     useMemo(() => {
       const macroResolved = replaceDisplayMacros(text, userName, charName);
-      const extracted = extractThinkingAndCleanBody(macroResolved, reasoning, {
-        isStreaming,
-      });
+      const extracted = reasoningAutoParse
+        ? extractThinkingAndCleanBody(macroResolved, reasoning, { isStreaming })
+        : {
+            reasoningText: String(reasoning || '').trim(),
+            cleanBody: String(macroResolved || '').trim(),
+          };
       let resolvedReasoning = replaceDisplayMacros(
         extracted.reasoningText,
         userName,
@@ -433,7 +466,9 @@ export const MessageDecorator = memo(function MessageDecorator({
       });
 
       if (hasHtmlMarkup(cleanedBody)) {
-        const sanitized = sanitizeMessageHtml(cleanedBody);
+        const sanitized = sanitizeMessageHtml(cleanedBody, {
+          allowExternalMedia: !forbidExternalMedia,
+        });
         if (isStreaming) {
           return {
             reasoningText: resolvedReasoning,
@@ -482,6 +517,8 @@ export const MessageDecorator = memo(function MessageDecorator({
       isStreaming,
       streamStalled,
       streamPhase,
+      reasoningAutoParse,
+      forbidExternalMedia,
     ]);
 
   const hasRichStreamingNodes =
@@ -493,7 +530,10 @@ export const MessageDecorator = memo(function MessageDecorator({
       !htmlBody &&
       !hasRichStreamingNodes,
   );
-  const effectiveReasoningOpen = reasoningOpen;
+  const effectiveReasoningOpen =
+    manualReasoningOpen !== null
+      ? manualReasoningOpen
+      : Boolean(defaultReasoningOpen || reasoningAutoExpand);
 
   const liveThinkingHeading = useMemo(() => {
     if (!isActivelyThinking) return null;
@@ -559,7 +599,7 @@ export const MessageDecorator = memo(function MessageDecorator({
           <button
             type="button"
             className="bb-reasoning-box__header"
-            onClick={() => setReasoningOpen((prev) => !prev)}
+            onClick={() => setManualReasoningOpen(!effectiveReasoningOpen)}
             aria-expanded={effectiveReasoningOpen}
           >
             <span className="bb-reasoning-box__title">
@@ -656,7 +696,12 @@ export const MessageDecorator = memo(function MessageDecorator({
             if (block.type === 'blockquote') {
               return isStreaming ? (
                 <blockquote key={`b-${idx}`} className="bb-decorator-blockquote">
-                  {renderStreamingInlineContent(block.content, `b-${idx}`, true, tailDotsEl)}
+                  {renderStreamingInlineContent(
+                    block.content,
+                    `b-${idx}`,
+                    smoothStreaming,
+                    tailDotsEl,
+                  )}
                 </blockquote>
               ) : (
                 <blockquote
@@ -701,7 +746,12 @@ export const MessageDecorator = memo(function MessageDecorator({
                   className="bb-decorator-p bb-decorator-p--streaming"
                   data-para-index={currentParaIdx}
                 >
-                  {renderStreamingInlineContent(block.content, `b-${idx}`, true, tailDotsEl)}
+                  {renderStreamingInlineContent(
+                    block.content,
+                    `b-${idx}`,
+                    smoothStreaming,
+                    tailDotsEl,
+                  )}
                 </p>
               );
             }

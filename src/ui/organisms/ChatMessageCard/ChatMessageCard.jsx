@@ -533,6 +533,12 @@ function ChatMessageCardInner({
 
   const handleTouchStart = (e) => {
     if (!canSwipe || isEditing || isStreaming || multiSelectActive) return;
+    if (
+      typeof document !== 'undefined' &&
+      document.documentElement.getAttribute('data-mobile-swipe-gestures') === 'false'
+    ) {
+      return;
+    }
     const t = e.touches?.[0];
     if (!t) return;
     touchStartRef.current = { x: t.clientX, y: t.clientY };
@@ -561,6 +567,26 @@ function ChatMessageCardInner({
     }
   };
 
+  const handleDoubleClickBody = (e) => {
+    if (isEditing || isStreaming || multiSelectActive || !onSaveEdit) return;
+    if (
+      typeof document === 'undefined' ||
+      document.documentElement.getAttribute('data-click-to-edit') !== 'double-click'
+    ) {
+      return;
+    }
+    if (
+      e.target.closest(
+        'button, a, input, textarea, summary, code, pre, .bb-kebab-menu, .bb-reasoning-box',
+      )
+    ) {
+      return;
+    }
+    setDraftText(message.text || '');
+    setDraftReasoning(message.reasoning || '');
+    setIsEditing(true);
+  };
+
   return (
     <article
       className={[
@@ -576,6 +602,7 @@ function ChatMessageCardInner({
         .join(' ')}
       data-message-index={message.index}
       onClick={multiSelectActive ? handleCardClick : undefined}
+      onDoubleClick={handleDoubleClickBody}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -649,9 +676,11 @@ function ChatMessageCardInner({
                 onClick={toggleTelemetryCollapsed}
               >
                 {!isStreaming && message.time && (
-                  <span className="bb-chat-msg-card__pill">{message.time}</span>
+                  <span className="bb-chat-msg-card__pill bb-chat-msg-card__pill--time">
+                    {message.time}
+                  </span>
                 )}
-                <span className="bb-chat-msg-card__pill">
+                <span className="bb-chat-msg-card__pill bb-chat-msg-card__pill--tokens">
                   {message.tokens || 0} tok
                 </span>
                 {timerLabel && !isStreaming && (

@@ -3,7 +3,6 @@ import { useViewport } from '@core/hooks/useViewport.js';
 import { isDemoCardId } from '@core/cards/cardsApi.js';
 import { readCachedUiState } from '@core/session/sessionApi.js';
 import { useSessionBoot } from '@core/session/useSessionBoot.js';
-import { M3_PRESET_SEEDS, applyM3ThemeTokens } from '@ui/tokens/themeTokens.js';
 import {
   TopBar,
   resolvePromptEditorTarget,
@@ -21,6 +20,7 @@ import { useRegexWorkspace } from '@features/regex/useRegexWorkspace.js';
 import { useRefusalCatcher } from '@features/refusal/useRefusalCatcher.js';
 import { useMessageRecap } from '@features/recap/useMessageRecap.js';
 import { useStImporter } from '@features/st-importer/useStImporter.js';
+import { useCustomizationWorkspace } from '@features/customization/useCustomizationWorkspace.js';
 import { useWorkspaceSheetDismiss } from './useWorkspaceSheetDismiss.js';
 import { usePromptTokenTelemetry } from './usePromptTokenTelemetry.js';
 import { buildCharacterSheetSharedProps } from './buildCharacterSheetSharedProps.js';
@@ -50,10 +50,10 @@ const CHAT_COLUMN_WIDTH = 784;
 const TOME_TOGGLE_CLEARANCE = 52; // 8px from tome edge + 36px toggle button + 8px gap to chat edge
 const TOME_WIDTH_STORAGE_KEY = 'bookbound_panel_widths_v1';
 
-function computeMaxTomeWidth(viewportWidth) {
+function computeMaxTomeWidth(viewportWidth, chatColWidth = CHAT_COLUMN_WIDTH) {
   return Math.max(
     MIN_TOME_WIDTH,
-    Math.floor((viewportWidth - CHAT_COLUMN_WIDTH) / 2) - TOME_TOGGLE_CLEARANCE,
+    Math.floor((viewportWidth - chatColWidth) / 2) - TOME_TOGGLE_CLEARANCE,
   );
 }
 
@@ -83,7 +83,6 @@ function loadInitialTomeWidths() {
 
 export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshStatus }) {
   const { width: viewportWidth, isMobile } = useViewport();
-  const maxTomeWidth = useMemo(() => computeMaxTomeWidth(viewportWidth), [viewportWidth]);
   const initialUiRef = useRef(null);
   if (initialUiRef.current === null) {
     initialUiRef.current = readCachedUiState() || {};
@@ -128,14 +127,6 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     }
     return initialUi.charSplitRatio ?? null;
   });
-
-  // Theme & Shader settings
-  const [themeMode, setThemeMode] = useState('dark');
-  const [activeSeed, setActiveSeed] = useState(M3_PRESET_SEEDS[0]);
-  const [lowGpu, setLowGpu] = useState(false);
-  const [idleFade, setIdleFade] = useState(false);
-  const [shaderStyle, setShaderStyle] = useState('nacre'); // 'caustics' | 'nacre'
-  const [shaderIntensity, setShaderIntensity] = useState(0.38);
 
   const [activeSheetTab, setActiveSheetTab] = useState(
     () => initialUi.activeSheetTab || 'description',
@@ -407,26 +398,25 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     resetSession: chat.resetActiveCardChatSession,
   };
 
-  useEffect(() => {
-    const scenarioPresetId = scenario.activeCardFull?.scenarioMeta?.themePresetId;
-    const scenarioSeed = scenarioPresetId
-      ? M3_PRESET_SEEDS.find((s) => s.id === scenarioPresetId) || null
-      : null;
-    const effectiveSeed = scenarioSeed || activeSeed;
-    const effectiveMode = scenarioSeed
-      ? scenarioSeed.name.toLowerCase().includes('light')
-        ? 'light'
-        : 'dark'
-      : themeMode;
+  const customization = useCustomizationWorkspace({
+    scenarioThemePresetId: scenario.activeCardFull?.scenarioMeta?.themePresetId || null,
+    activePortraitUrl:
+      chat.activeScenarioAvatarUrl || scenario.activeCharacter?.avatarUrl || null,
+    onNotify: (message, tone = 'info') => pushToast({ message, tone }),
+  });
 
-    applyM3ThemeTokens({
-      themeMode: effectiveMode,
-      seedHex: effectiveSeed.primaryHex,
-      secondaryHex: effectiveSeed.secondaryHex,
-      fontScale: 1,
-      lowGpu,
-    });
-  }, [themeMode, activeSeed, lowGpu, scenario.activeCardFull?.scenarioMeta?.themePresetId]);
+  const lowGpu = Boolean(customization.config.system?.lowGpu);
+  const idleFade = Boolean(customization.config.idleFade);
+  const shaderStyle =
+    customization.config.shaderStyle === 'off' ? 'none' : customization.config.shaderStyle;
+  const shaderIntensity =
+    customization.config.shaderStyle === 'off'
+      ? 0
+      : Number((customization.config.shaderIntensity / 100).toFixed(2));
+  const maxTomeWidth = useMemo(
+    () => computeMaxTomeWidth(viewportWidth, customization.config.chatColumnMaxWidth),
+    [viewportWidth, customization.config.chatColumnMaxWidth],
+  );
 
   // Global shortcut Ctrl+Shift+U to toggle UI Kit Sandbox page
   useEffect(() => {
@@ -668,18 +658,8 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       charSplitRatio={charSplitRatio}
       setCharSplitRatio={setCharSplitRatio}
       timelinesOpen={timelinesOpen}
-      themeMode={themeMode}
-      setThemeMode={setThemeMode}
-      activeSeed={activeSeed}
-      setActiveSeed={setActiveSeed}
-      shaderStyle={shaderStyle}
-      setShaderStyle={setShaderStyle}
-      shaderIntensity={shaderIntensity}
-      setShaderIntensity={setShaderIntensity}
-      lowGpu={lowGpu}
-      setLowGpu={setLowGpu}
-      idleFade={idleFade}
-      setIdleFade={setIdleFade}
+      customization={customization}
+      onNotifyToast={(message, tone = 'info') => pushToast({ message, tone })}
     />
   );
 
@@ -818,7 +798,9 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       leftTabs={LEFT_TABS}
       leftTab={leftTab}
       onChangeLeftTab={setLeftTab}
-      leftScrollDisabled={leftTab === 'characters' || leftTab === 'chats'}
+      leftScrollDisabled={
+        leftTab === 'characters' || leftTab === 'chats' || leftTab === 'usersettings'
+      }
       leftContent={leftTomeContent}
       rightOpen={rightOpen}
       rightWidth={effectiveRightWidth}

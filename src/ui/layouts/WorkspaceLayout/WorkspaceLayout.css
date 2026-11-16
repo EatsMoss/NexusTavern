@@ -16,9 +16,32 @@
   color: var(--bb-ink-main);
 }
 
+.bb-app-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: var(--bb-stage-pattern-image, none);
+  background-size: var(--bb-stage-pattern-size, 48px 48px);
+  background-repeat: repeat;
+  opacity: var(--bb-stage-pattern-opacity, 0);
+}
+
+.bb-app-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: #000000;
+  opacity: var(--bb-screen-dim-opacity, 0);
+}
+
 /* --- 1. Center Column (Always Centered in Viewport Regardless of Side Tomes) --- */
 .bb-center-column {
   position: relative;
+  z-index: 2;
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
@@ -41,14 +64,16 @@
   height: 100dvh;
   min-height: 0;
   padding: 10px 12px 14px;
-  background-color: var(--bb-page-bg);
+  background-color: var(--bb-tome-surface-bg, var(--bb-page-bg));
+  backdrop-filter: blur(var(--bb-tome-backdrop-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--bb-tome-backdrop-blur, 0px));
   box-sizing: border-box;
   flex-shrink: 0;
   transition: opacity 0.16s ease;
 }
 
 .bb-tome--idle-fade {
-  opacity: 0.45;
+  opacity: var(--bb-tome-idle-opacity, 0.55);
 }
 
 .bb-tome--idle-fade:hover,

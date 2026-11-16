@@ -1,15 +1,14 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { isDemoCardId } from '@core/cards/cardsApi.js';
-import { M3_PRESET_SEEDS } from '@ui/tokens/themeTokens.js';
-import {
-  Button,
-  SegmentedGroup,
-  Switch,
-  Slider,
-  FolderCard,
-} from '@ui/index.js';
+import { FolderCard, ProgressIndicator } from '@ui/index.js';
 import { CharacterTome } from '@features/characters/CharacterTome.jsx';
 import { ChatsTomePanel } from '@features/chat/ChatsTomePanel.jsx';
+
+const LazySettingsTomePanel = lazy(() =>
+  import('@features/customization/SettingsTomePanel.jsx').then((m) => ({
+    default: m.SettingsTomePanel,
+  })),
+);
 
 /**
  * Left Tome tab router (`characters` | `chats` | `worldinfo` | `usersettings`).
@@ -22,18 +21,8 @@ export function LeftTomeContent({
   charSplitRatio,
   setCharSplitRatio,
   timelinesOpen,
-  themeMode,
-  setThemeMode,
-  activeSeed,
-  setActiveSeed,
-  shaderStyle,
-  setShaderStyle,
-  shaderIntensity,
-  setShaderIntensity,
-  lowGpu,
-  setLowGpu,
-  idleFade,
-  setIdleFade,
+  customization,
+  onNotifyToast,
 }) {
   const {
     pinnedLayout,
@@ -179,76 +168,19 @@ export function LeftTomeContent({
         </FolderCard>
       )}
 
-      {leftTab === 'usersettings' && (
-        <>
-          <FolderCard
-            title="Color Theme & Mode"
-            subtitle="NexusTavern palette engine"
-            icon="palette"
-          >
-            <SegmentedGroup
-              fullWidth
-              value={themeMode}
-              onChange={setThemeMode}
-              options={[
-                { value: 'dark', label: 'Dark Mode' },
-                { value: 'light', label: 'Light Mode' },
-              ]}
+      {leftTab === 'usersettings' && customization && (
+        <Suspense
+          fallback={
+            <ProgressIndicator
+              variant="linear"
+              size="sm"
+              overlay="top"
+              ariaLabel="Loading settings"
             />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-              {M3_PRESET_SEEDS.map((seed) => (
-                <Button
-                  key={seed.id}
-                  variant="b1"
-                  size="sm"
-                  emphasis={activeSeed.id === seed.id ? 'filled' : 'outlined'}
-                  onClick={() => setActiveSeed(seed)}
-                >
-                  {seed.name.split(' (')[0]}
-                </Button>
-              ))}
-            </div>
-          </FolderCard>
-
-          <FolderCard
-            title="Last Message Shader"
-            subtitle="Both shader variants available"
-            icon="sparkles"
-            defaultOpen={false}
-          >
-            <SegmentedGroup
-              fullWidth
-              value={shaderStyle}
-              onChange={setShaderStyle}
-              options={[
-                { value: 'caustics', label: 'Chaotic Flow' },
-                { value: 'nacre', label: 'Pearl Nacre' },
-              ]}
-            />
-            <Slider
-              label="Shader Intensity"
-              value={Math.round(shaderIntensity * 100)}
-              min={15}
-              max={100}
-              step={5}
-              defaultValue={38}
-              unit="%"
-              onChange={(v) => setShaderIntensity(v / 100)}
-            />
-            <Switch
-              checked={lowGpu}
-              onChange={setLowGpu}
-              label="Low-GPU Mode"
-              description="Replace WebGL shader with static gradient"
-            />
-            <Switch
-              checked={idleFade}
-              onChange={setIdleFade}
-              label="Tome Idle Translucency"
-              description="Dim side tomes when cursor is in chat"
-            />
-          </FolderCard>
-        </>
+          }
+        >
+          <LazySettingsTomePanel customization={customization} onNotify={onNotifyToast} />
+        </Suspense>
       )}
     </>
   );

@@ -20,6 +20,7 @@ import {
   updateChatMetadata,
 } from '@core/chats/chatsApi.js';
 import { resolvePreferredCharacterChatFile } from '@core/chats/timelineForest.js';
+import { getCustomizationRuntimeSnapshot } from '@core/customization/customizationRuntimeStore.js';
 import { readFileAsBase64 } from '@core/utils/imageCodec.js';
 import { revokeAttachmentDraft } from '@ui/index.js';
 import { useChatStreaming } from './useChatStreaming.js';
@@ -205,9 +206,11 @@ export function useChatWorkspace({
       const reqSeq = ++chatWindowSeqRef.current;
       setLoadingChat(true);
       try {
+        const tailLimit =
+          getCustomizationRuntimeSnapshot()?.chatAndAi?.tailLoadCount || 20;
         const win = await fetchChatWindow(avatarId, {
           file: targetFile,
-          limit: 20,
+          limit: tailLimit,
         });
         // Ignore late resolution if the user has already switched to another character or chat
         if (selectedCardIdRef.current !== avatarId || chatWindowSeqRef.current !== reqSeq) {
@@ -512,10 +515,12 @@ export function useChatWorkspace({
     }
     setLoadingChat(true);
     try {
+      const tailLimit =
+        getCustomizationRuntimeSnapshot()?.chatAndAi?.tailLoadCount || 20;
       const olderWin = await fetchChatWindow(selectedCardId, {
         file: activeChatFile,
         beforeIndex: chatMetaStats.startIndex,
-        limit: 20,
+        limit: tailLimit,
       });
       if (olderWin?.found && Array.isArray(olderWin.messages)) {
         const olderMapped = olderWin.messages.map(mapServerMsgToUi);
@@ -1827,9 +1832,19 @@ export function useChatWorkspace({
           if (hasPayload || createdFreshChat) {
             scrollToChatBottom();
           }
+          const sendEmptyContinues =
+            getCustomizationRuntimeSnapshot()?.chatAndAi?.sendEmptyToContinue !== false;
+          const tailMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+          const shouldContinueLastAi =
+            !hasPayload &&
+            !createdFreshChat &&
+            sendEmptyContinues &&
+            Boolean(tailMsg && !tailMsg.isUser && messages.length > 1);
+
           await runChatGenerationStream({
-            mode: 'reply',
+            mode: shouldContinueLastAi ? 'continue' : 'reply',
             targetFile,
+            ...(shouldContinueLastAi ? { targetMessageIndex: tailMsg.index } : {}),
           });
           return { ok: true };
         }

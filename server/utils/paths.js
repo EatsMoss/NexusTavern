@@ -53,6 +53,9 @@ export const NEXUSTAVERN_SESSION_FILE = path.join(NEXUSTAVERN_DIR, 'session.json
 export const NEXUSTAVERN_REFUSAL_FILE = path.join(NEXUSTAVERN_DIR, 'refusal-catcher.json');
 export const NEXUSTAVERN_RECAP_FILE = path.join(NEXUSTAVERN_DIR, 'message-recap.json');
 export const NEXUSTAVERN_ST_IMPORTER_FILE = path.join(NEXUSTAVERN_DIR, 'st-importer.json');
+export const NEXUSTAVERN_CUSTOMIZATION_FILE = path.join(NEXUSTAVERN_DIR, 'customization.json');
+export const NEXUSTAVERN_THEMES_DIR = path.join(NEXUSTAVERN_DIR, 'themes');
+export const NEXUSTAVERN_FONTS_DIR = path.join(NEXUSTAVERN_DIR, 'fonts');
 export const USER_IMAGES_DIR = path.join(DEFAULT_USER_DIR, 'user', 'images');
 export const USER_FILES_DIR = path.join(DEFAULT_USER_DIR, 'user', 'files');
 
@@ -97,6 +100,12 @@ export function ensureUserDirectories({ force = false } = {}) {
   }
   if (!fs.existsSync(NEXUSTAVERN_PORTRAITS_DIR)) {
     fs.mkdirSync(NEXUSTAVERN_PORTRAITS_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(NEXUSTAVERN_THEMES_DIR)) {
+    fs.mkdirSync(NEXUSTAVERN_THEMES_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(NEXUSTAVERN_FONTS_DIR)) {
+    fs.mkdirSync(NEXUSTAVERN_FONTS_DIR, { recursive: true });
   }
   if (!fs.existsSync(USER_IMAGES_DIR)) {
     fs.mkdirSync(USER_IMAGES_DIR, { recursive: true });

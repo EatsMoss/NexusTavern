@@ -25,6 +25,7 @@ import {
 import { useViewport } from '@core/hooks/useViewport.js';
 import { buildTimelineForest } from '@core/chats/timelineForest.js';
 import { postClientConsoleLog } from '@core/system/consoleApi.js';
+import { getCustomizationRuntimeSnapshot } from '@core/customization/customizationRuntimeStore.js';
 import { useConsoleStream } from './useConsoleStream.js';
 import { ChatComposer } from './ChatComposer.jsx';
 import './ChatViewport.css';
@@ -558,7 +559,10 @@ export function ChatViewport({
     if (forceSnapToBottom) {
       isPinnedToBottomRef.current = true;
       smoothJumpActiveRef.current = false;
-    } else if (!isPinnedToBottomRef.current) {
+    } else if (
+      !isPinnedToBottomRef.current ||
+      getCustomizationRuntimeSnapshot()?.chatAndAi?.autoScrollOnStream === false
+    ) {
       return undefined;
     }
 
@@ -923,6 +927,10 @@ export function ChatViewport({
 
   const handleDeleteSingleMessage = useCallback(
     (mIdx) => {
+      if (getCustomizationRuntimeSnapshot()?.chatAndAi?.confirmMessageDelete !== false) {
+        setMsgDeleteConfirm([mIdx]);
+        return;
+      }
       if (onDeleteMessage) {
         onDeleteMessage(mIdx, false);
       }

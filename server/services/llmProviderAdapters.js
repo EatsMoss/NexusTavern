@@ -1,5 +1,6 @@
 import { executeWithConnectionKeyFailover } from './apiHubStore.js';
 import { isSyntheticThinkPrefill } from './llmReasoningParser.js';
+import { recordConsoleLog } from './consoleLogger.js';
 import {
   DEFAULT_GEMINI_SAFETY_SETTINGS,
   applyAdditionalBodyParameters,
@@ -566,6 +567,114 @@ export function buildGeminiPayload(target, compiled, caps, continueMode = false)
   return body;
 }
 
+function attachCacheControlToTurnContent(content, cacheCtrl) {
+  if (typeof content === 'string') {
+    if (!content) return content;
+    return [{ type: 'text', text: content, cache_control: cacheCtrl }];
+  }
+  if (Array.isArray(content) && content.length > 0) {
+    const cloned = content.map((part) => (part && typeof part === 'object' ? { ...part } : part));
+    for (let i = cloned.length - 1; i >= 0; i -= 1) {
+      if (cloned[i] && typeof cloned[i] === 'object') {
+        cloned[i] = { ...cloned[i], cache_control: cacheCtrl };
+        break;
+      }
+    }
+    return cloned;
+  }
+  return content;
+}
+
+/**
+ * Injects real provider-supported Prompt Caching (`cache_control: { type: 'ephemeral' }`)
+ * breakpoints into Anthropic and Claude-on-OpenRouter / Proxy payloads.
+ * Leaves non-Claude OpenAI-compatible endpoints untouched to avoid HTTP 400 schema errors.
+ */
+export function applyPromptCachingBreakpoints(payload, target, promptCaching) {
+  if (!payload || !promptCaching?.enabled) return payload;
+
+  const isOneHour = promptCaching.ttl === '1h';
+  const cacheCtrl = isOneHour ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' };
+  const depth = Math.max(1, Math.min(12, Number(promptCaching.historyDepth) || 2));
+
+  if (target?.protocol === 'anthropic') {
+    if (promptCaching.cacheSystemPrompt && typeof payload.system === 'string' && payload.system) {
+      payload.system = [{ type: 'text', text: payload.system, cache_control: cacheCtrl }];
+    }
+    if (
+      promptCaching.cacheHistoryAtDepth &&
+      Array.isArray(payload.messages) &&
+      payload.messages.length >= 2
+    ) {
+      const targetIdx = Math.max(0, payload.messages.length - 1 - depth);
+      const turn = payload.messages[targetIdx];
+      if (turn) {
+        payload.messages[targetIdx] = {
+          ...turn,
+          content: attachCacheControlToTurnContent(turn.content, cacheCtrl),
+        };
+      }
+    }
+    if (isOneHour) {
+      const prevBetas = Array.isArray(payload._anthropicBetas) ? payload._anthropicBetas : [];
+      if (!prevBetas.includes('extended-cache-ttl-2025-04-11')) {
+        Object.defineProperty(payload, '_anthropicBetas', {
+          value: [...prevBetas, 'extended-cache-ttl-2025-04-11'],
+          enumerable: false,
+          configurable: true,
+        });
+      }
+    }
+    return payload;
+  }
+
+  // OpenAI-compatible route: apply `cache_control` only when routing to a Claude model
+  // on OpenRouter or an opt-in Reverse/Custom Proxy.
+  if (target?.protocol === 'openai' && Array.isArray(payload.messages)) {
+    const modelLower = String(target?.upstreamModelId || '').toLowerCase();
+    const isClaudeModel = modelLower.includes('claude');
+    if (!isClaudeModel) return payload;
+
+    const endpointLower = String(target?.endpointUrl || '').toLowerCase();
+    const routeLower = String(target?.routeId || '').toLowerCase();
+    const isOpenRouter =
+      endpointLower.includes('openrouter.ai') || routeLower.includes('openrouter');
+    const isProxy =
+      target?.connectionType === 'oai_proxy' ||
+      target?.connectionType === 'rp_proxy' ||
+      target?.connectionType === 'custom';
+
+    if (!isOpenRouter && !(isProxy && promptCaching.enableOnProxies)) {
+      return payload;
+    }
+
+    const oaiCacheCtrl = { type: 'ephemeral' };
+    if (promptCaching.cacheSystemPrompt) {
+      const sysIdx = payload.messages.findIndex((m) => m?.role === 'system');
+      if (sysIdx !== -1) {
+        payload.messages[sysIdx] = {
+          ...payload.messages[sysIdx],
+          content: attachCacheControlToTurnContent(payload.messages[sysIdx].content, oaiCacheCtrl),
+        };
+      }
+    }
+    if (promptCaching.cacheHistoryAtDepth && payload.messages.length >= 3) {
+      const targetIdx = Math.max(1, payload.messages.length - 1 - depth);
+      if (payload.messages[targetIdx] && payload.messages[targetIdx].role !== 'system') {
+        payload.messages[targetIdx] = {
+          ...payload.messages[targetIdx],
+          content: attachCacheControlToTurnContent(
+            payload.messages[targetIdx].content,
+            oaiCacheCtrl,
+          ),
+        };
+      }
+    }
+  }
+
+  return payload;
+}
+
 export function buildProviderRequestPayload(target, compiled, caps, continueMode = false) {
   const payload =
     target.protocol === 'anthropic'
@@ -574,11 +683,33 @@ export function buildProviderRequestPayload(target, compiled, caps, continueMode
         ? buildGeminiPayload(target, compiled, caps, continueMode)
         : buildOpenAiPayload(target, compiled, caps, continueMode);
 
+  applyPromptCachingBreakpoints(payload, target, compiled.promptCaching);
+
   applyAdditionalBodyParameters(payload, {
     includeRaw: compiled.samplers.custom_include_body,
     excludeRaw: compiled.samplers.custom_exclude_body,
     protocol: target.protocol,
   });
+
+  if (compiled.verbosePromptLogging) {
+    recordConsoleLog({
+      category: 'system',
+      level: 'info',
+      scope: 'Prompt Inspector',
+      title: `Assembled ${target.protocol.toUpperCase()} request for ${target.modelName}`,
+      summary: `${compiled.stats?.messageBlocksCount || 0} blocks • ~${compiled.stats?.totalTokens || 0} tok`,
+      badges: [
+        { label: target.protocol.toUpperCase(), tone: 'accent' },
+        ...(compiled.promptCaching?.enabled ? [{ label: 'CACHE', tone: 'ok' }] : []),
+      ],
+      details: {
+        endpointUrl: target.endpointUrl,
+        samplers: compiled.samplers,
+        promptCaching: compiled.promptCaching,
+        compiledMessages: compiled.messages,
+      },
+    });
+  }
 
   return payload;
 }

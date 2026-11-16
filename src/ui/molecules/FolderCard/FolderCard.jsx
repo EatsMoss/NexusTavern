@@ -9,13 +9,15 @@ export function FolderCard({
   actions,
   collapsible = true,
   defaultOpen = true,
+  forceOpen = false,
   className = '',
   children,
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const effectiveOpen = forceOpen || isOpen;
 
   const handleHeaderClick = () => {
-    if (!collapsible) return;
+    if (!collapsible || forceOpen) return;
     setIsOpen((prev) => !prev);
   };
 
@@ -24,7 +26,7 @@ export function FolderCard({
       className={[
         'bb-m3-folder',
         collapsible ? 'bb-m3-folder--collapsible' : '',
-        isOpen ? 'bb-m3-folder--open' : '',
+        effectiveOpen ? 'bb-m3-folder--open' : '',
         className,
       ]
         .filter(Boolean)
@@ -41,13 +43,13 @@ export function FolderCard({
 
         <div className="bb-m3-folder__actions" onClick={(e) => e.stopPropagation()}>
           {actions}
-          {collapsible && (
+          {collapsible && !forceOpen && (
             <span
               className="bb-m3-folder__chevron"
               onClick={handleHeaderClick}
               role="button"
               tabIndex={0}
-              aria-label={isOpen ? 'Collapse section' : 'Expand section'}
+              aria-label={effectiveOpen ? 'Collapse section' : 'Expand section'}
             >
               <Icon name="chevronDown" size={18} />
             </span>
@@ -55,7 +57,7 @@ export function FolderCard({
         </div>
       </header>
 
-      {isOpen && <div className="bb-m3-folder__body">{children}</div>}
+      {effectiveOpen && <div className="bb-m3-folder__body">{children}</div>}
     </section>
   );
 }

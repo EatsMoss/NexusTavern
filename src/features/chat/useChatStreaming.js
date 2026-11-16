@@ -5,6 +5,10 @@ import {
   fetchConnectionTelemetry,
 } from '@core/api/apiHubApi.js';
 import { fetchCharacterChats } from '@core/chats/chatsApi.js';
+import {
+  getCustomizationRuntimeSnapshot,
+  maybePlayCompletionChime,
+} from '@core/customization/customizationRuntimeStore.js';
 
 const STREAM_STALL_THRESHOLD_MS = 850;
 
@@ -508,8 +512,15 @@ export function useChatStreaming({
             lastFrameAtMs > 0 ? Math.min(50, Math.max(4, now - lastFrameAtMs)) : 16.6;
           lastFrameAtMs = now;
 
+          const rtAi = getCustomizationRuntimeSnapshot()?.chatAndAi;
+          const smoothOn = rtAi?.smoothStreaming !== false;
+          const bypassThinkSmooth = rtAi?.bypassSmoothingInThinking !== false;
+
           const remainingText = Math.max(0, streamText.length - displayedText.length);
-          if (remainingText > 0) {
+          if (!smoothOn) {
+            displayedText = streamText;
+            textBudgetCarry = 0;
+          } else if (remainingText > 0) {
             let charsPerSec;
             if (receivedDone) {
               charsPerSec = Math.max(210, remainingText * 5.2);
@@ -540,9 +551,10 @@ export function useChatStreaming({
             textBudgetCarry = 0;
           }
 
-          displayedReasoning = receivedDone
-            ? streamReasoning
-            : advanceReasoningSlice(displayedReasoning, streamReasoning);
+          displayedReasoning =
+            receivedDone || !smoothOn || bypassThinkSmooth
+              ? streamReasoning
+              : advanceReasoningSlice(displayedReasoning, streamReasoning);
 
           flushStreamFrame({
             mode,
@@ -712,6 +724,7 @@ export function useChatStreaming({
         if (donePayloadRef && latestContextRef.current.selectedCardId === streamCardId) {
           if (!donePayloadRef.stopped && !abortCtrl.signal.aborted) {
             await drainCompletePromise;
+            maybePlayCompletionChime(getCustomizationRuntimeSnapshot()?.chatAndAi);
           }
           if (genRafRef.current) {
             cancelAnimationFrame(genRafRef.current);

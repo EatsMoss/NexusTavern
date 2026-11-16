@@ -96,6 +96,11 @@
   --bb-chat-fade-bottom: var(--bb-chat-fade-max-bottom);
 }
 
+[data-hide-edge-fade='true'] .bb-chat-viewport__stream {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
 .bb-chat-viewport__stream.has-multiselect-bar {
   padding-bottom: 76px;
 }

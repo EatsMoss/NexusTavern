@@ -5,9 +5,14 @@ import React, {
   useLayoutEffect,
   useCallback,
   useImperativeHandle,
+  useSyncExternalStore,
   forwardRef,
   memo,
 } from 'react';
+import {
+  subscribeCustomizationRuntime,
+  getCustomizationRuntimeSnapshot,
+} from '@core/customization/customizationRuntimeStore.js';
 import {
   Icon,
   Button,
@@ -20,15 +25,21 @@ import {
   revokeAttachmentDraft,
 } from '@ui/index.js';
 
-const ENTER_TO_SEND_STORAGE_KEY = 'nexustavern_enter_to_send_v1';
+const COMPOSER_DRAFT_STORAGE_KEY = 'nexustavern_composer_draft_v1';
 
-function loadEnterToSendPref() {
+function getComposerPrefsSnapshot() {
+  const ai = getCustomizationRuntimeSnapshot()?.chatAndAi;
+  return `${ai?.enterToSend || 'enter'}|${ai?.restoreUnsavedDraft !== false ? '1' : '0'}`;
+}
+
+function loadInitialComposerDraft() {
   try {
-    const raw = localStorage.getItem(ENTER_TO_SEND_STORAGE_KEY);
-    if (raw === null) return true;
-    return raw !== 'false';
+    if (getCustomizationRuntimeSnapshot()?.chatAndAi?.restoreUnsavedDraft === false) {
+      return '';
+    }
+    return localStorage.getItem(COMPOSER_DRAFT_STORAGE_KEY) || '';
   } catch {
-    return true;
+    return '';
   }
 }
 
@@ -89,10 +100,19 @@ export const ChatComposer = memo(
     },
     ref,
   ) {
-    const [draftMsg, setDraftMsg] = useState('');
+    const [draftMsg, setDraftMsg] = useState(() => loadInitialComposerDraft());
     const [pendingAttachments, setPendingAttachments] = useState([]);
     const [composerDragOver, setComposerDragOver] = useState(false);
-    const [enterToSend, setEnterToSend] = useState(() => loadEnterToSendPref());
+    const prefsKey = useSyncExternalStore(
+      subscribeCustomizationRuntime,
+      getComposerPrefsSnapshot,
+      getComposerPrefsSnapshot,
+    );
+    const [globalEnterMode, restoreDraftFlag] = prefsKey.split('|');
+    const [localEnterOverride, setLocalEnterOverride] = useState(null);
+    const effectiveEnterMode = localEnterOverride || globalEnterMode || 'enter';
+    const enterToSend = effectiveEnterMode === 'enter';
+    const restoreUnsavedDraft = restoreDraftFlag === '1';
 
     const draftMsgRef = useRef(draftMsg);
     draftMsgRef.current = draftMsg;
@@ -116,6 +136,22 @@ export const ChatComposer = memo(
         textareaRef.current.style.height = 'auto';
       }
     }, [draftMsg]);
+
+    useEffect(() => {
+      try {
+        if (restoreUnsavedDraft && draftMsg) {
+          localStorage.setItem(COMPOSER_DRAFT_STORAGE_KEY, draftMsg);
+        } else {
+          localStorage.removeItem(COMPOSER_DRAFT_STORAGE_KEY);
+        }
+      } catch {
+        // Ignore storage errors
+      }
+    }, [draftMsg, restoreUnsavedDraft]);
+
+    useEffect(() => {
+      setLocalEnterOverride(null);
+    }, [globalEnterMode]);
 
     const syncTextareaHeight = useCallback(() => {
       const ta = textareaRef.current;
@@ -315,16 +351,11 @@ export const ChatComposer = memo(
     };
 
     const handleToggleEnterToSend = useCallback(() => {
-      setEnterToSend((prev) => {
-        const next = !prev;
-        try {
-          localStorage.setItem(ENTER_TO_SEND_STORAGE_KEY, String(next));
-        } catch {
-          // ignore
-        }
-        return next;
+      setLocalEnterOverride((prev) => {
+        const cur = prev || globalEnterMode || 'enter';
+        return cur === 'enter' ? 'ctrl-enter' : 'enter';
       });
-    }, []);
+    }, [globalEnterMode]);
 
     const dispatchSubmit = useCallback(async () => {
       if (!hasActiveScenario || isGenerating || switchingScenario || loadingChat) return;
@@ -369,9 +400,11 @@ export const ChatComposer = memo(
         return;
       }
       if (e.key === 'Enter') {
-        const shouldSend = enterToSend
-          ? !e.shiftKey
-          : Boolean(e.ctrlKey || e.metaKey);
+        if (effectiveEnterMode === 'button-only') return;
+        const shouldSend =
+          effectiveEnterMode === 'enter'
+            ? !e.shiftKey && !isMobile
+            : Boolean(e.ctrlKey || e.metaKey);
         if (shouldSend) {
           e.preventDefault();
           if (isGenerating) return;

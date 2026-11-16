@@ -24,6 +24,7 @@ import {
 import { scanWorldInfoForPrompt } from './worldInfoScanner.js';
 import { resolveActiveRegexScriptsServer } from './regexStore.js';
 import { readMessageRecapConfig } from './recapStore.js';
+import { readCustomizationConfig } from './customizationStore.js';
 import {
   applyRegexPipeline,
   REGEX_PLACEMENT,
@@ -32,6 +33,7 @@ import {
   normalizeRecapConfig,
   buildRecapSyntheticRegexScript,
 } from '../../src/core/recap/recapEngine.js';
+import { applyTextFormattingRules } from '../../src/core/messages/messageDecorator.js';
 
 /**
  * Resolves the active user persona for a given character & chat from `settings.json`.
@@ -433,16 +435,41 @@ export function compileChatPrompt({
   const tokenBudget = Math.max(256, maxContext - maxTokens);
 
   // 4. Build Macro Context
+  const customizationCfg = readCustomizationConfig();
+  const aiCfg = customizationCfg.chatAndAi;
+
   const varsMap = new Map(
     Object.entries(chatHeader?.chat_metadata?.variables || {}).map(([k, v]) => [k, String(v)]),
   );
 
-  const normalizedHistoryAll = rawChatMessages
-    .filter((m) => m && !m.is_system)
+  const nonSystemMessages = rawChatMessages.filter((m) => m && !m.is_system);
+  const assistantIndices = [];
+  nonSystemMessages.forEach((m, idx) => {
+    if (!m.is_user) assistantIndices.push(idx);
+  });
+  const allowedReasoningIdxSet = new Set(
+    aiCfg.reasoningIncludeInPrompts && aiCfg.reasoningMaxAdditions > 0
+      ? assistantIndices.slice(-aiCfg.reasoningMaxAdditions)
+      : [],
+  );
+
+  const normalizedHistoryAll = nonSystemMessages
     .map((m, idx) => {
       const isUser = Boolean(m.is_user);
       const rawText = extractJsonlMessageText(m);
       let cleanText = isUser ? rawText : stripReasoningFromHistoryText(rawText);
+      cleanText = applyTextFormattingRules(cleanText, {
+        trimSpaces: aiCfg.trimSpaces,
+        collapseNewlines: aiCfg.collapseNewlines,
+        autoFixMarkdown: false,
+        trimIncompleteSentences: false,
+      });
+      if (!isUser && allowedReasoningIdxSet.has(idx)) {
+        const extraReasoning = String(m?.extra?.reasoning || m?.reasoning || '').trim();
+        if (extraReasoning) {
+          cleanText = `<think>\n${extraReasoning}\n</think>\n\n${cleanText}`.trim();
+        }
+      }
 
       const directAtts = Array.isArray(m.attachments)
         ? m.attachments
@@ -619,9 +646,17 @@ export function compileChatPrompt({
     if (!p.marker && Number(p.injection_position) === 1) {
       let rawContent = p.content || '';
       if (id === 'main') {
-        rawContent = applyOverrideWithOriginal(rawContent, card.system_prompt, p.forbid_overrides);
+        rawContent = applyOverrideWithOriginal(
+          rawContent,
+          card.system_prompt,
+          p.forbid_overrides || !aiCfg.preferCharacterPrompt,
+        );
       } else if (id === 'jailbreak') {
-        rawContent = applyOverrideWithOriginal(rawContent, card.post_history_instructions, p.forbid_overrides);
+        rawContent = applyOverrideWithOriginal(
+          rawContent,
+          card.post_history_instructions,
+          p.forbid_overrides || !aiCfg.preferCharacterJailbreak,
+        );
       }
       const expanded = resolveMacros(rawContent, { ...macroCtx, original: p.content || '' }).trim();
       if (expanded) {
@@ -653,17 +688,31 @@ export function compileChatPrompt({
         pushEntry(bucket, { role: 'system', content: worldInfo.beforeText, label: 'World Info (Before)', source: 'worldInfoBefore' });
       } else if (id === 'worldInfoAfter' && worldInfo.afterText) {
         pushEntry(bucket, { role: 'system', content: worldInfo.afterText, label: 'World Info (After)', source: 'worldInfoAfter' });
-      } else if (id === 'dialogueExamples' && card.mes_example) {
-        for (const ex of parseMesExampleBlocks(card.mes_example, macroCtx)) pushEntry(bucket, ex);
+      } else if (
+        id === 'dialogueExamples' &&
+        card.mes_example &&
+        aiCfg.exampleMessagesBehavior !== 'strip'
+      ) {
+        for (const ex of parseMesExampleBlocks(card.mes_example, macroCtx)) {
+          pushEntry(bucket, { ...ex, source: 'dialogueExamples' });
+        }
       }
       continue;
     }
 
     let rawPromptContent = p.content || '';
     if (id === 'main') {
-      rawPromptContent = applyOverrideWithOriginal(rawPromptContent, card.system_prompt, p.forbid_overrides);
+      rawPromptContent = applyOverrideWithOriginal(
+        rawPromptContent,
+        card.system_prompt,
+        p.forbid_overrides || !aiCfg.preferCharacterPrompt,
+      );
     } else if (id === 'jailbreak') {
-      rawPromptContent = applyOverrideWithOriginal(rawPromptContent, card.post_history_instructions, p.forbid_overrides);
+      rawPromptContent = applyOverrideWithOriginal(
+        rawPromptContent,
+        card.post_history_instructions,
+        p.forbid_overrides || !aiCfg.preferCharacterJailbreak,
+      );
     }
 
     pushEntry(bucket, {
@@ -855,6 +904,14 @@ export function compileChatPrompt({
 
   const historySegment = selectedHistoryReversed.reverse();
 
+  // Gradual push-out (`exampleMessagesBehavior === 'normal'`): once real chat history
+  // overflows the budget, drop example dialogues so actual conversation wins tokens.
+  const effectivePreHistory =
+    aiCfg.exampleMessagesBehavior === 'normal' &&
+    historySegment.length < normalizedHistoryAll.length
+      ? preHistoryMessages.filter((m) => m.source !== 'dialogueExamples')
+      : preHistoryMessages;
+
   // Sort @Depth injections: deepest first; same depth sorted by ascending order
   const sortedDepth = [...depthInjections].sort((a, b) => {
     const da = Number(a.injection_depth ?? 4);
@@ -906,7 +963,7 @@ export function compileChatPrompt({
     if (seenChatHistoryMarker) {
       historyWithDepth.unshift(recapOpeningBeforeHistory);
     } else {
-      preHistoryMessages.push(recapOpeningBeforeHistory);
+      effectivePreHistory.push(recapOpeningBeforeHistory);
     }
   }
 
@@ -921,7 +978,7 @@ export function compileChatPrompt({
   }
 
   let compiledMessages = [
-    ...preHistoryMessages,
+    ...effectivePreHistory,
     ...(seenChatHistoryMarker ? historyWithDepth : []),
     ...postHistoryMessages,
   ];
@@ -1013,6 +1070,8 @@ export function compileChatPrompt({
       stream: Boolean(oaiData.stream_openai ?? true),
     },
     assistantPrefill: prefill,
+    promptCaching: aiCfg.promptCaching,
+    verbosePromptLogging: Boolean(customizationCfg.system?.verbosePromptLogging),
     stats: {
       totalTokens,
       maxContext,

@@ -1,0 +1,248 @@
+/* ==========================================================================
+   NEXUSTAVERN — SETTINGS & CUSTOMIZATION TOME PANEL (M3 SOLID DESIGN)
+   ========================================================================== */
+
+.bb-settings-tome {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 8px;
+}
+
+.bb-settings-tome__top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  flex-shrink: 0;
+}
+
+.bb-settings-tome__scroll-wrap {
+  flex: 1 1 0%;
+  min-height: 0;
+  width: 100%;
+}
+
+.bb-settings-tome__scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 2px 18px 0;
+}
+
+.bb-settings-tome__search-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--bb-control-radius, 8px);
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  border: 1px solid var(--bb-page-border);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  color: var(--bb-ink-muted);
+}
+
+.bb-settings-tome__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 36px 16px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px dashed var(--bb-page-border-mid);
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  color: var(--bb-ink-muted);
+  text-align: center;
+  font-size: calc(13px * var(--bb-font-scale, 1));
+}
+
+/* Preset Library Grid & Toolbar */
+.bb-cust-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.bb-cust-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+  gap: 7px;
+}
+
+/* Portrait Auto-Palette Strip */
+.bb-cust-portrait-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid);
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+}
+
+.bb-cust-portrait-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.bb-cust-portrait-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+/* Advanced 7-Slot Palette Overrides Subcard */
+.bb-cust-subcard {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px 11px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border);
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+}
+
+.bb-cust-subcard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bb-cust-subcard__title {
+  font-family: var(--bb-font-heading);
+  font-size: calc(12.5px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  color: var(--bb-ink-heading);
+}
+
+.bb-cust-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(142px, 1fr));
+  gap: 8px;
+}
+
+/* RP Chat Text Colors Cards (Live Preview + Auto Toggle + ColorField) */
+.bb-cust-textcards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bb-cust-textcard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid);
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+}
+
+.bb-cust-textcard__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bb-cust-textcard__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.bb-cust-textcard__title {
+  font-family: var(--bb-font-heading);
+  font-size: calc(13px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  color: var(--bb-ink-heading);
+}
+
+.bb-cust-textcard__hint {
+  font-size: calc(11px * var(--bb-font-scale, 1));
+  color: var(--bb-ink-muted);
+}
+
+.bb-cust-textcard__preview {
+  padding: 9px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--bb-page-border);
+  background: var(--bb-page-card-bg);
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-body-size, 14px);
+  line-height: 1.45;
+  text-decoration: none;
+}
+
+.bb-cust-textcard__pair-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.bb-cust-textcard__alpha {
+  flex: 1 1 150px;
+  min-width: 140px;
+}
+
+/* Font Chips & Google Font Input Row */
+.bb-cust-font-add-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bb-cust-font-add-row > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bb-cust-font-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bb-cust-font-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--bb-page-border-mid);
+  background: var(--bb-btn-flat-bg);
+  color: var(--bb-ink-main);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  font-weight: 600;
+}
+
+.bb-cust-font-tag__del {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--bb-ink-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.bb-cust-font-tag__del:hover {
+  color: var(--bb-danger-ink);
+  background: var(--bb-danger-surface);
+}

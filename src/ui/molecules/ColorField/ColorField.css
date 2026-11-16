@@ -1,0 +1,147 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — M3 COLOR FIELD TRIGGER MOLECULE
+   ========================================================================== */
+
+.bb-color-field {
+  min-width: 0;
+}
+
+.bb-color-field--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--bb-list-row-height, 42px);
+  padding: 4px 0;
+}
+
+.bb-color-field--compact {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.bb-color-field__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.bb-color-field__label {
+  font-family: var(--bb-font-body);
+  font-size: calc(13.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  line-height: 1.3;
+}
+
+.bb-color-field__desc {
+  font-family: var(--bb-font-body);
+  font-size: calc(11.5px * var(--bb-font-scale, 1));
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  line-height: 1.35;
+}
+
+.bb-color-field__compact-label {
+  font-family: var(--bb-font-body);
+  font-size: calc(11.5px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-variant));
+  line-height: 1.2;
+}
+
+.bb-color-field__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.bb-color-field__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 10px 0 4px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  transition: border-color 130ms ease, background-color 130ms ease, opacity 130ms ease;
+}
+
+.bb-color-field__pill:hover:not(.is-disabled) {
+  border-color: var(--bb-page-border-strong, var(--md-sys-color-outline));
+}
+
+.bb-color-field__pill:focus-within,
+.bb-color-field__pill.is-open {
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  background: var(--bb-page-input-focus, var(--bb-sheet-well-bg));
+}
+
+.bb-color-field__pill.is-auto {
+  opacity: 0.88;
+}
+
+.bb-color-field__pill.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.bb-color-field__swatch-btn {
+  position: relative;
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: transparent;
+  overflow: hidden;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+[data-theme='light'] .bb-color-field__swatch-btn {
+  border-color: rgba(0, 0, 0, 0.22);
+}
+
+.bb-color-field__swatch-btn:hover {
+  transform: scale(1.05);
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+}
+
+.bb-color-field__swatch-checker {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(45deg, rgba(128, 128, 128, 0.35) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(128, 128, 128, 0.35) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(128, 128, 128, 0.35) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(128, 128, 128, 0.35) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+}
+
+.bb-color-field__swatch-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.bb-color-field__hex-input {
+  width: 66px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  font-family: var(--bb-font-mono);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}

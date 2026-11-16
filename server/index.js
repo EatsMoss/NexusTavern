@@ -13,6 +13,7 @@ import { regexRouter } from './routes/regex.js';
 import { refusalRouter } from './routes/refusal.js';
 import { recapRouter } from './routes/recap.js';
 import { stImportRouter } from './routes/stImport.js';
+import { customizationRouter } from './routes/customization.js';
 import { getLanAddresses } from './utils/network.js';
 import { securityGuard } from './utils/auth.js';
 import { getTunnelStatus } from './services/tunnel.js';
@@ -144,6 +145,7 @@ const ALLOWED_STATIC_PREFIXES = [
   '/user/',
   '/themes/',
   '/.nexustavern/portraits/',
+  '/.nexustavern/fonts/',
 ];
 
 app.use('/user-data', (req, res, next) => {
@@ -189,6 +191,7 @@ app.use('/api/regex', regexRouter);
 app.use('/api/refusal-catcher', refusalRouter);
 app.use('/api/message-recap', recapRouter);
 app.use('/api/st-import', stImportRouter);
+app.use('/api/customization', customizationRouter);
 app.use('/api/thumbnails', thumbnailsRouter);
 
 // Serve built frontend in production / standalone mode

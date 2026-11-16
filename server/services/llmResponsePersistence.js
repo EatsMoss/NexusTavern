@@ -5,12 +5,14 @@ import {
   formatSillyTavernSendDate,
 } from './chatStore.js';
 import { resolveActiveRegexScriptsServer } from './regexStore.js';
+import { readCustomizationConfig } from './customizationStore.js';
 import { estimateTokens } from './macroResolver.js';
 import { recordConsoleLog } from './consoleLogger.js';
 import {
   applyRegexPipeline,
   REGEX_PLACEMENT,
 } from '../../src/core/regex/regexEngine.js';
+import { applyTextFormattingRules } from '../../src/core/messages/messageDecorator.js';
 import { formatEmptyResponseErrorMessage } from '../../src/core/refusal/refusalEngine.js';
 
 export async function persistGeneratedOutput({
@@ -107,6 +109,16 @@ export async function finalizeAndPersistStreamResponse({
 
   let finalCleanText = rawCleanText;
   let finalCleanReasoning = rawCleanReasoning;
+
+  const aiCfg = readCustomizationConfig().chatAndAi;
+  if (finalCleanText && normalizedMode !== 'continue' && !stoppedByUser) {
+    finalCleanText = applyTextFormattingRules(finalCleanText, {
+      trimSpaces: aiCfg.trimSpaces,
+      collapseNewlines: aiCfg.collapseNewlines,
+      autoFixMarkdown: aiCfg.autoFixMarkdown,
+      trimIncompleteSentences: aiCfg.trimIncompleteSentences,
+    });
+  }
 
   if (activeRegexScripts.length > 0) {
     if (finalCleanText && normalizedMode !== 'continue') {

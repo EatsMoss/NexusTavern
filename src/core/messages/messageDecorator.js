@@ -8,7 +8,7 @@
  */
 
 const INLINE_TOKEN_REGEX =
-  /(`[^`\n]+`|\*\*[\s\S]+?\*\*|\*[^*\n]+\*|"[^"\n]+"|“[^”\n]+”|«[^»\n]+»)/g;
+  /(`[^`\n]+`|\*\*[\s\S]+?\*\*|\*[^*\n]+\*|"[^"\n]+"|“[^”\n]+”|«[^»\n]+»|(?<![\p{L}\p{N}])'(?:[^'\n]|(?<=[\p{L}\p{N}])'(?=[\p{L}\p{N}])){1,300}'(?![\p{L}\p{N}])|‘[^’\n]{1,300}’)/gu;
 
 const THINKING_REGEX = /<(?:think|thinking|reasoning)>([\s\S]*?)<\/(?:think|thinking|reasoning)>/gi;
 const OPEN_STREAM_THINKING_REGEX = /<(?:think|thinking|reasoning)\b[^>]*>([\s\S]*)$/i;
@@ -257,31 +257,41 @@ const HR_BLOCK_SPLIT_REGEX =
  * so straight double quotes ("...") match before becoming `&quot;`.
  */
 export function decorateInlineText(text = '') {
-  const parts = String(text).split(INLINE_TOKEN_REGEX);
+  const source = String(text);
+  if (!source) return '';
 
-  return parts
-    .map((segment) => {
-      if (!segment) return '';
+  const out = [];
+  let cursor = 0;
+  const re = new RegExp(INLINE_TOKEN_REGEX.source, 'gu');
+  let match;
 
-      if (segment.startsWith('`') && segment.endsWith('`') && segment.length > 2) {
-        return `<code class="bb-decorator-inline-code">${escapeHtml(segment.slice(1, -1))}</code>`;
-      }
-      if (segment.startsWith('**') && segment.endsWith('**') && segment.length > 4) {
-        return `<strong class="bb-decorator-bold">${escapeHtml(segment.slice(2, -2))}</strong>`;
-      }
-      if (segment.startsWith('*') && segment.endsWith('*') && segment.length > 2) {
-        return `<em class="bb-decorator-thought">${escapeHtml(segment.slice(1, -1))}</em>`;
-      }
-      if (
-        (segment.startsWith('"') && segment.endsWith('"')) ||
-        (segment.startsWith('“') && segment.endsWith('”')) ||
-        (segment.startsWith('«') && segment.endsWith('»'))
-      ) {
-        return `<span class="bb-decorator-quote">${escapeHtml(segment)}</span>`;
-      }
-      return escapeHtml(segment);
-    })
-    .join('');
+  while ((match = re.exec(source)) !== null) {
+    if (match.index > cursor) {
+      out.push(escapeHtml(source.slice(cursor, match.index)));
+    }
+    const segment = match[0];
+    if (segment.startsWith('`') && segment.endsWith('`') && segment.length > 2) {
+      out.push(`<code class="bb-decorator-inline-code">${escapeHtml(segment.slice(1, -1))}</code>`);
+    } else if (segment.startsWith('**') && segment.endsWith('**') && segment.length > 4) {
+      out.push(`<strong class="bb-decorator-bold">${escapeHtml(segment.slice(2, -2))}</strong>`);
+    } else if (segment.startsWith('*') && segment.endsWith('*') && segment.length > 2) {
+      out.push(`<em class="bb-decorator-thought">${escapeHtml(segment.slice(1, -1))}</em>`);
+    } else if (
+      (segment.startsWith("'") && segment.endsWith("'")) ||
+      (segment.startsWith('‘') && segment.endsWith('’'))
+    ) {
+      out.push(`<span class="bb-decorator-apostrophe">${escapeHtml(segment)}</span>`);
+    } else {
+      out.push(`<span class="bb-decorator-quote">${escapeHtml(segment)}</span>`);
+    }
+    cursor = match.index + segment.length;
+  }
+
+  if (cursor < source.length) {
+    out.push(escapeHtml(source.slice(cursor)));
+  }
+
+  return out.join('');
 }
 
 /**
@@ -329,7 +339,7 @@ function formatProseTextNode(rawText = '') {
 }
 
 const STREAM_OPEN_TAIL_REGEX =
-  /(`[^`\n]*|\*\*[^*]*|\*[^*\n]*|"[^"\n]*|“[^”\n]*|«[^»\n]*)$/;
+  /(`[^`\n]*|\*\*[^*]*|\*[^*\n]*|"[^"\n]*|“[^”\n]*|«[^»\n]*|(?<![\p{L}\p{N}])'(?:[^'\n]|(?<=[\p{L}\p{N}])'(?=[\p{L}\p{N}]))*|‘[^’\n]*)$/u;
 
 function splitSegmentIntoWordTokens(rawSlice, baseOffset) {
   const out = [];
@@ -358,7 +368,7 @@ export function tokenizeStreamingInline(text = '') {
 
   const segments = [];
   let cursor = 0;
-  const closedRegex = new RegExp(INLINE_TOKEN_REGEX.source, 'g');
+  const closedRegex = new RegExp(INLINE_TOKEN_REGEX.source, 'gu');
   let match;
 
   const pushPlainWithOptionalOpenTail = (slice, startOffset) => {
@@ -398,6 +408,14 @@ export function tokenizeStreamingInline(text = '') {
             kind: 'thought',
             offset: tailOffset,
             tokens: splitSegmentIntoWordTokens(tailStr.slice(1), tailOffset + 1),
+          });
+          return;
+        }
+        if (tailStr.startsWith("'") || tailStr.startsWith('‘')) {
+          segments.push({
+            kind: 'apostrophe',
+            offset: tailOffset,
+            tokens: splitSegmentIntoWordTokens(tailStr, tailOffset),
           });
           return;
         }
@@ -441,6 +459,15 @@ export function tokenizeStreamingInline(text = '') {
         kind: 'thought',
         offset: segOffset,
         tokens: splitSegmentIntoWordTokens(seg.slice(1, -1), segOffset + 1),
+      });
+    } else if (
+      (seg.startsWith("'") && seg.endsWith("'")) ||
+      (seg.startsWith('‘') && seg.endsWith('’'))
+    ) {
+      segments.push({
+        kind: 'apostrophe',
+        offset: segOffset,
+        tokens: splitSegmentIntoWordTokens(seg, segOffset),
       });
     } else {
       segments.push({
@@ -606,15 +633,17 @@ export function hasHtmlMarkup(text = '') {
  */
 export function decoratorStyles() {
   return `
-.bb-decorator-bold { font-weight: 650; }
-.bb-decorator-quote { color: var(--bb-quote-color, inherit); font-weight: 450; }
-.bb-decorator-thought { font-style: italic; opacity: 0.92; }
+.bb-decorator-bold { font-weight: 650; color: var(--bb-chat-bold-color, inherit); }
+.bb-decorator-quote { color: var(--bb-chat-quote-color, var(--bb-quote-color, inherit)); font-weight: 450; text-decoration: none; }
+.bb-decorator-apostrophe { color: var(--bb-chat-apostrophe-color, inherit); text-decoration: none; }
+.bb-decorator-thought { font-style: italic; color: var(--bb-chat-italic-color, var(--bb-thought-color, inherit)); opacity: 0.94; }
 .bb-decorator-para-gap { display: block; height: 9px; }
 .bb-decorator-inline-code {
   padding: 1px 5px;
   border-radius: 4px;
   border: 1px solid var(--bb-page-border-mid, rgba(125, 113, 98, 0.45));
-  background: var(--bb-page-input-bg, rgba(12, 11, 9, 0.75));
+  background: var(--bb-chat-code-bg, var(--bb-page-input-bg, rgba(12, 11, 9, 0.75)));
+  color: var(--bb-chat-code-text, inherit);
   font-family: var(--bb-font-mono, monospace);
   font-size: 0.9em;
 }
@@ -633,4 +662,76 @@ export function decoratorStyles() {
   background: linear-gradient(90deg, transparent 0%, var(--bb-page-border-strong, rgba(125, 113, 98, 0.6)) 50%, transparent 100%);
 }
 `.trim();
+}
+
+/**
+ * Pure RP prose & prompt hygiene rules ported from SillyTavern's Advanced Formatting
+ * (enabled by default: trimSpaces, collapseNewlines, autoFixMarkdown).
+ */
+export function applyTextFormattingRules(
+  rawText = '',
+  {
+    trimSpaces = true,
+    collapseNewlines = true,
+    autoFixMarkdown = true,
+    trimIncompleteSentences = false,
+  } = {},
+) {
+  let out = String(rawText || '').replace(/\r\n?/g, '\n');
+  if (!out) return '';
+
+  if (trimSpaces) {
+    out = out
+      .split('\n')
+      .map((line) => line.replace(/[ \t]+$/g, ''))
+      .join('\n')
+      .trim();
+  }
+
+  if (collapseNewlines) {
+    out = out.replace(/\n{3,}/g, '\n\n');
+  }
+
+  if (autoFixMarkdown) {
+    // Repair unbalanced straight double quotes or single asterisks per non-code paragraph
+    const codeSplit = out.split(/(```[\s\S]*?```|`[^`\n]+`)/g);
+    out = codeSplit
+      .map((chunk, idx) => {
+        if (idx % 2 === 1) return chunk;
+        return chunk
+          .split('\n\n')
+          .map((para) => {
+            if (!para.trim() || para.trim().startsWith('>')) return para;
+            let fixed = para;
+            // Remove stray space right inside opening/closing *italics* when obvious (`* word *` -> `*word*`)
+            fixed = fixed.replace(/(^|[\s"“«(])\*[ \t]+([^*\n]+?)[ \t]+\*(?=[\s"”».,!?;:)]|$)/gm, '$1*$2*');
+            const dqCount = (fixed.match(/"/g) || []).length;
+            if (dqCount % 2 === 1 && fixed.includes('"') && !/[<>]/.test(fixed)) {
+              fixed = `${fixed}"`;
+            }
+            return fixed;
+          })
+          .join('\n\n');
+      })
+      .join('');
+  }
+
+  if (trimIncompleteSentences && out.length > 40) {
+    const lastEnd = Math.max(
+      out.lastIndexOf('.'),
+      out.lastIndexOf('!'),
+      out.lastIndexOf('?'),
+      out.lastIndexOf('…'),
+      out.lastIndexOf('"'),
+      out.lastIndexOf('”'),
+      out.lastIndexOf('»'),
+      out.lastIndexOf('*'),
+      out.lastIndexOf('>'),
+    );
+    if (lastEnd > Math.floor(out.length * 0.45)) {
+      out = out.slice(0, lastEnd + 1).trimEnd();
+    }
+  }
+
+  return out;
 }

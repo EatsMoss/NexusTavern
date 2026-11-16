@@ -280,7 +280,7 @@
   font-family: var(--bb-font-body);
   font-size: var(--bb-body-size, 14px);
   line-height: 1.45;
-  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  color: var(--bb-chat-text-color, var(--bb-ink-main, var(--md-sys-color-on-surface)));
   word-break: break-word;
 }
 
@@ -330,38 +330,66 @@
   }
 }
 
-/* Direct Speech / Dialogue Quotes ("...", «...», “...”) */
-.bb-decorator-quote {
-  color: var(--bb-quote-color, var(--md-sys-color-on-primary-container, #dce2ff));
+/* Direct Speech / Dialogue Quotes ("...", «...», “...”, <q>) — never underlined */
+.bb-decorator-quote,
+.bb-decorator-body q {
+  color: var(--bb-chat-quote-color, var(--bb-quote-color, var(--md-sys-color-on-primary-container, #dce2ff)));
   font-weight: 450;
+  text-decoration: none;
 }
 
-[data-theme='light'] .bb-decorator-quote {
-  color: var(--bb-quote-color, var(--md-sys-color-primary, #425393));
+[data-theme='light'] .bb-decorator-quote,
+[data-theme='light'] .bb-decorator-body q {
+  color: var(--bb-chat-quote-color, var(--bb-quote-color, var(--md-sys-color-primary, #425393)));
+  text-decoration: none;
 }
 
-/* Narrative Thoughts & Actions (*...*) */
-.bb-decorator-thought {
+/* Single-Quoted Inner Speech / Murmurs ('...', ‘...’) — distinct muted tone, zero underline */
+.bb-decorator-apostrophe,
+.bb-decorator-body .bb-apostrophe {
+  color: var(--bb-chat-apostrophe-color, var(--bb-ink-muted, #8a8a9e));
+  text-decoration: none;
+}
+
+/* Keep nested emphasis inside spoken quotes cohesive with the quote color */
+.bb-decorator-quote em,
+.bb-decorator-quote i,
+.bb-decorator-quote strong,
+.bb-decorator-quote b,
+.bb-decorator-body q em,
+.bb-decorator-body q i,
+.bb-decorator-body q strong,
+.bb-decorator-body q b {
+  color: inherit;
+}
+
+/* Narrative Thoughts & Actions (*...*, <em>, <i>) */
+.bb-decorator-thought,
+.bb-decorator-body em,
+.bb-decorator-body i {
   font-style: italic;
-  color: var(--bb-thought-color, var(--md-sys-color-on-surface-variant));
-  opacity: 0.92;
+  color: var(--bb-chat-italic-color, var(--bb-thought-color, var(--md-sys-color-on-surface-variant)));
+  opacity: 0.94;
 }
 
-/* Strong Emphasis (**...**) */
-.bb-decorator-bold {
+/* Strong Emphasis (**...**, <strong>, <b>) */
+.bb-decorator-bold,
+.bb-decorator-body strong,
+.bb-decorator-body b {
   font-weight: 650;
-  color: var(--md-sys-color-on-surface);
+  color: var(--bb-chat-bold-color, var(--md-sys-color-on-surface));
 }
 
-/* Inline Code (`...`) */
-.bb-decorator-inline-code {
+/* Inline Code (`...`, <code>) */
+.bb-decorator-inline-code,
+.bb-decorator-body :not(pre) > code {
   padding: 1px 5px;
   border-radius: 4px;
   border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
-  background: var(--bb-page-input-bg, var(--md-sys-color-surface-container-highest));
+  background: var(--bb-chat-code-bg, var(--bb-page-input-bg, var(--md-sys-color-surface-container-highest)));
   font-family: var(--bb-font-mono);
   font-size: 0.9em;
-  color: var(--md-sys-color-tertiary);
+  color: var(--bb-chat-code-text, var(--md-sys-color-tertiary));
 }
 
 /* Blockquote (> ...) */
@@ -389,10 +417,12 @@
 }
 
 /* Fenced Code Block (```lang ... ```) */
-.bb-decorator-codeblock {
+.bb-decorator-codeblock,
+.bb-decorator-body pre {
   border-radius: var(--md-sys-shape-corner-xs, 6px);
   border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
-  background: var(--md-sys-color-surface-container-lowest);
+  background: var(--bb-chat-codeblock-bg, var(--md-sys-color-surface-container-lowest));
+  color: var(--bb-chat-codeblock-text, var(--md-sys-color-on-surface));
   overflow: hidden;
 }
 
@@ -430,7 +460,7 @@
   font-family: var(--bb-font-mono);
   font-size: calc(12px * var(--bb-font-scale, 1));
   line-height: 1.5;
-  color: var(--md-sys-color-on-surface);
+  color: var(--bb-chat-codeblock-text, var(--md-sys-color-on-surface));
 }
 
 /* ==========================================================================
@@ -458,7 +488,8 @@
   padding: 10px 12px;
   border: 1px solid var(--bb-page-border-mid, rgba(125, 113, 98, 0.45));
   border-radius: 6px;
-  background: var(--bb-page-input-bg, rgba(12, 11, 9, 0.55));
+  background: var(--bb-chat-details-bg, var(--bb-page-input-bg, rgba(12, 11, 9, 0.55)));
+  color: var(--bb-chat-details-text, inherit);
 }
 
 .bb-decorator-body details + details {

@@ -16,6 +16,7 @@ import {
   writeCachedOnboardingDismissed,
   pickNewestSessionSlice,
 } from './sessionApi.js';
+import { readCachedCustomization } from '@core/customization/customizationApi.js';
 
 function isDemoAvatarId(id) {
   return /^(?:c\d+|c_\d+)$/.test(String(id || ''));
@@ -250,7 +251,10 @@ export function useSessionBoot({
         queueSessionPatch({ lastChats: mergedLastChats });
       }
 
-      if (bestLastChat?.avatar) {
+      const autoLoadEnabled =
+        readCachedCustomization()?.chatAndAi?.autoLoadLastChat !== false;
+
+      if (bestLastChat?.avatar && autoLoadEnabled) {
         restorePointerRef.current = bestLastChat;
         recordedSessionPointerRef.current = bestLastChat;
         if (!localLastChat) {
