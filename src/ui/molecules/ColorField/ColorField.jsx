@@ -38,6 +38,9 @@ export function ColorField({
   onAlphaChange,
   swatches = DEFAULT_M3_SWATCHES,
   variant = 'row', // 'row' | 'compact'
+  size = 'md', // 'md' | 'sm'
+  fullWidth = false,
+  showAutoSwitch = true,
   disabled = false,
   onChange,
   className = '',
@@ -173,8 +176,15 @@ export function ColorField({
   const canResetDefault =
     Boolean(normalizedDefault) && !isAuto && effectiveHex !== normalizedDefault;
   const controlsCluster = (
-    <div className="bb-color-field__controls">
-      {typeof onToggleAuto === 'function' && (
+    <div
+      className={[
+        'bb-color-field__controls',
+        fullWidth ? 'is-full-width' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {showAutoSwitch && typeof onToggleAuto === 'function' && (
         <Switch
           size="sm"
           bare
@@ -190,6 +200,8 @@ export function ColorField({
         ref={triggerRef}
         className={[
           'bb-color-field__pill',
+          size === 'sm' ? 'bb-color-field__pill--sm' : '',
+          fullWidth ? 'is-full-width' : '',
           open ? 'is-open' : '',
           isAuto ? 'is-auto' : '',
           disabled ? 'is-disabled' : '',
@@ -300,7 +312,16 @@ export function ColorField({
 
   if (variant === 'compact') {
     return (
-      <div className={`bb-color-field bb-color-field--compact ${className}`.trim()}>
+      <div
+        className={[
+          'bb-color-field',
+          'bb-color-field--compact',
+          fullWidth ? 'is-full-width' : '',
+          className,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         {label && <span className="bb-color-field__compact-label">{label}</span>}
         {controlsCluster}
         {popoverNode}

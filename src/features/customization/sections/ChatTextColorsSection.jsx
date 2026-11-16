@@ -3,10 +3,8 @@ import { CHAT_TEXT_CARDS } from '@core/customization/customizationDefaults.js';
 import { hexToRgba } from '@core/customization/paletteEngine.js';
 import {
   Button,
-  Switch,
-  Slider,
   FolderCard,
-  ColorField,
+  TextColorCard,
 } from '@ui/index.js';
 
 function renderLivePreviewSample(card, resolved) {
@@ -113,127 +111,106 @@ export function ChatTextColorsSection({ customization, forceOpen = false }) {
         ) : null
       }
     >
-      <div className="bb-cust-textcards">
+      <div className="bb-cust-textcards-grid">
         {CHAT_TEXT_CARDS.map((card) => {
           const isAuto = config.chatTextAuto?.[card.key] !== false;
           const isPair = card.type === 'pair';
+          const isLeadProse = card.key === 'text';
+
+          const handleToggleAuto = (nextAuto) => {
+            if (nextAuto) {
+              updateConfig({
+                chatTextAuto: { [card.key]: true },
+                activePresetId: 'custom',
+              });
+            } else {
+              const seedVal = isPair
+                ? { ...effectiveChatText[card.key] }
+                : effectiveChatText[card.key];
+              updateConfig({
+                chatTextAuto: { [card.key]: false },
+                chatText: { [card.key]: seedVal },
+                activePresetId: 'custom',
+              });
+            }
+          };
+
+          if (!isPair) {
+            return (
+              <TextColorCard
+                key={card.key}
+                type="text"
+                fullSpan={isLeadProse}
+                title={card.label}
+                subtitle={isLeadProse ? card.hint : undefined}
+                hint={card.hint}
+                isAuto={isAuto}
+                onToggleAuto={handleToggleAuto}
+                value={config.chatText[card.key]}
+                autoValue={autoPal[card.key]}
+                swatches={swatches}
+                onChange={(hex) =>
+                  updateConfig({
+                    chatTextAuto: { [card.key]: false },
+                    chatText: { [card.key]: hex },
+                    activePresetId: 'custom',
+                  })
+                }
+              >
+                {renderLivePreviewSample(card, effectiveChatText)}
+              </TextColorCard>
+            );
+          }
 
           return (
-            <div key={card.key} className="bb-cust-textcard">
-              <div className="bb-cust-textcard__top">
-                <div className="bb-cust-textcard__meta">
-                  <span className="bb-cust-textcard__title">{card.label}</span>
-                  <span className="bb-cust-textcard__hint">{card.hint}</span>
-                </div>
-                <Switch
-                  size="sm"
-                  bare
-                  inlineLabel="Auto"
-                  checked={isAuto}
-                  onChange={(nextAuto) => {
-                    if (nextAuto) {
-                      updateConfig({
-                        chatTextAuto: { [card.key]: true },
-                        activePresetId: 'custom',
-                      });
-                    } else {
-                      const seedVal = isPair
-                        ? { ...effectiveChatText[card.key] }
-                        : effectiveChatText[card.key];
-                      updateConfig({
-                        chatTextAuto: { [card.key]: false },
-                        chatText: { [card.key]: seedVal },
-                        activePresetId: 'custom',
-                      });
-                    }
-                  }}
-                />
-              </div>
-
-              <div className="bb-cust-textcard__preview">
-                {renderLivePreviewSample(card, effectiveChatText)}
-              </div>
-
-              {!isPair ? (
-                <ColorField
-                  variant="compact"
-                  label="Text Color"
-                  value={config.chatText[card.key]}
-                  autoValue={autoPal[card.key]}
-                  isAuto={isAuto}
-                  swatches={swatches}
-                  onChange={(hex) =>
-                    updateConfig({
-                      chatTextAuto: { [card.key]: false },
-                      chatText: { [card.key]: hex },
-                      activePresetId: 'custom',
-                    })
-                  }
-                />
-              ) : (
-                <div className="bb-cust-textcard__pair-row">
-                  <ColorField
-                    variant="compact"
-                    label="Text"
-                    value={config.chatText[card.key]?.text}
-                    autoValue={autoPal[card.key]?.text}
-                    isAuto={isAuto}
-                    swatches={swatches}
-                    onChange={(text) =>
-                      updateConfig({
-                        chatTextAuto: { [card.key]: false },
-                        chatText: {
-                          [card.key]: { ...effectiveChatText[card.key], text },
-                        },
-                        activePresetId: 'custom',
-                      })
-                    }
-                  />
-                  <ColorField
-                    variant="compact"
-                    label="Background"
-                    value={config.chatText[card.key]?.bg}
-                    autoValue={autoPal[card.key]?.bg}
-                    isAuto={isAuto}
-                    swatches={swatches}
-                    onChange={(bg) =>
-                      updateConfig({
-                        chatTextAuto: { [card.key]: false },
-                        chatText: {
-                          [card.key]: { ...effectiveChatText[card.key], bg },
-                        },
-                        activePresetId: 'custom',
-                      })
-                    }
-                  />
-                  <div className="bb-cust-textcard__alpha">
-                    <Slider
-                      variant="inline"
-                      showValue
-                      unit="%"
-                      min={0}
-                      max={100}
-                      step={5}
-                      value={Math.round((effectiveChatText[card.key]?.bgAlpha ?? 1) * 100)}
-                      title="Background surface opacity"
-                      ariaLabel={`${card.label} background opacity`}
-                      onChange={(pct) =>
-                        updateConfig({
-                          chatTextAuto: { [card.key]: false },
-                          chatText: {
-                            [card.key]: {
-                              ...effectiveChatText[card.key],
-                              bgAlpha: Number((pct / 100).toFixed(2)),
-                            },
-                          },
-                          activePresetId: 'custom',
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
+            <TextColorCard
+              key={card.key}
+              type="pair"
+              fullSpan
+              title={card.label}
+              subtitle={card.hint}
+              hint={card.hint}
+              isAuto={isAuto}
+              onToggleAuto={handleToggleAuto}
+              value={config.chatText[card.key]?.text}
+              autoValue={autoPal[card.key]?.text}
+              bgValue={config.chatText[card.key]?.bg}
+              autoBgValue={autoPal[card.key]?.bg}
+              bgOpacity={Math.round((effectiveChatText[card.key]?.bgAlpha ?? 1) * 100)}
+              swatches={swatches}
+              onChange={(text) =>
+                updateConfig({
+                  chatTextAuto: { [card.key]: false },
+                  chatText: {
+                    [card.key]: { ...effectiveChatText[card.key], text },
+                  },
+                  activePresetId: 'custom',
+                })
+              }
+              onBgChange={(bg) =>
+                updateConfig({
+                  chatTextAuto: { [card.key]: false },
+                  chatText: {
+                    [card.key]: { ...effectiveChatText[card.key], bg },
+                  },
+                  activePresetId: 'custom',
+                })
+              }
+              onBgOpacityChange={(pct) =>
+                updateConfig({
+                  chatTextAuto: { [card.key]: false },
+                  chatText: {
+                    [card.key]: {
+                      ...effectiveChatText[card.key],
+                      bgAlpha: Number((pct / 100).toFixed(2)),
+                    },
+                  },
+                  activePresetId: 'custom',
+                })
+              }
+            >
+              {renderLivePreviewSample(card, effectiveChatText)}
+            </TextColorCard>
           );
         })}
       </div>

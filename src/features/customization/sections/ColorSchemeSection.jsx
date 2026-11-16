@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { PALETTE_OVERRIDE_SLOTS } from '@core/customization/customizationDefaults.js';
 import { buildDerivedTavernPalette } from '@core/customization/paletteEngine.js';
 import {
@@ -6,11 +6,11 @@ import {
   SegmentedGroup,
   FolderCard,
   ColorField,
+  PaletteStrip,
 } from '@ui/index.js';
 
 export function ColorSchemeSection({ customization, forceOpen = false }) {
   const { config, updateConfig, handleExtractFromPortrait } = customization;
-  const [slotsOpen, setSlotsOpen] = useState(false);
 
   const baseAutoPalette = buildDerivedTavernPalette({
     themeMode: config.themeMode,
@@ -22,7 +22,6 @@ export function ColorSchemeSection({ customization, forceOpen = false }) {
 
   const portraitSwatches = config.portraitPalette?.swatches || undefined;
   const activeOverrides = config.paletteOverrides || {};
-  const hasAnyOverride = Object.keys(activeOverrides).length > 0;
 
   const handlePatchSlot = (slotKey, nextHex) => {
     const nextOverrides = { ...activeOverrides };
@@ -36,6 +35,20 @@ export function ColorSchemeSection({ customization, forceOpen = false }) {
       paletteOverrides: Object.keys(nextOverrides).length > 0 ? nextOverrides : null,
     });
   };
+
+  const stripSlots = PALETTE_OVERRIDE_SLOTS.map((slot) => {
+    const autoHex = baseAutoPalette.slots[slot.key];
+    const isOverridden = Boolean(activeOverrides[slot.key]);
+    return {
+      key: slot.key,
+      shortLabel: slot.shortLabel,
+      label: slot.label,
+      hint: slot.hint,
+      value: activeOverrides[slot.key] || autoHex,
+      autoValue: autoHex,
+      isOverridden,
+    };
+  });
 
   return (
     <FolderCard
@@ -113,58 +126,15 @@ export function ColorSchemeSection({ customization, forceOpen = false }) {
         />
       )}
 
-      <div className="bb-cust-subcard">
-        <div className="bb-cust-subcard__head">
-          <span className="bb-cust-subcard__title">
-            Fine-Tune Derived Surface Slots {hasAnyOverride ? '(Custom)' : '(All Auto)'}
-          </span>
-          <div style={{ display: 'inline-flex', gap: 6 }}>
-            {hasAnyOverride && (
-              <Button
-                variant="b2"
-                size="sm"
-                icon="refresh"
-                title="Reset all 7 slots back to automatic derivation"
-                onClick={() => updateConfig({ paletteOverrides: null })}
-              >
-                Auto All
-              </Button>
-            )}
-            <Button
-              variant="b2"
-              size="sm"
-              onClick={() => setSlotsOpen((v) => !v)}
-            >
-              {slotsOpen || forceOpen ? 'Hide Slots' : 'Edit 7 Slots'}
-            </Button>
-          </div>
-        </div>
-
-        {(slotsOpen || forceOpen) && (
-          <div className="bb-cust-slots-grid">
-            {PALETTE_OVERRIDE_SLOTS.map((slot) => {
-              const isOverridden = Boolean(activeOverrides[slot.key]);
-              const autoHex = baseAutoPalette.slots[slot.key];
-              return (
-                <ColorField
-                  key={slot.key}
-                  variant="compact"
-                  label={`${slot.shortLabel} · ${slot.label}`}
-                  value={activeOverrides[slot.key] || autoHex}
-                  autoValue={autoHex}
-                  isAuto={!isOverridden}
-                  onToggleAuto={(nextAuto) => {
-                    if (nextAuto) handlePatchSlot(slot.key, null);
-                    else handlePatchSlot(slot.key, autoHex);
-                  }}
-                  swatches={portraitSwatches}
-                  onChange={(hex) => handlePatchSlot(slot.key, hex)}
-                />
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <PaletteStrip
+        label="Derived Palette"
+        hint="Click any swatch to customize"
+        slots={stripSlots}
+        swatches={portraitSwatches}
+        onSlotChange={(slotKey, hex) => handlePatchSlot(slotKey, hex)}
+        onSlotReset={(slotKey) => handlePatchSlot(slotKey, null)}
+        onResetAll={() => updateConfig({ paletteOverrides: null })}
+      />
     </FolderCard>
   );
 }

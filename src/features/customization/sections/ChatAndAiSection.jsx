@@ -208,8 +208,8 @@ export function ChatAndAiSection({
           <Switch
             checked={ai.autoFixMarkdown}
             onChange={(autoFixMarkdown) => patchAi({ autoFixMarkdown })}
-            label="Auto-Fix Generated Markdown"
-            description="Repair spaced * italics * and unclosed straight dialogue quotes"
+            label="Auto-Fix Unclosed Markdown & Quotes"
+            description="Automatically close missing *, **, `, quotes & RP apostrophes in AI replies and user messages"
           />
           <Switch
             checked={ai.trimIncompleteSentences}

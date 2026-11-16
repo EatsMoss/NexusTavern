@@ -21,7 +21,7 @@ export const CHAT_TEXT_CARDS = [
     type: 'text',
     label: 'Normal Prose',
     hint: 'Plain narrative message body',
-    sample: 'The rain-slicked lantern hummed softly above the stone parapet.',
+    sample: 'The cactus that lived upstairs loves you',
   },
   {
     key: 'quote',

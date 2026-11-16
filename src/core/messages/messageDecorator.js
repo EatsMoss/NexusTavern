@@ -664,6 +664,75 @@ export function decoratorStyles() {
 `.trim();
 }
 
+function repairLineUnclosedTokens(line) {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('>') || /^#{1,6}\s/.test(trimmed) || /[<>]/.test(trimmed)) {
+    return line;
+  }
+  if (/^(?:-\s*-\s*-+|\*\s*\*\s*\*+|_\s*_\s*_+)$/.test(trimmed)) {
+    return line;
+  }
+
+  let fixed = line
+    .replace(/(^|[\s"“«'(])\*\*[ \t]+([^*\n]+?)[ \t]+\*\*(?=[\s"”»'.,!?;:)]|$)/gm, '$1**$2**')
+    .replace(/(^|[\s"“«'(])(?<!\*)\*[ \t]+([^*\n]+?)[ \t]+\*(?!\*)(?=[\s"”»'.,!?;:)]|$)/gm, '$1*$2*');
+
+  const closedRe = new RegExp(INLINE_TOKEN_REGEX.source, 'gu');
+  let cursor = 0;
+  let m;
+  while ((m = closedRe.exec(fixed)) !== null) {
+    cursor = m.index + m[0].length;
+  }
+
+  const tail = fixed.slice(cursor);
+  if (!tail) return fixed;
+
+  const openMatch = STREAM_OPEN_TAIL_REGEX.exec(tail);
+  if (!openMatch) return fixed;
+
+  const openStr = openMatch[0];
+  if (openStr.startsWith('**')) {
+    return openStr.slice(2).trim().length > 0 ? `${fixed.trimEnd()}**` : fixed;
+  }
+  if (openStr.startsWith('*')) {
+    const isLineStartBullet =
+      cursor === 0 &&
+      /^\s*$/.test(tail.slice(0, openMatch.index)) &&
+      /^\*[ \t]+/.test(openStr);
+    if (!isLineStartBullet && openStr.slice(1).trim().length > 0) {
+      let innerFixed = fixed.trimEnd();
+      const innerBody = openStr.slice(1);
+      if ((innerBody.match(/"/g) || []).length % 2 === 1) innerFixed += '"';
+      else if ((innerBody.match(/«/g) || []).length > (innerBody.match(/»/g) || []).length) {
+        innerFixed += '»';
+      } else if ((innerBody.match(/“/g) || []).length > (innerBody.match(/”/g) || []).length) {
+        innerFixed += '”';
+      }
+      return `${innerFixed}*`;
+    }
+    return fixed;
+  }
+  if (openStr.startsWith('`')) {
+    return openStr.slice(1).trim().length > 0 ? `${fixed.trimEnd()}\`` : fixed;
+  }
+  if (openStr.startsWith('"')) {
+    return openStr.slice(1).trim().length > 0 ? `${fixed.trimEnd()}"` : fixed;
+  }
+  if (openStr.startsWith('“')) {
+    return openStr.slice(1).trim().length > 0 ? `${fixed.trimEnd()}”` : fixed;
+  }
+  if (openStr.startsWith('«')) {
+    return openStr.slice(1).trim().length > 0 ? `${fixed.trimEnd()}»` : fixed;
+  }
+  if (openStr.startsWith("'")) {
+    return openStr.slice(1).trim().length > 0 ? `${fixed.trimEnd()}'` : fixed;
+  }
+  if (openStr.startsWith('‘')) {
+    return openStr.slice(1).trim().length > 0 ? `${fixed.trimEnd()}’` : fixed;
+  }
+  return fixed;
+}
+
 /**
  * Pure RP prose & prompt hygiene rules ported from SillyTavern's Advanced Formatting
  * (enabled by default: trimSpaces, collapseNewlines, autoFixMarkdown).
@@ -693,25 +762,21 @@ export function applyTextFormattingRules(
   }
 
   if (autoFixMarkdown) {
-    // Repair unbalanced straight double quotes or single asterisks per non-code paragraph
-    const codeSplit = out.split(/(```[\s\S]*?```|`[^`\n]+`)/g);
-    out = codeSplit
+    const fenceMatches = out.match(/```/g);
+    if (fenceMatches && fenceMatches.length % 2 === 1) {
+      out = `${out.trimEnd()}\n\`\`\``;
+    }
+
+    const protectedSplit = out.split(
+      /(```[\s\S]*?```|`[^`\n]+`|<(?:think|thinking|reasoning|recap|style|script)\b[\s\S]*?<\/(?:think|thinking|reasoning|recap|style|script)>)/gi,
+    );
+    out = protectedSplit
       .map((chunk, idx) => {
         if (idx % 2 === 1) return chunk;
         return chunk
-          .split('\n\n')
-          .map((para) => {
-            if (!para.trim() || para.trim().startsWith('>')) return para;
-            let fixed = para;
-            // Remove stray space right inside opening/closing *italics* when obvious (`* word *` -> `*word*`)
-            fixed = fixed.replace(/(^|[\s"“«(])\*[ \t]+([^*\n]+?)[ \t]+\*(?=[\s"”».,!?;:)]|$)/gm, '$1*$2*');
-            const dqCount = (fixed.match(/"/g) || []).length;
-            if (dqCount % 2 === 1 && fixed.includes('"') && !/[<>]/.test(fixed)) {
-              fixed = `${fixed}"`;
-            }
-            return fixed;
-          })
-          .join('\n\n');
+          .split('\n')
+          .map((line) => repairLineUnclosedTokens(line))
+          .join('\n');
       })
       .join('');
   }

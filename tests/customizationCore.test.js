@@ -12,6 +12,10 @@ import {
 } from '@core/customization/paletteEngine.js';
 import { extractColorClustersFromRgbSamples } from '@core/customization/portraitPalette.js';
 import {
+  JRPG_BACKDROP_PATTERNS,
+  buildJrpgPatternDataUri,
+} from '@core/customization/jrpgPatterns.js';
+import {
   decorateInlineText,
   tokenizeStreamingInline,
   applyTextFormattingRules,
@@ -72,6 +76,19 @@ test('customizationCore — Indigo Slate default, automatic palette engine & RP 
     const messy = '  Hello there!   \n\n\n\n* softly sighs *  \n\n"Wait for me   ';
     const cleaned = applyTextFormattingRules(messy);
     assert.equal(cleaned, 'Hello there!\n\n*softly sighs*\n\n"Wait for me"');
+
+    // User & AI unclosed trailing delimiters
+    assert.equal(applyTextFormattingRules('*медленно обернулся'), '*медленно обернулся*');
+    assert.equal(applyTextFormattingRules('**важный знак'), '**важный знак**');
+    assert.equal(applyTextFormattingRules('«Привет, давно не виделись'), '«Привет, давно не виделись»');
+    assert.equal(applyTextFormattingRules('“Stay close tonight'), '“Stay close tonight”');
+    assert.equal(applyTextFormattingRules("'I don't think she knows..."), "'I don't think she knows...'");
+    assert.equal(applyTextFormattingRules('Check `seal_integrity'), 'Check `seal_integrity`');
+    assert.equal(applyTextFormattingRules('*он прошептал: "Не двигайся'), '*он прошептал: "Не двигайся"*');
+
+    // Must preserve English contractions & markdown bullet lists untouched
+    assert.equal(applyTextFormattingRules("She didn't look at Elowen's tome."), "She didn't look at Elowen's tome.");
+    assert.equal(applyTextFormattingRules('* First item\n* Second item'), '* First item\n* Second item');
   });
 
   await t.test('parses Google Fonts URLs and clusters RGB portrait samples cleanly', () => {
@@ -101,5 +118,17 @@ test('customizationCore — Indigo Slate default, automatic palette engine & RP 
       lowGpu: true,
       autoOpenBrowser: false,
     });
+  });
+
+  await t.test('builds valid data URIs and exact tile dimensions for all 6 JRPG patterns', () => {
+    assert.equal(JRPG_BACKDROP_PATTERNS.length, 6);
+    for (const pat of JRPG_BACKDROP_PATTERNS) {
+      const built = buildJrpgPatternDataUri(pat.id, '#ECECF4', '#6575B3');
+      assert.ok(built.dataUri.startsWith('url("data:image/svg+xml,'));
+      assert.ok(built.baseWidth > 0 && built.baseHeight > 0);
+    }
+    const hexPat = buildJrpgPatternDataUri('arcane-hex', '#ECECF4', '#6575B3');
+    assert.equal(hexPat.baseWidth, 40);
+    assert.equal(hexPat.baseHeight, 46);
   });
 });

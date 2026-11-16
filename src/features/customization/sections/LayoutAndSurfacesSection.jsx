@@ -1,18 +1,16 @@
 import React from 'react';
-import { JRPG_BACKDROP_PATTERNS } from '@core/customization/jrpgPatterns.js';
+import {
+  JRPG_BACKDROP_PATTERNS,
+  buildJrpgPatternDataUri,
+} from '@core/customization/jrpgPatterns.js';
 import {
   SegmentedGroup,
   Switch,
   Slider,
-  Dropdown,
   FolderCard,
   ColorField,
+  PatternTileCard,
 } from '@ui/index.js';
-
-const PATTERN_OPTIONS = JRPG_BACKDROP_PATTERNS.map((p) => ({
-  value: p.id,
-  label: p.name,
-}));
 
 export function LayoutAndSurfacesSection({
   customization,
@@ -39,7 +37,6 @@ export function LayoutAndSurfacesSection({
             value={config.chatColumnMaxWidth}
             min={620}
             max={1280}
-            step={16}
             defaultValue={784}
             unit="px"
             onChange={(chatColumnMaxWidth) => updateConfig({ chatColumnMaxWidth })}
@@ -50,7 +47,6 @@ export function LayoutAndSurfacesSection({
             value={config.mesBgOpacity}
             min={0}
             max={100}
-            step={2}
             defaultValue={84}
             unit="%"
             onChange={(mesBgOpacity) => updateConfig({ mesBgOpacity })}
@@ -61,7 +57,6 @@ export function LayoutAndSurfacesSection({
             value={config.mesBackdropBlur}
             min={0}
             max={32}
-            step={1}
             defaultValue={0}
             unit="px"
             disabled={lowGpu}
@@ -101,7 +96,6 @@ export function LayoutAndSurfacesSection({
                 value={config.shaderIntensity}
                 min={15}
                 max={100}
-                step={5}
                 defaultValue={38}
                 unit="%"
                 onChange={(shaderIntensity) => updateConfig({ shaderIntensity })}
@@ -142,7 +136,6 @@ export function LayoutAndSurfacesSection({
               value={config.tomeIdleOpacity}
               min={20}
               max={100}
-              step={5}
               defaultValue={55}
               unit="%"
               onChange={(tomeIdleOpacity) => updateConfig({ tomeIdleOpacity })}
@@ -153,7 +146,6 @@ export function LayoutAndSurfacesSection({
             value={config.tomeSurfaceOpacity}
             min={45}
             max={100}
-            step={5}
             defaultValue={92}
             unit="%"
             onChange={(tomeSurfaceOpacity) => updateConfig({ tomeSurfaceOpacity })}
@@ -163,7 +155,6 @@ export function LayoutAndSurfacesSection({
             value={config.tomeBackdropBlur}
             min={0}
             max={32}
-            step={1}
             defaultValue={0}
             unit="px"
             disabled={lowGpu}
@@ -182,20 +173,33 @@ export function LayoutAndSurfacesSection({
 
           {config.backdropMode === 'jrpg-pattern' && (
             <>
-              <Dropdown
-                label="Geometric Pattern"
-                searchable={false}
-                allowStars={false}
-                options={PATTERN_OPTIONS}
-                value={config.bgPatternId}
-                onChange={(bgPatternId) => updateConfig({ bgPatternId })}
-              />
+              <div className="bb-cust-patterns-grid" role="radiogroup" aria-label="JRPG backdrop patterns">
+                {JRPG_BACKDROP_PATTERNS.map((pat) => {
+                  const preview = buildJrpgPatternDataUri(
+                    pat.id,
+                    derivedPalette.slots.inkMainHex,
+                    derivedPalette.slots.accentHex,
+                  );
+                  const thumbW = Math.round(preview.baseWidth * 0.62);
+                  const thumbH = Math.round(preview.baseHeight * 0.62);
+                  return (
+                    <PatternTileCard
+                      key={pat.id}
+                      name={pat.name}
+                      patternDataUri={preview.dataUri}
+                      patternSize={`${thumbW}px ${thumbH}px`}
+                      surfaceBg={derivedPalette.slots.bgDeepHex}
+                      active={config.bgPatternId === pat.id}
+                      onSelect={() => updateConfig({ bgPatternId: pat.id })}
+                    />
+                  );
+                })}
+              </div>
               <Slider
                 label="Pattern Opacity"
                 value={config.bgPatternOpacity}
                 min={0}
                 max={100}
-                step={2}
                 defaultValue={36}
                 unit="%"
                 onChange={(bgPatternOpacity) => updateConfig({ bgPatternOpacity })}
@@ -205,7 +209,6 @@ export function LayoutAndSurfacesSection({
                 value={config.bgPatternScale}
                 min={50}
                 max={300}
-                step={10}
                 defaultValue={150}
                 unit="%"
                 onChange={(bgPatternScale) => updateConfig({ bgPatternScale })}
@@ -219,7 +222,6 @@ export function LayoutAndSurfacesSection({
             value={config.screenDimOpacity}
             min={0}
             max={85}
-            step={5}
             defaultValue={0}
             unit="%"
             onChange={(screenDimOpacity) => updateConfig({ screenDimOpacity })}

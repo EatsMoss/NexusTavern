@@ -124,76 +124,25 @@
   color: var(--bb-ink-heading);
 }
 
-.bb-cust-slots-grid {
+/* RP Chat Text Colors 2-Column M3 Grid */
+.bb-cust-textcards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(142px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-/* RP Chat Text Colors Cards (Live Preview + Auto Toggle + ColorField) */
-.bb-cust-textcards {
-  display: flex;
-  flex-direction: column;
+/* JRPG Stage Pattern Cards 2-Column M3 Grid */
+.bb-cust-patterns-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.bb-cust-textcard {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: var(--bb-control-radius, 8px);
-  border: 1px solid var(--bb-page-border-mid);
-  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
-}
-
-.bb-cust-textcard__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.bb-cust-textcard__meta {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.bb-cust-textcard__title {
-  font-family: var(--bb-font-heading);
-  font-size: calc(13px * var(--bb-font-scale, 1));
-  font-weight: 700;
-  color: var(--bb-ink-heading);
-}
-
-.bb-cust-textcard__hint {
-  font-size: calc(11px * var(--bb-font-scale, 1));
-  color: var(--bb-ink-muted);
-}
-
-.bb-cust-textcard__preview {
-  padding: 9px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--bb-page-border);
-  background: var(--bb-page-card-bg);
-  font-family: var(--bb-font-body);
-  font-size: var(--bb-body-size, 14px);
-  line-height: 1.45;
-  text-decoration: none;
-}
-
-.bb-cust-textcard__pair-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 10px;
-}
-
-.bb-cust-textcard__alpha {
-  flex: 1 1 150px;
-  min-width: 140px;
+@media (max-width: 420px) {
+  .bb-cust-textcards-grid,
+  .bb-cust-patterns-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Font Chips & Google Font Input Row */

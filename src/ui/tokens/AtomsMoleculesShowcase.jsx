@@ -49,6 +49,9 @@ import {
   FloatingPaletteReadout,
   MessageRecapBox,
   ColorField,
+  PaletteStrip,
+  TextColorCard,
+  PatternTileCard,
   ThemePresetCard,
 } from '@ui/index.js';
 
@@ -116,6 +119,8 @@ export function AtomsMoleculesShowcase() {
   const [demoCodeBgColor, setDemoCodeBgColor] = useState('#2B3354');
   const [demoCodeBgAlpha, setDemoCodeBgAlpha] = useState(0.65);
   const [demoActivePresetId, setDemoActivePresetId] = useState('indigo-slate');
+  const [demoStripOverrides, setDemoStripOverrides] = useState({});
+  const [demoPatternId, setDemoPatternId] = useState('astral-stars');
   const [multiSelectedIds, setMultiSelectedIds] = useState(['demo-2']);
   const [pickedTileId, setPickedTileId] = useState('demo-1');
   const [demoModelSel, setDemoModelSel] = useState({
@@ -1500,8 +1505,8 @@ export function AtomsMoleculesShowcase() {
       </FolderCard>
 
       <FolderCard
-        title="M3 Customization Controls (ColorField & ThemePresetCard)"
-        subtitle="Solid M3 HSV Color Picker popover (desktop) / Bottom Sheet (mobile), Auto-link toggle & tonal theme preset cards"
+        title="M3 Customization Controls (PaletteStrip, TextColorCard, PatternTileCard & ThemePresetCard)"
+        subtitle="Solid M3 HSV Color Picker popover (desktop) / Bottom Sheet (mobile), Derived Palette Strip, RP prose cards & JRPG pattern tiles"
         icon="palette"
         defaultOpen
       >
@@ -1531,6 +1536,100 @@ export function AtomsMoleculesShowcase() {
               onChange={setDemoCodeBgColor}
               onAlphaChange={setDemoCodeBgAlpha}
             />
+          </div>
+
+          <PaletteStrip
+            label="Derived Palette Strip"
+            hint="Click any swatch to override"
+            slots={[
+              { key: 'bg', shortLabel: 'Bg', label: 'Deep Background', hint: 'Main workspace surface', autoValue: '#111115' },
+              { key: 'panel', shortLabel: 'Panel', label: 'Tome Surfaces', hint: 'Side tomes & headers', autoValue: '#16161C' },
+              { key: 'card', shortLabel: 'Card', label: 'Card Surfaces', hint: 'Messages & wells', autoValue: '#1E1E26' },
+              { key: 'border', shortLabel: 'Border', label: 'Borders & Muted Ink', hint: 'Outlines & dividers', autoValue: '#3B3B48' },
+              { key: 'accent', shortLabel: 'Accent', label: 'Primary Accent', hint: 'Active controls & quotes', autoValue: '#6575B3' },
+              { key: 'accent2', shortLabel: 'Accent 2', label: 'Secondary Accent', hint: 'Active borders & rings', autoValue: '#8294C4' },
+              { key: 'text', shortLabel: 'Text', label: 'Interface Ink', hint: 'Primary UI labels', autoValue: '#ECECF4' },
+            ].map((s) => ({
+              ...s,
+              value: demoStripOverrides[s.key] || s.autoValue,
+              isOverridden: Boolean(demoStripOverrides[s.key]),
+            }))}
+            onSlotChange={(slotKey, hex) =>
+              setDemoStripOverrides((prev) => ({ ...prev, [slotKey]: hex }))
+            }
+            onSlotReset={(slotKey) =>
+              setDemoStripOverrides((prev) => {
+                const next = { ...prev };
+                delete next[slotKey];
+                return next;
+              })
+            }
+            onResetAll={() => setDemoStripOverrides({})}
+          />
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: 8,
+              paddingTop: 4,
+            }}
+          >
+            <TextColorCard
+              title="Spoken Quotes"
+              hint='Dialogue inside "..."'
+              isAuto={demoQuoteAuto}
+              onToggleAuto={setDemoQuoteAuto}
+              value={demoQuoteColor}
+              autoValue="#A9B7EC"
+              onChange={setDemoQuoteColor}
+            >
+              <span style={{ color: demoQuoteAuto ? '#A9B7EC' : demoQuoteColor, fontWeight: 450 }}>
+                &quot;Stay close tonight.&quot;
+              </span>
+            </TextColorCard>
+            <TextColorCard
+              title="Italic Actions"
+              hint="Narrative actions (*...*)"
+              isAuto
+              onToggleAuto={() => {}}
+              value="#B8B8CE"
+              autoValue="#B8B8CE"
+              onChange={() => {}}
+            >
+              <em style={{ color: '#B8B8CE', fontStyle: 'italic' }}>
+                *She lowered her lantern.*
+              </em>
+            </TextColorCard>
+            <TextColorCard
+              type="pair"
+              fullSpan
+              title="Inline Code"
+              subtitle="Text, background & opacity of `inline` spans"
+              isAuto={false}
+              onToggleAuto={() => {}}
+              value="#DCE2FF"
+              autoValue="#DCE2FF"
+              bgValue={demoCodeBgColor}
+              autoBgValue="#2B3354"
+              bgOpacity={Math.round(demoCodeBgAlpha * 100)}
+              onChange={() => {}}
+              onBgChange={setDemoCodeBgColor}
+              onBgOpacityChange={(pct) => setDemoCodeBgAlpha(Number((pct / 100).toFixed(2)))}
+            >
+              <code
+                style={{
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  border: '1px solid var(--bb-page-border-mid)',
+                  fontFamily: 'var(--bb-font-mono)',
+                  color: '#DCE2FF',
+                  backgroundColor: demoCodeBgColor,
+                }}
+              >
+                seal_integrity: 94%
+              </code>
+            </TextColorCard>
           </div>
 
           <div
@@ -1579,6 +1678,40 @@ export function AtomsMoleculesShowcase() {
                 active={demoActivePresetId === preset.id}
                 menuItems={preset.menuItems}
                 onSelect={() => setDemoActivePresetId(preset.id)}
+              />
+            ))}
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: 8,
+              paddingTop: 4,
+            }}
+          >
+            {[
+              {
+                id: 'astral-stars',
+                name: 'Astral Grimoire',
+                subtitle: 'Four-pointed sparks and constellation rings',
+                svg: `<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none'><rect x='1' y='1' width='46' height='46' stroke='#ECECF4' stroke-width='0.65' stroke-opacity='0.22'/><circle cx='24' cy='24' r='12' stroke='#ECECF4' stroke-width='0.85' stroke-opacity='0.3' stroke-dasharray='2 3'/><path d='M24 14 Q24 24 34 24 Q24 24 24 34 Q24 24 14 24 Q24 24 24 14 Z' fill='#6575B3' fill-opacity='0.4' stroke='#6575B3' stroke-width='0.65' stroke-opacity='0.58'/></svg>`,
+              },
+              {
+                id: 'charmed-diamonds',
+                name: 'Charmed Diamonds',
+                subtitle: 'Tender little hearts centered within dim diamonds',
+                svg: `<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none'><path d='M24 5.5 L42.5 24 L24 42.5 L5.5 24 Z' stroke='#ECECF4' stroke-width='1' stroke-opacity='0.36'/><path d='M0 5 C-3.2 2.2 -5 0.4 -5 -2 C-5 -4.2 -3.4 -5.5 -1.8 -5.5 C-0.7 -5.5 0 -4.7 0 -3.8 C0 -4.7 0.7 -5.5 1.8 -5.5 C3.4 -5.5 5 -4.2 5 -2 C5 0.4 3.2 2.2 0 5 Z' transform='translate(24 24.4) scale(1.6)' fill='#6575B3' fill-opacity='0.34' stroke='#6575B3' stroke-width='0.65' stroke-opacity='0.56'/></svg>`,
+              },
+            ].map((pat) => (
+              <PatternTileCard
+                key={pat.id}
+                name={pat.name}
+                patternDataUri={`url("data:image/svg+xml,${encodeURIComponent(pat.svg)}")`}
+                patternSize="30px 30px"
+                surfaceBg="#111115"
+                active={demoPatternId === pat.id}
+                onSelect={() => setDemoPatternId(pat.id)}
               />
             ))}
           </div>

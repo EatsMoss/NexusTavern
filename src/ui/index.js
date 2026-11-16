@@ -82,6 +82,9 @@ export { TimelineMinimap } from './molecules/TimelineMinimap/TimelineMinimap.jsx
 export { RegexPatternInput } from './molecules/RegexPatternInput/RegexPatternInput.jsx';
 export { YamlCodeField } from './molecules/YamlCodeField/YamlCodeField.jsx';
 export { ColorField } from './molecules/ColorField/ColorField.jsx';
+export { PaletteStrip } from './molecules/PaletteStrip/PaletteStrip.jsx';
+export { TextColorCard } from './molecules/TextColorCard/TextColorCard.jsx';
+export { PatternTileCard } from './molecules/PatternTileCard/PatternTileCard.jsx';
 export { ThemePresetCard } from './molecules/ThemePresetCard/ThemePresetCard.jsx';
 export {
   Toast,

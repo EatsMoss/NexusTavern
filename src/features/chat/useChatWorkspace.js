@@ -21,6 +21,7 @@ import {
 } from '@core/chats/chatsApi.js';
 import { resolvePreferredCharacterChatFile } from '@core/chats/timelineForest.js';
 import { getCustomizationRuntimeSnapshot } from '@core/customization/customizationRuntimeStore.js';
+import { applyTextFormattingRules } from '@core/messages/messageDecorator.js';
 import { readFileAsBase64 } from '@core/utils/imageCodec.js';
 import { revokeAttachmentDraft } from '@ui/index.js';
 import { useChatStreaming } from './useChatStreaming.js';
@@ -1857,6 +1858,13 @@ export function useChatWorkspace({
     // Demo card fallback (in-memory session + live API Hub streaming if configured)
     let nextDemoMessages = messages;
     if (hasPayload) {
+      const aiRuntime = getCustomizationRuntimeSnapshot()?.chatAndAi;
+      const formattedDemoText = applyTextFormattingRules(clean, {
+        trimSpaces: aiRuntime?.trimSpaces !== false,
+        collapseNewlines: aiRuntime?.collapseNewlines !== false,
+        autoFixMarkdown: aiRuntime?.autoFixMarkdown !== false,
+        trimIncompleteSentences: false,
+      });
       const demoAttachments = await Promise.all(
         attachmentsSnapshot.map(async (att) => {
           const dataUrl =
@@ -1876,9 +1884,9 @@ export function useChatWorkspace({
         isUser: true,
         is_user: true,
         time: 'Now',
-        tokens: Math.max(8, Math.ceil(clean.length / 4)),
-        text: clean,
-        mes: clean,
+        tokens: Math.max(8, Math.ceil(formattedDemoText.length / 4)),
+        text: formattedDemoText,
+        mes: formattedDemoText,
         swipeId: 0,
         swipeCount: 1,
         attachments: demoAttachments,

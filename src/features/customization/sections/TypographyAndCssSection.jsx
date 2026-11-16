@@ -127,7 +127,6 @@ export function TypographyAndCssSection({
             value={config.fontScale}
             min={75}
             max={135}
-            step={5}
             defaultValue={100}
             unit="%"
             onChange={(fontScale) => updateConfig({ fontScale })}

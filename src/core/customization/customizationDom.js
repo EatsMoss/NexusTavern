@@ -175,14 +175,15 @@ export function applyCustomizationToDom(rawConfig, options = {}) {
 
   // 4. Stage Backdrop / JRPG Pattern
   if (cfg.backdropMode === 'jrpg-pattern') {
-    const { dataUri, baseSize } = buildJrpgPatternDataUri(
+    const { dataUri, baseWidth, baseHeight } = buildJrpgPatternDataUri(
       cfg.bgPatternId,
       derived.slots.borderBaseHex,
       derived.slots.accentHex,
     );
-    const scaledPx = Math.round(baseSize * (cfg.bgPatternScale / 100));
+    const scaledW = Math.round(baseWidth * (cfg.bgPatternScale / 100));
+    const scaledH = Math.round(baseHeight * (cfg.bgPatternScale / 100));
     root.style.setProperty('--bb-stage-pattern-image', dataUri);
-    root.style.setProperty('--bb-stage-pattern-size', `${scaledPx}px ${scaledPx}px`);
+    root.style.setProperty('--bb-stage-pattern-size', `${scaledW}px ${scaledH}px`);
     root.style.setProperty('--bb-stage-pattern-opacity', String(Number((cfg.bgPatternOpacity / 100).toFixed(2))));
   } else {
     root.style.setProperty('--bb-stage-pattern-image', 'none');

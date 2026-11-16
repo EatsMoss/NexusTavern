@@ -22,6 +22,12 @@
   gap: 5px;
 }
 
+.bb-color-field--compact.is-full-width,
+.bb-color-field__controls.is-full-width,
+.bb-color-field__pill.is-full-width {
+  width: 100%;
+}
+
 .bb-color-field__copy {
   display: flex;
   flex-direction: column;
@@ -131,6 +137,24 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
+}
+
+.bb-color-field__pill--sm {
+  height: 34px;
+  gap: 7px;
+  padding: 0 8px 0 4px;
+}
+
+.bb-color-field__pill--sm .bb-color-field__swatch-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+}
+
+.bb-color-field__pill.is-full-width .bb-color-field__hex-input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
 }
 
 .bb-color-field__hex-input {

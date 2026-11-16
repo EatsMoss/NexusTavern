@@ -6,10 +6,12 @@ import {
   invalidateCardStoreCaches,
 } from './cardStore.js';
 import { resolveActiveRegexScriptsServer } from './regexStore.js';
+import { readCustomizationConfig } from './customizationStore.js';
 import {
   applyRegexPipeline,
   REGEX_PLACEMENT,
 } from '../../src/core/regex/regexEngine.js';
+import { applyTextFormattingRules } from '../../src/core/messages/messageDecorator.js';
 import {
   resolveCharacterChatDir,
   resolveChatFilePath,
@@ -121,18 +123,27 @@ export async function appendChatMessage(avatarOrFolder, fileName, payload = {}, 
     payload.name ||
     (isUser ? parsed.header?.user_name || 'User' : card?.name || chatFolder);
 
-  // Run permanent (non-ephemeral) USER_INPUT regex scripts when appending a user message
-  if (isUser && !isSystem && text && !isGroup) {
-    const activeRegexScripts = resolveActiveRegexScriptsServer({ card });
-    if (activeRegexScripts.length > 0) {
-      text = applyRegexPipeline(text, activeRegexScripts, {
-        placement: REGEX_PLACEMENT.USER_INPUT,
-        isPermanent: true,
-        depth: 0,
-        charName: card?.nickname || card?.name || chatFolder,
-        userName: senderName,
-      });
+  // Run permanent (non-ephemeral) USER_INPUT regex scripts & text hygiene rules when appending a user message
+  if (isUser && !isSystem && text) {
+    if (!isGroup) {
+      const activeRegexScripts = resolveActiveRegexScriptsServer({ card });
+      if (activeRegexScripts.length > 0) {
+        text = applyRegexPipeline(text, activeRegexScripts, {
+          placement: REGEX_PLACEMENT.USER_INPUT,
+          isPermanent: true,
+          depth: 0,
+          charName: card?.nickname || card?.name || chatFolder,
+          userName: senderName,
+        });
+      }
     }
+    const aiCfg = readCustomizationConfig().chatAndAi;
+    text = applyTextFormattingRules(text, {
+      trimSpaces: aiCfg.trimSpaces,
+      collapseNewlines: aiCfg.collapseNewlines,
+      autoFixMarkdown: aiCfg.autoFixMarkdown,
+      trimIncompleteSentences: false,
+    });
   }
 
   const attachmentExtra = buildSillyTavernAttachmentExtra(payload.attachments);
@@ -304,19 +315,28 @@ export async function patchChatMessage(
 
   if (typeof patch.addSwipeText === 'string') {
     let swipeText = patch.addSwipeText;
-    if (swipeText && !isGroup && !patch.gen_finished) {
-      const activeRegexScripts = resolveActiveRegexScriptsServer({ card });
-      if (activeRegexScripts.length > 0) {
-        const editDepth = Math.max(0, parsed.messages.length - 1 - idx);
-        swipeText = applyRegexPipeline(swipeText, activeRegexScripts, {
-          placement: msg.is_user ? REGEX_PLACEMENT.USER_INPUT : REGEX_PLACEMENT.AI_OUTPUT,
-          isPermanent: true,
-          isEdit: true,
-          depth: editDepth,
-          charName: card?.nickname || card?.name || chatFolder,
-          userName: parsed.header?.user_name || 'User',
-        });
+    if (swipeText && !patch.gen_finished) {
+      if (!isGroup) {
+        const activeRegexScripts = resolveActiveRegexScriptsServer({ card });
+        if (activeRegexScripts.length > 0) {
+          const editDepth = Math.max(0, parsed.messages.length - 1 - idx);
+          swipeText = applyRegexPipeline(swipeText, activeRegexScripts, {
+            placement: msg.is_user ? REGEX_PLACEMENT.USER_INPUT : REGEX_PLACEMENT.AI_OUTPUT,
+            isPermanent: true,
+            isEdit: true,
+            depth: editDepth,
+            charName: card?.nickname || card?.name || chatFolder,
+            userName: parsed.header?.user_name || 'User',
+          });
+        }
       }
+      const aiCfg = readCustomizationConfig().chatAndAi;
+      swipeText = applyTextFormattingRules(swipeText, {
+        trimSpaces: aiCfg.trimSpaces,
+        collapseNewlines: aiCfg.collapseNewlines,
+        autoFixMarkdown: aiCfg.autoFixMarkdown,
+        trimIncompleteSentences: false,
+      });
     }
     if (!Array.isArray(msg.swipes) || msg.swipes.length === 0) {
       const firstText = String(msg.mes ?? '');
@@ -369,19 +389,28 @@ export async function patchChatMessage(
 
   if (patch.mes !== undefined || patch.text !== undefined) {
     let nextText = String(patch.mes ?? patch.text ?? '');
-    if (nextText && !isGroup) {
-      const activeRegexScripts = resolveActiveRegexScriptsServer({ card });
-      if (activeRegexScripts.length > 0) {
-        const editDepth = Math.max(0, parsed.messages.length - 1 - idx);
-        nextText = applyRegexPipeline(nextText, activeRegexScripts, {
-          placement: msg.is_user ? REGEX_PLACEMENT.USER_INPUT : REGEX_PLACEMENT.AI_OUTPUT,
-          isPermanent: true,
-          isEdit: true,
-          depth: editDepth,
-          charName: card?.nickname || card?.name || chatFolder,
-          userName: parsed.header?.user_name || 'User',
-        });
+    if (nextText) {
+      if (!isGroup) {
+        const activeRegexScripts = resolveActiveRegexScriptsServer({ card });
+        if (activeRegexScripts.length > 0) {
+          const editDepth = Math.max(0, parsed.messages.length - 1 - idx);
+          nextText = applyRegexPipeline(nextText, activeRegexScripts, {
+            placement: msg.is_user ? REGEX_PLACEMENT.USER_INPUT : REGEX_PLACEMENT.AI_OUTPUT,
+            isPermanent: true,
+            isEdit: true,
+            depth: editDepth,
+            charName: card?.nickname || card?.name || chatFolder,
+            userName: parsed.header?.user_name || 'User',
+          });
+        }
       }
+      const aiCfg = readCustomizationConfig().chatAndAi;
+      nextText = applyTextFormattingRules(nextText, {
+        trimSpaces: aiCfg.trimSpaces,
+        collapseNewlines: aiCfg.collapseNewlines,
+        autoFixMarkdown: aiCfg.autoFixMarkdown,
+        trimIncompleteSentences: false,
+      });
     }
     msg.mes = nextText;
     if (Array.isArray(msg.swipes) && msg.swipes.length > 0) {
