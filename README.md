@@ -23,16 +23,23 @@
 
 ### Quick Start
 
+Requires **[Node.js LTS](https://nodejs.org/)** (v20 or newer).
+
+**Windows (One-Click Launch):**
+Double-click **`start.bat`** — on first launch it automatically installs dependencies, builds the frontend, starts the standalone server, and opens `http://localhost:8088` in your browser (subsequent launches start instantly, and `git pull` updates rebuild automatically).
+
+**Manual / Cross-Platform (Windows, Linux, macOS):**
+
 ```bash
 # Install dependencies
 npm install
 
-# Run in development mode (Server + Vite HMR)
-npm run dev
-
 # Build production bundle & start standalone server
 npm run build
 npm start
+
+# Or run in development mode (Server + Vite HMR)
+npm run dev
 ```
 
 ### Quality Checks
@@ -59,16 +66,23 @@ npm test       # Fast Node.js unit test suite
 
 ### Быстрый запуск
 
+Требуется установленный **[Node.js LTS](https://nodejs.org/)** (версии 20 или новее).
+
+**Windows (запуск в один клик):**
+Запустите **`start.bat`** — при первом запуске скрипт сам установит зависимости, соберёт фронтенд, поднимет локальный сервер и откроет `http://localhost:8088` в браузере (при последующих запусках сервер стартует мгновенно, а после обновления через `git pull` фронтенд пересобирается автоматически).
+
+**Вручную / Кроссплатформенно (Windows, Linux, macOS):**
+
 ```bash
 # Установка зависимостей
 npm install
 
-# Режим разработки (Сервер + клиент Vite)
-npm run dev
-
 # Продакшен-сборка и запуск локального сервера
 npm run build
 npm start
+
+# Или режим разработки (Сервер + клиент Vite HMR)
+npm run dev
 ```
 
 > Подробное описание архитектуры, структуры директорий и стандартов разработки находится в **[PROJECT.md](./PROJECT.md)**.
