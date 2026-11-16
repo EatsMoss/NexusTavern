@@ -30,6 +30,75 @@ const HEADING_OPTIONS = [
   { level: 3, prefix: '### ', badge: 'H3', label: 'Heading 3', syntax: '### ' },
 ];
 
+/**
+ * Scrolls `.bb-md-rich-editor` so the active caret / newly inserted line stays
+ * comfortably inside the visible viewport (accounting for vertical padding).
+ */
+function scrollRichCaretIntoView(richEl, caretOffset, fullText = '') {
+  if (!richEl || richEl.scrollHeight <= richEl.clientHeight + 1) return;
+
+  const sel = window.getSelection?.();
+  if (!sel || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  if (!richEl.contains(range.endContainer)) return;
+
+  let caretTop = 0;
+  let caretBottom = 0;
+  let hasRect = false;
+
+  const clientRects = range.getClientRects?.();
+  if (clientRects && clientRects.length > 0) {
+    const r = clientRects[clientRects.length - 1];
+    if (r.height > 0) {
+      caretTop = r.top;
+      caretBottom = r.bottom;
+      hasRect = true;
+    }
+  }
+
+  if (!hasRect) {
+    let node = range.endContainer;
+    if (node === richEl) {
+      const idx = Math.min(
+        Math.max(0, range.endOffset),
+        Math.max(0, richEl.children.length - 1),
+      );
+      node = richEl.children[idx] || null;
+    } else if (node && node.nodeType !== 1) {
+      node = node.parentElement;
+    }
+    const lineEl =
+      node?.closest?.('.bb-md-line') || (node instanceof Element ? node : null);
+    if (lineEl && richEl.contains(lineEl)) {
+      const lr = lineEl.getBoundingClientRect();
+      if (lr.height > 0) {
+        caretTop = lr.top;
+        caretBottom = lr.bottom;
+        hasRect = true;
+      }
+    }
+  }
+
+  if (!hasRect) return;
+
+  const hostRect = richEl.getBoundingClientRect();
+  const cs = window.getComputedStyle?.(richEl);
+  const padTop = (parseFloat(cs?.paddingTop) || 10) + 2;
+  const padBottom = (parseFloat(cs?.paddingBottom) || 10) + 2;
+  const visibleTop = hostRect.top + padTop;
+  const visibleBottom = hostRect.bottom - padBottom;
+
+  if (caretBottom > visibleBottom) {
+    if (caretOffset >= fullText.length) {
+      richEl.scrollTop = richEl.scrollHeight;
+    } else {
+      richEl.scrollTop += Math.ceil(caretBottom - visibleBottom);
+    }
+  } else if (caretTop < visibleTop) {
+    richEl.scrollTop = Math.max(0, richEl.scrollTop - Math.ceil(visibleTop - caretTop));
+  }
+}
+
 function ToolBtn({ tip, isMobile, children, ...btnProps }) {
   return (
     <Tooltip content={tip} disabled={isMobile || Boolean(btnProps.disabled)} delayMs={180}>
@@ -67,6 +136,7 @@ export function MarkdownEditor({
   const lastRenderedValueRef = useRef(null);
   const pendingSelectionRef = useRef(null);
   const savedSelectionRef = useRef(null);
+  const shouldScrollCaretRef = useRef(false);
   const composingRef = useRef(false);
   const didAutoFocusRef = useRef(false);
 
@@ -144,8 +214,12 @@ export function MarkdownEditor({
       if (pendingSelectionRef.current) {
         const { start, end } = pendingSelectionRef.current;
         pendingSelectionRef.current = null;
-        el.focus();
+        el.focus({ preventScroll: true });
         setRichSelectionOffsets(el, start, end);
+        if (shouldScrollCaretRef.current) {
+          shouldScrollCaretRef.current = false;
+          scrollRichCaretIntoView(el, end, strValue);
+        }
       }
       return;
     }
@@ -154,12 +228,17 @@ export function MarkdownEditor({
       pendingSelectionRef.current ||
       (document.activeElement === el ? getRichSelectionOffsets(el) : null);
     pendingSelectionRef.current = null;
+    const needsCaretScroll = shouldScrollCaretRef.current;
+    shouldScrollCaretRef.current = false;
 
     el.innerHTML = renderLiveMarkdownHtml(strValue);
     lastRenderedValueRef.current = strValue;
 
     if (activeSel && document.activeElement === el) {
       setRichSelectionOffsets(el, activeSel.start, activeSel.end);
+      if (needsCaretScroll) {
+        scrollRichCaretIntoView(el, activeSel.end, strValue);
+      }
     }
 
     if (autoFocusEnd && !didAutoFocusRef.current) {
@@ -223,6 +302,10 @@ export function MarkdownEditor({
       savedSelectionRef.current = { start: selStart, end: selEnd };
       if (!keepBlurred) {
         pendingSelectionRef.current = { start: selStart, end: selEnd };
+        shouldScrollCaretRef.current = true;
+        if (liveMd && richRef.current && document.activeElement !== richRef.current) {
+          richRef.current.focus({ preventScroll: true });
+        }
       }
       lastCommittedTextRef.current = nextText;
       if (!skipHistory) {
@@ -235,8 +318,11 @@ export function MarkdownEditor({
         requestAnimationFrame(() => {
           const ta = textareaRef.current;
           if (!ta) return;
-          ta.focus();
+          ta.focus({ preventScroll: true });
           ta.setSelectionRange(selStart, selEnd);
+          if (selEnd >= nextText.length && ta.scrollHeight > ta.clientHeight) {
+            ta.scrollTop = ta.scrollHeight;
+          }
         });
       }
     },
@@ -378,6 +464,7 @@ export function MarkdownEditor({
     const resolvedSel = sel || { start: plain.length, end: plain.length };
     savedSelectionRef.current = resolvedSel;
     pendingSelectionRef.current = resolvedSel;
+    shouldScrollCaretRef.current = true;
     lastCommittedTextRef.current = plain;
     recordHistorySnapshot(plain, resolvedSel.start, resolvedSel.end, 'typing');
     setActiveHeadingLevel(detectActiveHeadingLevel(plain, resolvedSel.start));
@@ -450,7 +537,14 @@ export function MarkdownEditor({
       return;
     }
 
-    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    if (e.key === 'Enter' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      if (e.shiftKey) {
+        if (isRichMode) {
+          e.preventDefault();
+          insertSnippet('\n', { historyKind: 'typing' });
+        }
+        return;
+      }
       const { start } = getSelection();
       const lineStart = strValue.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
       const linePrefixSlice = strValue.slice(lineStart, start);

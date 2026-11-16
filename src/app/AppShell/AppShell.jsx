@@ -540,6 +540,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     hasActiveScenario: scenario.hasActiveScenario,
     committedChatCardId: chat.committedChatCardId,
     selectedCardId: scenario.selectedCardId,
+    activeChatFile: chat.activeChatFile,
     chatMetaStats: chat.chatMetaStats,
     messages: chat.messages,
     activeCardFull: scenario.activeCardFull,

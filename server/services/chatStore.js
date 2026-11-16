@@ -33,6 +33,7 @@ export {
   listCharacterChats,
   listGroupChats,
   getChatWindow,
+  getChatOlderTokenSummary,
 } from './chatJsonlCodec.js';
 
 export {

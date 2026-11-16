@@ -1077,6 +1077,78 @@ export function getChatWindow(avatarOrFolder, options = {}) {
   };
 }
 
+/**
+ * Computes active & raw token totals for messages `0..beforeIndex-1` on disk
+ * using the latest persisted Message Recap and Prompt-Only Regex configuration.
+ */
+export function getChatOlderTokenSummary(
+  avatarOrFolder,
+  { fileName = null, beforeIndex = 0, isGroup = false } = {},
+) {
+  let resolvedFile = fileName;
+  if (!resolvedFile && !isGroup) {
+    const listed = listCharacterChats(avatarOrFolder);
+    resolvedFile = listed.defaultChatFile || listed.chats[0]?.fileName || null;
+  }
+
+  const startIdx = Math.max(0, Math.floor(Number(beforeIndex) || 0));
+  if (!resolvedFile || startIdx <= 0) {
+    return {
+      found: Boolean(resolvedFile),
+      olderHistoryTokens: 0,
+      olderHistoryRawTokens: 0,
+    };
+  }
+
+  const { chatFolder, filePath } = resolveChatFilePath(
+    avatarOrFolder,
+    resolvedFile,
+    isGroup,
+  );
+  const parsed = readParsedJsonlChat(filePath);
+  if (!parsed) {
+    return {
+      found: false,
+      olderHistoryTokens: 0,
+      olderHistoryRawTokens: 0,
+    };
+  }
+
+  const totalMessages = parsed.messages.length;
+  const clampedStart = Math.min(startIdx, totalMessages);
+  if (clampedStart <= 0) {
+    return {
+      found: true,
+      olderHistoryTokens: 0,
+      olderHistoryRawTokens: 0,
+    };
+  }
+
+  const personaState = resolveChatPersonaState(parsed);
+  const activeRegexScripts = !isGroup
+    ? resolveActiveRegexScriptsServer({ cardAvatar: avatarOrFolder })
+    : [];
+  const recapConfig = readMessageRecapConfig();
+  const olderBreakdown = estimateHistorySliceTokenBreakdown(
+    parsed.messages.slice(0, clampedStart),
+    {
+      charName: parsed.header?.character_name || chatFolder,
+      userName: personaState.chatPersonaName || parsed.header?.user_name || 'User',
+    },
+    {
+      regexScripts: activeRegexScripts,
+      recapConfig,
+      tailCountAfterSlice: totalMessages - clampedStart,
+    },
+  );
+
+  return {
+    found: true,
+    olderHistoryTokens: olderBreakdown.activeTokens,
+    olderHistoryRawTokens: olderBreakdown.rawTokens,
+  };
+}
+
 
 
 

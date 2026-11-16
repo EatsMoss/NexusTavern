@@ -79,6 +79,21 @@ export async function fetchChatWindow(avatarOrFolder, options = {}) {
 }
 
 /**
+ * Re-computes active & raw token totals for older on-disk messages (`0..beforeIndex-1`)
+ * when Message Recap or Prompt-Only Regex settings change (`GET /api/chats/:avatar/token-summary`).
+ */
+export async function fetchChatOlderTokenSummary(avatarOrFolder, options = {}) {
+  const { file = null, beforeIndex = 0, isGroup = false } = options;
+  const params = new URLSearchParams();
+  if (file) params.set('file', file);
+  params.set('beforeIndex', String(Math.max(0, Number(beforeIndex) || 0)));
+  if (isGroup) params.set('group', 'true');
+  return apiFetchJson(
+    `/api/chats/${encodeURIComponent(avatarOrFolder)}/token-summary?${params.toString()}`,
+  );
+}
+
+/**
  * Creates a brand-new `.jsonl` chat file for a character (`POST /api/chats/:avatar/new`).
  */
 export async function createNewChat(avatarOrFolder, greetingIndex = 0, options = {}) {

@@ -215,13 +215,6 @@
   border-color: var(--md-sys-color-outline);
 }
 
-.bb-cs-adv-btn__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--md-sys-color-primary);
-}
-
 /* 2. SMART AVATAR GALLERY STRIP */
 .bb-cs-gallery-slim {
   border-radius: var(--bb-control-radius, 8px);

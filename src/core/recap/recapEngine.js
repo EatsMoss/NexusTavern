@@ -37,6 +37,20 @@ function clampDepth(value, fallback = 0) {
 }
 
 /**
+ * Repairs ungrouped XML/HTML tag alternation such as `<story|ru>` or `<\/story|ru>`
+ * into `<(?:story|ru)>` / `<\/(?:story|ru)>` so `|` does not split the outer regex
+ * into top-level branches that only strip the opening tag token.
+ */
+export function repairUngroupedXmlTagAlternation(rawRegex = '') {
+  const str = String(rawRegex ?? '');
+  if (!str.includes('|')) return str;
+  return str.replace(
+    /<(\\\/|\/)?([a-zA-Z0-9_:-]+(?:\|[a-zA-Z0-9_:-]+)+)(\b[^>|()]*)?>/g,
+    (_m, slash = '', alts = '', rest = '') => `<${slash}(?:${alts})${rest}>`,
+  );
+}
+
+/**
  * Normalizes any persisted or partial Message Recap configuration object.
  */
 export function normalizeRecapConfig(raw = null) {
@@ -77,10 +91,11 @@ export function normalizeRecapConfig(raw = null) {
     typeof src.stripFindRegex === 'string' && src.stripFindRegex.trim()
       ? src.stripFindRegex.trim()
       : DEFAULT_STRIP_FIND_REGEX;
-  const stripFindRegex =
+  const stripFindRegex = repairUngroupedXmlTagAlternation(
     isLegacyV1 && rawStripRegex === LEGACY_V1_STRIP_FIND_REGEX
       ? DEFAULT_STRIP_FIND_REGEX
-      : rawStripRegex;
+      : rawStripRegex,
+  );
 
   return {
     schemaVersion: RECAP_CONFIG_SCHEMA_VERSION,

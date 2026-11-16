@@ -271,7 +271,7 @@ export function CharacterSheetHeader({
             />
             <button
               type="button"
-              className={`bb-cs-adv-btn ${tokenStats.hasAdvanced ? 'has-content' : ''} ${isExpanded ? 'is-active' : ''}`.trim()}
+              className={`bb-cs-adv-btn ${isExpanded ? 'is-active' : ''}`.trim()}
               title={
                 isExpanded
                   ? 'Focus Advanced Definitions in Right Tome'
@@ -281,7 +281,6 @@ export function CharacterSheetHeader({
             >
               <Icon name="sliders" size={14} />
               <span>Advanced</span>
-              {tokenStats.hasAdvanced && <span className="bb-cs-adv-btn__dot" aria-hidden="true" />}
             </button>
           </div>
 

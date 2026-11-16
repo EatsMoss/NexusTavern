@@ -50,7 +50,13 @@ export function estimateTextTokens(rawText = '', tokenContext = null) {
       (code >= 0x30 && code <= 0x39) ||
       (code >= 0x41 && code <= 0x5a) ||
       (code >= 0x61 && code <= 0x7a) ||
-      ch === ' '
+      ch === ' ' ||
+      ch === '\t' ||
+      ch === '\n' ||
+      ch === '\r' ||
+      code === 0x00a0 ||
+      code === 0x2800 ||
+      (code >= 0x2000 && code <= 0x200b)
     ) {
       latinCount += 1;
     } else if (code < 0x80) {

@@ -268,6 +268,8 @@ export function ChatViewport({
   const autoScrollRafRef = useRef({ outer: 0, inner: 0 });
   const smoothJumpActiveRef = useRef(false);
   const lastScrollTopRef = useRef(0);
+  const lastScrollHeightRef = useRef(0);
+  const wasGeneratingRef = useRef(Boolean(isGenerating));
   // Latches an in-flight auto-load so rapid `scroll` events cannot queue
   // duplicate batches. A ref, not state, so the guard is visible immediately.
   const autoLoadGateRef = useRef(false);
@@ -284,7 +286,20 @@ export function ChatViewport({
   // Reading upward reaches the top of the loaded window: pull the next older
   // batch before the reader actually hits the wall, so scrolling feels seamless.
   const AT_TOP_THRESHOLD_PX = 160;
-  const AT_BOTTOM_THRESHOLD_PX = 16;
+  const AT_BOTTOM_THRESHOLD_PX = 20;
+  const JUMP_BOTTOM_THRESHOLD_PX = 96;
+
+  const syncScrollEdges = useCallback((el) => {
+    if (!el) return;
+    const currentTop = el.scrollTop;
+    const distanceFromBottom = Math.max(
+      0,
+      el.scrollHeight - currentTop - el.clientHeight,
+    );
+    setScrolledUnderTop(currentTop > 1);
+    setScrolledUnderBottom(distanceFromBottom > 1.5);
+    setShowJumpBottom(distanceFromBottom > JUMP_BOTTOM_THRESHOLD_PX);
+  }, []);
 
   const cancelPendingAutoScroll = useCallback(() => {
     if (autoScrollRafRef.current.outer) {
@@ -301,13 +316,15 @@ export function ChatViewport({
     isPinnedToBottomRef.current = false;
     smoothJumpActiveRef.current = false;
     cancelPendingAutoScroll();
-  }, [cancelPendingAutoScroll]);
+    syncScrollEdges(resolvedStreamRef.current);
+  }, [cancelPendingAutoScroll, resolvedStreamRef, syncScrollEdges]);
 
   const applyProgrammaticScrollToBottom = useCallback((el) => {
     if (!el) return;
     programmaticScrollRef.current = true;
     el.scrollTop = el.scrollHeight;
     lastScrollTopRef.current = el.scrollTop;
+    lastScrollHeightRef.current = el.scrollHeight;
     setScrolledUnderTop(el.scrollTop > 1);
     setScrolledUnderBottom(false);
     setShowJumpBottom(false);
@@ -315,8 +332,10 @@ export function ChatViewport({
       cancelAnimationFrame(programmaticClearRafRef.current);
     }
     programmaticClearRafRef.current = requestAnimationFrame(() => {
-      programmaticClearRafRef.current = 0;
-      programmaticScrollRef.current = false;
+      programmaticClearRafRef.current = requestAnimationFrame(() => {
+        programmaticClearRafRef.current = 0;
+        programmaticScrollRef.current = false;
+      });
     });
   }, []);
 
@@ -366,27 +385,29 @@ export function ChatViewport({
     if (!el) return;
     const currentTop = el.scrollTop;
     const prevTop = lastScrollTopRef.current;
+    const prevHeight = lastScrollHeightRef.current;
     lastScrollTopRef.current = currentTop;
+    lastScrollHeightRef.current = el.scrollHeight;
 
-    const distanceFromBottom = el.scrollHeight - currentTop - el.clientHeight;
+    const distanceFromBottom = Math.max(
+      0,
+      el.scrollHeight - currentTop - el.clientHeight,
+    );
 
     if (!programmaticScrollRef.current && !branchSlidingRef.current) {
-      if (currentTop < prevTop - 0.5 && !smoothJumpActiveRef.current) {
-        detachFromBottom();
-      } else if (distanceFromBottom <= AT_BOTTOM_THRESHOLD_PX) {
+      if (distanceFromBottom <= AT_BOTTOM_THRESHOLD_PX) {
         isPinnedToBottomRef.current = true;
         smoothJumpActiveRef.current = false;
-      } else if (!smoothJumpActiveRef.current) {
-        isPinnedToBottomRef.current = false;
+      } else if (
+        currentTop < prevTop - 1 &&
+        el.scrollHeight >= prevHeight - 1 &&
+        !smoothJumpActiveRef.current
+      ) {
+        detachFromBottom();
       }
     }
 
-    setShowJumpBottom(distanceFromBottom > 240);
-    // Edge fades: content is faded at an edge only while something is scrolled
-    // past it. A 1px tolerance keeps a resting edge fully solid despite
-    // sub-pixel rounding.
-    setScrolledUnderTop(currentTop > 1);
-    setScrolledUnderBottom(distanceFromBottom > 1);
+    syncScrollEdges(el);
 
     // Auto-load older messages. The anchor captured inside
     // `handleLoadOlderWithAnchor` restores the reading position after the batch
@@ -409,6 +430,7 @@ export function ChatViewport({
     loadingChat,
     handleLoadOlderWithAnchor,
     detachFromBottom,
+    syncScrollEdges,
   ]);
 
   // Restore exact reading scroll position after older messages are prepended
@@ -553,16 +575,31 @@ export function ChatViewport({
       return undefined;
     }
 
+    const generationJustStarted = !wasGeneratingRef.current && Boolean(isGenerating);
+    wasGeneratingRef.current = Boolean(isGenerating);
+
+    const autoScrollEnabled =
+      getCustomizationRuntimeSnapshot()?.chatAndAi?.autoScrollOnStream !== false;
+
     const forceSnapToBottom =
       isFreshChat || returnedFromOverlay || userMessageAppended;
 
     if (forceSnapToBottom) {
       isPinnedToBottomRef.current = true;
       smoothJumpActiveRef.current = false;
-    } else if (
-      !isPinnedToBottomRef.current ||
-      getCustomizationRuntimeSnapshot()?.chatAndAi?.autoScrollOnStream === false
-    ) {
+    } else if (generationJustStarted && autoScrollEnabled) {
+      const distBeforeStart = Math.max(
+        0,
+        el.scrollHeight - el.scrollTop - el.clientHeight,
+      );
+      if (distBeforeStart <= JUMP_BOTTOM_THRESHOLD_PX) {
+        isPinnedToBottomRef.current = true;
+        smoothJumpActiveRef.current = false;
+      }
+    }
+
+    if (!forceSnapToBottom && (!isPinnedToBottomRef.current || !autoScrollEnabled)) {
+      syncScrollEdges(el);
       return undefined;
     }
 
@@ -571,11 +608,17 @@ export function ChatViewport({
 
     autoScrollRafRef.current.outer = requestAnimationFrame(() => {
       autoScrollRafRef.current.outer = 0;
-      if (!forceSnapToBottom && !isPinnedToBottomRef.current) return;
+      if (!forceSnapToBottom && !isPinnedToBottomRef.current) {
+        syncScrollEdges(el);
+        return;
+      }
       applyProgrammaticScrollToBottom(el);
       autoScrollRafRef.current.inner = requestAnimationFrame(() => {
         autoScrollRafRef.current.inner = 0;
-        if (!forceSnapToBottom && !isPinnedToBottomRef.current) return;
+        if (!forceSnapToBottom && !isPinnedToBottomRef.current) {
+          syncScrollEdges(el);
+          return;
+        }
         applyProgrammaticScrollToBottom(el);
       });
     });
@@ -583,12 +626,14 @@ export function ChatViewport({
     return () => cancelPendingAutoScroll();
   }, [
     messages,
+    isGenerating,
     activeChatFile,
     chatListOpen,
     timelinesOpen,
     resolvedStreamRef,
     cancelPendingAutoScroll,
     applyProgrammaticScrollToBottom,
+    syncScrollEdges,
   ]);
 
   const lastMessageItem = messages.length > 0 ? messages[messages.length - 1] : null;
@@ -653,39 +698,44 @@ export function ChatViewport({
   }, [resolvedStreamRef, detachFromBottom, chatListOpen, timelinesOpen]);
 
   // Follow smooth card height expansion frame-by-frame during generation
-  // and during swipe height transitions ONLY while pinned to the bottom,
-  // keeping stationary swipe controls anchored under the cursor.
+  // (including Reasoning box appearance/expansion & CSS transitions) and during
+  // swipe height transitions while pinned to the bottom; when unpinned, keep
+  // scroll edge fades and the Jump-to-Latest button synced in real time.
   useEffect(() => {
     const streamEl = resolvedStreamRef.current;
     const trackEl = streamTrackRef.current;
     if (!streamEl || !trackEl) return undefined;
 
-    let active = Boolean(isGenerating);
+    let activeFollow = Boolean(isGenerating);
     let settleTimer = null;
 
     if (!isGenerating && isPinnedToBottomRef.current) {
-      active = true;
+      activeFollow = true;
       settleTimer = setTimeout(() => {
-        active = false;
-      }, 300);
+        activeFollow = false;
+      }, 350);
     }
 
     const ro = new ResizeObserver(() => {
-      if (
-        !active ||
-        !isPinnedToBottomRef.current ||
-        prependAnchorRef.current ||
-        branchSlidingRef.current
-      ) {
+      if (prependAnchorRef.current || branchSlidingRef.current) {
         return;
       }
-      const dist =
-        streamEl.scrollHeight - streamEl.scrollTop - streamEl.clientHeight;
-      if (dist > 0.5) {
-        applyProgrammaticScrollToBottom(streamEl);
+      const autoScrollEnabled =
+        getCustomizationRuntimeSnapshot()?.chatAndAi?.autoScrollOnStream !== false;
+
+      if (activeFollow && isPinnedToBottomRef.current && autoScrollEnabled) {
+        const dist =
+          streamEl.scrollHeight - streamEl.scrollTop - streamEl.clientHeight;
+        if (dist > 0.5) {
+          applyProgrammaticScrollToBottom(streamEl);
+          return;
+        }
       }
+
+      syncScrollEdges(streamEl);
     });
     ro.observe(trackEl);
+    ro.observe(streamEl);
 
     return () => {
       if (settleTimer) clearTimeout(settleTimer);
@@ -696,6 +746,7 @@ export function ChatViewport({
     lastSwipeTrackKey,
     resolvedStreamRef,
     applyProgrammaticScrollToBottom,
+    syncScrollEdges,
   ]);
 
   const scrollToLatest = useCallback(() => {

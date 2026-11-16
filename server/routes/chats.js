@@ -4,6 +4,7 @@ import {
   listGroupChats,
   listChatBackups,
   getChatWindow,
+  getChatOlderTokenSummary,
   getOrSelectMessageSwipe,
   saveChatAttachments,
   appendChatMessage,
@@ -70,6 +71,20 @@ chatsRouter.get('/:avatar/messages', (req, res) => {
     });
     const elapsedMs = Number((performance.now() - startMs).toFixed(2));
     res.json({ ok: true, elapsedMs, ...windowData });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+chatsRouter.get('/:avatar/token-summary', (req, res) => {
+  try {
+    const { file, beforeIndex, group } = req.query;
+    const summary = getChatOlderTokenSummary(req.params.avatar, {
+      fileName: file || null,
+      beforeIndex: beforeIndex !== undefined ? Number(beforeIndex) : 0,
+      isGroup: group === 'true',
+    });
+    res.json({ ok: true, ...summary });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }

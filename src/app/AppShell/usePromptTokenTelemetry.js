@@ -1,4 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { fetchChatOlderTokenSummary } from '@core/chats/chatsApi.js';
+import { isDemoCardId } from '@core/cards/cardsApi.js';
 import {
   estimateHistorySliceTokenBreakdown,
   estimateRecapInjectedPromptTokens,
@@ -13,6 +15,7 @@ export function usePromptTokenTelemetry({
   hasActiveScenario,
   committedChatCardId,
   selectedCardId,
+  activeChatFile = '',
   chatMetaStats,
   messages,
   activeCardFull,
@@ -37,16 +40,100 @@ export function usePromptTokenTelemetry({
     hasActiveScenario,
   ]);
 
+  const compressionSignature = useMemo(() => {
+    const recapPart = recapConfig
+      ? `${recapConfig.enabled ? 1 : 0}|${recapConfig.stripEnabled ? 1 : 0}|${
+          recapConfig.keepFullDepth ?? 4
+        }|${recapConfig.stripFindRegex || ''}`
+      : 'none';
+    const rxPart = activePromptRegexScripts
+      .filter((s) => s && !s.disabled && s.promptOnly)
+      .map(
+        (s) =>
+          `${s.id}:${s.findRegex}:${s.replaceString}:${s.minDepth ?? ''}:${s.maxDepth ?? ''}`,
+      )
+      .join(';');
+    return `${recapPart}::${rxPart}`;
+  }, [recapConfig, activePromptRegexScripts]);
+
+  const windowScopeKey = `${selectedCardId || ''}::${activeChatFile || ''}::${
+    chatMetaStats.startIndex || 0
+  }`;
+  const [olderOverride, setOlderOverride] = useState(null);
+  const lastCompressionSigRef = useRef(compressionSignature);
+
+  useEffect(() => {
+    const sigChanged = lastCompressionSigRef.current !== compressionSignature;
+    lastCompressionSigRef.current = compressionSignature;
+
+    if (
+      !sigChanged ||
+      !hasActiveScenario ||
+      !selectedCardId ||
+      isDemoCardId(selectedCardId) ||
+      committedChatCardId !== selectedCardId ||
+      !chatMetaStats.hasMoreOlder ||
+      !(Number(chatMetaStats.startIndex) > 0)
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetchChatOlderTokenSummary(selectedCardId, {
+          file: activeChatFile || null,
+          beforeIndex: Number(chatMetaStats.startIndex) || 0,
+        });
+        if (!cancelled && res?.ok && res.found) {
+          setOlderOverride({
+            scopeKey: windowScopeKey,
+            olderHistoryTokens: Number(res.olderHistoryTokens || 0),
+            olderHistoryRawTokens: Number(
+              res.olderHistoryRawTokens ?? res.olderHistoryTokens ?? 0,
+            ),
+          });
+        }
+      } catch {
+        // Ignore transient network errors; visible window tokens still update immediately
+      }
+    }, 380);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    compressionSignature,
+    hasActiveScenario,
+    selectedCardId,
+    committedChatCardId,
+    activeChatFile,
+    chatMetaStats.hasMoreOlder,
+    chatMetaStats.startIndex,
+    windowScopeKey,
+  ]);
+
   const chatHistoryTokenBreakdown = useMemo(() => {
     const resolvedCharName = activeCardFull?.name || activeCharacter?.name || 'Character';
     const resolvedUserName = personaName || 'User';
     const nameCtx = { charName: resolvedCharName, userName: resolvedUserName };
     if (hasActiveScenario && committedChatCardId === selectedCardId) {
+      const matchedOverride =
+        olderOverride && olderOverride.scopeKey === windowScopeKey ? olderOverride : null;
       const olderActive = chatMetaStats.hasMoreOlder
-        ? Number(chatMetaStats.olderHistoryTokens || 0)
+        ? Number(
+            matchedOverride
+              ? matchedOverride.olderHistoryTokens
+              : chatMetaStats.olderHistoryTokens || 0,
+          )
         : 0;
       const olderRaw = chatMetaStats.hasMoreOlder
-        ? Number(chatMetaStats.olderHistoryRawTokens ?? olderActive)
+        ? Number(
+            matchedOverride
+              ? matchedOverride.olderHistoryRawTokens
+              : (chatMetaStats.olderHistoryRawTokens ?? olderActive),
+          )
         : 0;
       const visible = estimateHistorySliceTokenBreakdown(messages, nameCtx, {
         regexScripts: activePromptRegexScripts,
@@ -78,6 +165,8 @@ export function usePromptTokenTelemetry({
     chatMetaStats.hasMoreOlder,
     chatMetaStats.olderHistoryTokens,
     chatMetaStats.olderHistoryRawTokens,
+    olderOverride,
+    windowScopeKey,
     messages,
     activeCardFull?.name,
     activeCardFull?.first_mes,

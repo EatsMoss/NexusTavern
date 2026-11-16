@@ -740,9 +740,9 @@ export function PromptManager({
             {isChatHistory && chatHistorySavedTokens > 0 && (
               <span
                 className="bb-pm-badge is-saved"
-                title={`Saved ${chatHistorySavedTokens.toLocaleString('en-US')} tokens via regex/recap (${node.tokens || 0} active vs ${chatHistoryRawTokens.toLocaleString('en-US')} raw)`}
+                title={`Saved ~${chatHistorySavedTokens.toLocaleString('en-US')} tokens (-${chatHistorySavedPct}%) via Message Recap / Regex (${(node.tokens || 0).toLocaleString('en-US')} active vs ${chatHistoryRawTokens.toLocaleString('en-US')} raw)`}
               >
-                -{chatHistorySavedPct}%
+                -{formatCompactTokens(chatHistorySavedTokens)} tok
               </span>
             )}
             {!isChatHistory && renderRoleIndicator(p.marker, p.role)}
@@ -1049,6 +1049,14 @@ export function PromptManager({
           <span className="bb-pm-header-count">
             {orderedPrompts.filter((p) => p.enabled).length}/{orderedPrompts.length}
           </span>
+          {chatHistorySavedTokens > 0 && (
+            <span
+              className="bb-pm-badge is-saved bb-pm-header-saved"
+              title={`Saving ~${chatHistorySavedTokens.toLocaleString('en-US')} chat tokens (-${chatHistorySavedPct}%) via Message Recap / Regex`}
+            >
+              -{formatCompactTokens(chatHistorySavedTokens)} tok
+            </span>
+          )}
         </div>
 
         <div className="bb-pm-cols bb-pm-cols--header">

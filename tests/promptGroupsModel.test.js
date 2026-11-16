@@ -8,6 +8,9 @@ import {
   buildPromptTree,
   flattenPromptTree,
 } from '../src/ui/organisms/PromptManager/promptGroupsModel.js';
+import { normalizeRecapConfig } from '../src/core/recap/recapEngine.js';
+import { estimateHistorySliceTokenBreakdown } from '../src/core/presets/tokenEstimator.js';
+import { normalizeRegexScript, REGEX_PLACEMENT } from '../src/core/regex/regexEngine.js';
 
 describe('promptGroupsModel — SillyTavern + BookboundUI XML group round-trip', () => {
   it('extracts leading emojis & trims Braille blanks while leaving grp_XXXX markers untouched', () => {
@@ -97,5 +100,48 @@ describe('promptGroupsModel — SillyTavern + BookboundUI XML group round-trip',
     assert.equal(flattened[4].content, '</world_frame>\nPostamble text');
     assert.equal(flattened[5].identifier, 'chatHistory');
     assert.equal(flattened[5].enabled, true);
+  });
+
+  it('computes accurate Recap token savings even with ungrouped <story|ru> regex and Braille spaces', () => {
+    const recapCfg = normalizeRecapConfig({
+      schemaVersion: 2,
+      enabled: true,
+      stripEnabled: true,
+      keepFullDepth: 2,
+      stripFindRegex: '/(`{3})?\\s*<story|ru>[\\s\\S]*?<\\/story|ru>\\s?(`{3})?\\s*/gi',
+    });
+    assert.equal(
+      recapCfg.stripFindRegex,
+      '/(`{3})?\\s*<(?:story|ru)>[\\s\\S]*?<\\/(?:story|ru)>\\s?(`{3})?\\s*/gi',
+    );
+
+    const brailleSpaceScript = normalizeRegexScript({
+      id: 'space_user',
+      scriptName: 'space_user',
+      findRegex: '/ /g',
+      replaceString: '\u2800',
+      placement: [REGEX_PLACEMENT.USER_INPUT],
+      promptOnly: true,
+      disabled: false,
+    });
+
+    const history = [
+      {
+        isUser: false,
+        text: '<story>\nДлинный подробный русский отыгрыш на много предложений, который должен вырезаться рекапом для экономии контекста в старых сообщениях.\n</story>\n<recap>\nShort English summary.\n</recap>',
+      },
+      { isUser: true, text: 'Я внимательно слушаю её ответ и делаю шаг вперёд.' },
+      { isUser: false, text: 'Latest uncompressed reply.' },
+      { isUser: true, text: 'Latest user turn.' },
+    ];
+
+    const breakdown = estimateHistorySliceTokenBreakdown(
+      history,
+      { charName: 'Aika', userName: 'Player' },
+      { regexScripts: [brailleSpaceScript], recapConfig: recapCfg },
+    );
+
+    assert.ok(breakdown.savedTokens >= 40, `Expected >=40 saved tokens, got ${breakdown.savedTokens}`);
+    assert.ok(breakdown.activeTokens < breakdown.rawTokens);
   });
 });
