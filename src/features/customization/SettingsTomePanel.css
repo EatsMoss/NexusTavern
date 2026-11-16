@@ -246,3 +246,53 @@
   color: var(--bb-danger-ink);
   background: var(--bb-danger-surface);
 }
+
+/* System Section — LAN / Tunnel Rows & Storage Readout */
+.bb-cust-net-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bb-cust-net-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--bb-page-border);
+  background: var(--bb-page-card-bg);
+}
+
+.bb-cust-net-row__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bb-cust-net-row__label {
+  font-size: calc(11px * var(--bb-font-scale, 1));
+  font-weight: 600;
+  color: var(--bb-ink-muted);
+}
+
+.bb-cust-net-row__url {
+  font-family: var(--bb-font-mono);
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  color: var(--bb-ink-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bb-cust-storage-note {
+  padding: 7px 10px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border);
+  background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
+  font-size: calc(12px * var(--bb-font-scale, 1));
+  color: var(--bb-ink-muted);
+}
+

@@ -53,16 +53,12 @@
 
 ---
 
-## 2. Что осталось сделать (Шаг 5)
+## 2. Шаг 5 — Полная секция `System` и очистка рудиментов (Выполнено)
 
-Остался **только Шаг 5 — подвкладка `Settings -> System`** (замена заглушки `system-placeholder` в `SettingsTomePanel.jsx`):
+1. **`SystemSection.jsx` (`src/features/customization/sections/SystemSection.jsx`)**, подключённая в `SettingsTomePanel.jsx` через `AppShell.jsx` → `LeftTomeContent.jsx`:
+   - **`Network, LAN & Remote E2EE Tunnel`**: отображение LAN-адресов хост-ПК с копированием URL в 1 клик, живой статус E2EE SSH-туннеля (`AES-256-GCM`), кнопки запуска/остановки туннеля, ротации ключа и открытия `QR & Pairing` модалки + тумблер `Auto-Open Browser on Startup` (`config.system.autoOpenBrowser`, подключён к `server/index.js`).
+   - **`Performance & Hardware`**: тумблер `Low-GPU Mode` (`config.system.lowGpu`).
+   - **`Workspace Backup & Onboarding`**: полный экспорт и импорт `.json`-архива настроек `customization.json` вместе с кастомными темами `customPresets` (`POST /api/customization/backup/import`), кнопка повторного открытия `Show Welcome Guide` и сброс всех настроек `Reset All Settings`.
+2. **Очистка рудиментов**: устаревшие флаги `labMode` и `verbosePromptLogging` полностью удалены из схемы `customizationDefaults.js`, серверных сервисов и поискового индекса.
 
-1. **Создать `src/features/customization/sections/SystemSection.jsx`** и подключить в `SettingsTomePanel.jsx` (прокинув `serverStatus`, `tunnelBusy`, `onToggleTunnelWithToast`, `onRefreshStatus`, `onOpenQrModal` из `AppShell.jsx` → `LeftTomeContent.jsx` → `SettingsTomePanel.jsx`):
-   - **`Network, LAN & Remote E2EE Tunnel`**: отображение LAN-адресов ПК, статуса E2EE SSH-туннеля, кнопки Старт/Стоп туннеля и открытия QR-модалки + тумблер `Auto-Open Browser on Startup` (`config.system.autoOpenBrowser`).
-   - **`Performance & Hardware`**: тумблер `Low-GPU Mode` (`config.system.lowGpu` — в движке уже работает).
-   - **`Workspace Backup & Restore`**: полный экспорт и импорт `.json` архива всех настроек `customization.json` вместе с кастомными темами `customPresets` + кнопка `Show Welcome Guide`.
-   - **`Developer & Prompt Diagnostics`**:
-     - `Unrestrict Sampler Limits (Lab Mode)` (`config.system.labMode`) — связать с `PresetSamplersTab.jsx`.
-     - `Verbose Prompt Logging in Console Drawer` (`config.system.verbosePromptLogging` — серверная запись лога в `ConsoleDrawer` в `promptCompiler.js` и `llmProviderAdapters.js` **уже внедрена**, нужно только вывести переключатель в UI).
-2. **Финальный живой тест вкладки `System` и отметка Подшага 4.6.2 в `PROJECT.md`**.
 

@@ -7,6 +7,7 @@ import {
   removeCustomThemePreset,
   saveUploadedFont,
   removeUploadedFont,
+  importCustomizationWorkspaceBackup,
 } from '../services/customizationStore.js';
 import { BUILTIN_THEME_PRESETS } from '../../src/core/customization/customizationDefaults.js';
 
@@ -72,6 +73,22 @@ customizationRouter.delete('/fonts/:id', async (req, res) => {
   try {
     const removed = await removeUploadedFont(req.params.id);
     res.json({ ok: true, removed });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+customizationRouter.post('/backup/import', async (req, res) => {
+  try {
+    const payload = req.body && typeof req.body === 'object' ? req.body : {};
+    const configCandidate =
+      payload.config && typeof payload.config === 'object' ? payload.config : payload;
+    const presetsCandidate = Array.isArray(payload.customPresets) ? payload.customPresets : [];
+    const result = await importCustomizationWorkspaceBackup({
+      config: configCandidate,
+      customPresets: presetsCandidate,
+    });
+    res.json({ ok: true, ...result });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }

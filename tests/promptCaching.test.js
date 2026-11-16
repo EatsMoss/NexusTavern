@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyPromptCachingBreakpoints } from '../server/services/llmProviderAdapters.js';
+import {
+  applyPromptCachingBreakpoints,
+  buildGeminiPayload,
+  buildHeadersForProtocol,
+} from '../server/services/llmProviderAdapters.js';
+import { resolveModelCapabilities } from '../server/services/modelCapabilities.js';
 
 test('promptCaching — Anthropic & OpenRouter Claude ephemeral breakpoint injection', async (t) => {
   const defaultCacheCfg = {
@@ -78,5 +83,65 @@ test('promptCaching — Anthropic & OpenRouter Claude ephemeral breakpoint injec
       defaultCacheCfg,
     );
     assert.equal(deepseekPayload.messages[0].content, 'System rules');
+  });
+
+  await t.test('injects service_tier: "flex" and X-Server-Timeout: 600 on Gemini 2.5/3/4 models when Flex is selected', () => {
+    const caps = resolveModelCapabilities({
+      modelId: 'gemini-2.5-pro',
+      protocol: 'gemini',
+      routeId: 'google-ai',
+      connectionType: 'official_api',
+    });
+    assert.equal(caps.samplers.service_tier, true);
+
+    const target = {
+      protocol: 'gemini',
+      upstreamModelId: 'gemini-2.5-pro',
+      supportsReasoning: true,
+    };
+    const compiledFlex = {
+      charName: 'Elowen',
+      messages: [
+        { role: 'system', content: 'System prompt' },
+        { role: 'user', content: 'Hello there' },
+      ],
+      samplers: {
+        max_tokens: 1024,
+        temperature: 1.0,
+        top_p: 0.95,
+        top_k: 40,
+        seed: -1,
+        use_makersuite_sysprompt: true,
+        reasoning_effort: 'medium',
+        show_thoughts: true,
+        enable_web_search: false,
+        gemini_service_tier: 'flex',
+      },
+    };
+
+    const flexPayload = buildGeminiPayload(target, compiledFlex, caps, false);
+    assert.equal(flexPayload.service_tier, 'flex');
+
+    const flexHeaders = buildHeadersForProtocol(target, 'test-key', flexPayload, '');
+    assert.equal(flexHeaders['X-Server-Timeout'], '600');
+
+    const stdPayload = buildGeminiPayload(
+      target,
+      {
+        ...compiledFlex,
+        samplers: { ...compiledFlex.samplers, gemini_service_tier: 'standard' },
+      },
+      caps,
+      false,
+    );
+    assert.equal(stdPayload.service_tier, undefined);
+
+    const legacyCaps = resolveModelCapabilities({
+      modelId: 'gemini-2.0-flash',
+      protocol: 'gemini',
+      routeId: 'google-ai',
+      connectionType: 'official_api',
+    });
+    assert.equal(legacyCaps.samplers.service_tier, false);
   });
 });

@@ -1061,6 +1061,10 @@ export function compileChatPrompt({
         .toLowerCase(),
       show_thoughts: Boolean(oaiData.show_thoughts ?? true),
       enable_web_search: Boolean(oaiData.enable_web_search ?? false),
+      gemini_service_tier:
+        String(oaiData.gemini_service_tier || 'standard').trim().toLowerCase() === 'flex'
+          ? 'flex'
+          : 'standard',
       continue_prefill: continuePrefill,
       continue_postfix: continuePostfix,
       custom_prompt_post_processing: postProcessingMode,
@@ -1071,7 +1075,6 @@ export function compileChatPrompt({
     },
     assistantPrefill: prefill,
     promptCaching: aiCfg.promptCaching,
-    verbosePromptLogging: Boolean(customizationCfg.system?.verbosePromptLogging),
     stats: {
       totalTokens,
       maxContext,

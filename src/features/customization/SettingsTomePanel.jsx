@@ -5,7 +5,6 @@ import {
   SearchInput,
   BookmarkRibbons,
   OverlayScrollArea,
-  FolderCard,
 } from '@ui/index.js';
 import { ThemePresetsSection } from './sections/ThemePresetsSection.jsx';
 import { ColorSchemeSection } from './sections/ColorSchemeSection.jsx';
@@ -13,6 +12,7 @@ import { ChatTextColorsSection } from './sections/ChatTextColorsSection.jsx';
 import { LayoutAndSurfacesSection } from './sections/LayoutAndSurfacesSection.jsx';
 import { TypographyAndCssSection } from './sections/TypographyAndCssSection.jsx';
 import { ChatAndAiSection } from './sections/ChatAndAiSection.jsx';
+import { SystemSection } from './sections/SystemSection.jsx';
 import './SettingsTomePanel.css';
 
 const SETTINGS_TABS = [
@@ -94,16 +94,37 @@ const SEARCH_INDEX = [
       'card context example dialogues behavior gradual push-out prefer character system prompt post-history instructions llm prompt caching claude anthropic openrouter ephemeral token saver ttl depth proxies',
   },
   {
-    key: 'system-placeholder',
+    key: 'system-network',
     tab: 'system',
     keywords:
-      'lan network ssh tunnel e2ee low gpu performance backup export import lab mode prompt logging console',
+      'lan network wi-fi address ssh tunnel remote mobile qr pairing e2ee encryption auto-open browser startup server status',
+  },
+  {
+    key: 'system-performance',
+    tab: 'system',
+    keywords:
+      'low gpu mode performance hardware battery frame rate disable shader blur compositing',
+  },
+  {
+    key: 'system-backup',
+    tab: 'system',
+    keywords:
+      'workspace backup restore export import settings json custom themes welcome guide onboarding reset all defaults storage',
   },
 ];
 
 const ACTIVE_SUBTAB_STORAGE_KEY = 'nexustavern_settings_subtab_v1';
 
-export function SettingsTomePanel({ customization, onNotify }) {
+export function SettingsTomePanel({
+  customization,
+  onNotify,
+  serverStatus = null,
+  tunnelBusy = false,
+  onToggleTunnelWithToast,
+  onRefreshStatus,
+  onOpenQrModal,
+  onOpenWelcomeGuide,
+}) {
   const [subTab, setSubTab] = useState(() => {
     try {
       const saved = localStorage.getItem(ACTIVE_SUBTAB_STORAGE_KEY);
@@ -231,18 +252,21 @@ export function SettingsTomePanel({ customization, onNotify }) {
           />
         )}
 
-        {showSection('system-placeholder', 'system') && (
-          <FolderCard
-            title="System, Network & Workspace Backup"
-            subtitle="Step 5 — LAN/E2EE Tunnel, Low-GPU, JSON Backup & Diagnostics"
-            icon="settings"
+        {(showSection('system-network', 'system') ||
+          showSection('system-performance', 'system') ||
+          showSection('system-backup', 'system')) && (
+          <SystemSection
+            customization={customization}
             forceOpen={isSearching}
-          >
-            <p className="bb-caption-text">
-              Network &amp; SSH E2EE Tunnel controls, Low-GPU hardware toggle, full workspace JSON
-              export/import, and developer diagnostics will be connected in Step 5.
-            </p>
-          </FolderCard>
+            visibleKeys={matchedKeys}
+            onNotify={onNotify}
+            serverStatus={serverStatus}
+            tunnelBusy={tunnelBusy}
+            onToggleTunnelWithToast={onToggleTunnelWithToast}
+            onRefreshStatus={onRefreshStatus}
+            onOpenQrModal={onOpenQrModal}
+            onOpenWelcomeGuide={onOpenWelcomeGuide}
+          />
         )}
       </OverlayScrollArea>
     </div>

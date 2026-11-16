@@ -424,12 +424,10 @@ export const DEFAULT_CUSTOMIZATION_CONFIG = {
     soundOnlyWhenUnfocused: true,
   },
 
-  // III. System & Diagnostics
+  // III. System & Hardware
   system: {
     lowGpu: false,
     autoOpenBrowser: true,
-    labMode: false,
-    verbosePromptLogging: false,
   },
 };
 
@@ -704,8 +702,6 @@ export function normalizeCustomizationConfig(raw = {}) {
     system: {
       lowGpu: typeof rawSys.lowGpu === 'boolean' ? rawSys.lowGpu : defSys.lowGpu,
       autoOpenBrowser: typeof rawSys.autoOpenBrowser === 'boolean' ? rawSys.autoOpenBrowser : defSys.autoOpenBrowser,
-      labMode: typeof rawSys.labMode === 'boolean' ? rawSys.labMode : defSys.labMode,
-      verbosePromptLogging: typeof rawSys.verbosePromptLogging === 'boolean' ? rawSys.verbosePromptLogging : defSys.verbosePromptLogging,
     },
   };
 }

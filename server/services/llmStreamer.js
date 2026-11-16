@@ -85,6 +85,7 @@ async function executeSingleTargetAttempt({
     badges: [
       { label: normalizedMode.toUpperCase(), tone: 'accent' },
       { label: target.protocol.toUpperCase(), tone: 'neutral' },
+      ...(payload?.service_tier === 'flex' ? [{ label: 'FLEX -50%', tone: 'ok' }] : []),
       { label: `~${wireTotalTokens} tok`, tone: 'neutral' },
       ...(savedHistoryTok > 0
         ? [{ label: `Saved ${savedHistoryTok} tok`, tone: 'ok' }]

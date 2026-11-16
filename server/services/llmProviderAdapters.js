@@ -1,6 +1,5 @@
 import { executeWithConnectionKeyFailover } from './apiHubStore.js';
 import { isSyntheticThinkPrefill } from './llmReasoningParser.js';
-import { recordConsoleLog } from './consoleLogger.js';
 import {
   DEFAULT_GEMINI_SAFETY_SETTINGS,
   applyAdditionalBodyParameters,
@@ -9,6 +8,7 @@ import {
 import { detectGeminiFilterRefusal } from '../../src/core/refusal/refusalEngine.js';
 
 export const CONNECT_TIMEOUT_MS = 45000;
+export const FLEX_CONNECT_TIMEOUT_MS = 600000;
 
 export function formatOpenAiTurnContent(text, images = []) {
   if (!Array.isArray(images) || images.length === 0) {
@@ -564,6 +564,10 @@ export function buildGeminiPayload(target, compiled, caps, continueMode = false)
     body.systemInstruction = { parts: systemParts };
   }
 
+  if (caps.samplers?.service_tier && samplers.gemini_service_tier === 'flex') {
+    body.service_tier = 'flex';
+  }
+
   return body;
 }
 
@@ -691,26 +695,6 @@ export function buildProviderRequestPayload(target, compiled, caps, continueMode
     protocol: target.protocol,
   });
 
-  if (compiled.verbosePromptLogging) {
-    recordConsoleLog({
-      category: 'system',
-      level: 'info',
-      scope: 'Prompt Inspector',
-      title: `Assembled ${target.protocol.toUpperCase()} request for ${target.modelName}`,
-      summary: `${compiled.stats?.messageBlocksCount || 0} blocks • ~${compiled.stats?.totalTokens || 0} tok`,
-      badges: [
-        { label: target.protocol.toUpperCase(), tone: 'accent' },
-        ...(compiled.promptCaching?.enabled ? [{ label: 'CACHE', tone: 'ok' }] : []),
-      ],
-      details: {
-        endpointUrl: target.endpointUrl,
-        samplers: compiled.samplers,
-        promptCaching: compiled.promptCaching,
-        compiledMessages: compiled.messages,
-      },
-    });
-  }
-
   return payload;
 }
 
@@ -737,6 +721,9 @@ export function buildHeadersForProtocol(
       }
     }
   } else if (target.protocol === 'gemini') {
+    if (payload?.service_tier === 'flex') {
+      headers['X-Server-Timeout'] = '600';
+    }
     if (apiKey) {
       headers['x-goog-api-key'] = apiKey;
       if (target.connectionType === 'rp_proxy') {
@@ -867,80 +854,117 @@ export async function openUpstreamStreamWithFailover(
   signal,
   customIncludeHeadersRaw = '',
 ) {
+  const isGeminiFlex = target?.protocol === 'gemini' && payload?.service_tier === 'flex';
+  const effectiveConnectTimeoutMs = isGeminiFlex
+    ? FLEX_CONNECT_TIMEOUT_MS
+    : CONNECT_TIMEOUT_MS;
+  const maxAttemptsPerKey = isGeminiFlex ? 2 : 1;
+
   return executeWithConnectionKeyFailover(target.connectionId, async ({ apiKey }) => {
-    if (signal?.aborted) {
-      const abErr = new Error('Generation stopped by user');
-      abErr.name = 'AbortError';
-      throw abErr;
-    }
-
-    const connectCtrl = new AbortController();
-    const timeoutId = setTimeout(() => connectCtrl.abort(), CONNECT_TIMEOUT_MS);
-    const onExternalAbort = () => connectCtrl.abort();
-    if (signal) signal.addEventListener('abort', onExternalAbort, { once: true });
-
     const cleanKey = typeof apiKey === 'string' ? apiKey.trim() : '';
     const requestUrl =
       target.protocol === 'gemini' && cleanKey
         ? `${target.endpointUrl}${target.endpointUrl.includes('?') ? '&' : '?'}key=${encodeURIComponent(cleanKey)}`
         : target.endpointUrl;
 
-    try {
-      const res = await fetch(requestUrl, {
-        method: 'POST',
-        headers: buildHeadersForProtocol(
-          target,
-          cleanKey,
-          payload,
-          customIncludeHeadersRaw,
-        ),
-        body: JSON.stringify(payload),
-        signal: connectCtrl.signal,
-      });
+    for (let flexAttempt = 0; flexAttempt < maxAttemptsPerKey; flexAttempt += 1) {
+      if (signal?.aborted) {
+        const abErr = new Error('Generation stopped by user');
+        abErr.name = 'AbortError';
+        throw abErr;
+      }
 
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        let bodyJson = null;
-        try {
-          bodyJson = errText ? JSON.parse(errText) : null;
-        } catch {
-          bodyJson = null;
-        }
-        const cleanMsg =
-          bodyJson?.error?.message ||
-          (typeof bodyJson?.error === 'string' ? bodyJson.error : '') ||
-          bodyJson?.message ||
-          errText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240) ||
-          `HTTP ${res.status}`;
-        const err = new Error(`${target.connectionName} (${res.status}): ${cleanMsg}`);
-        err.httpStatus = res.status;
-        err.bodyJson = bodyJson;
-        const filterHit = detectGeminiFilterRefusal({
-          ...(bodyJson && typeof bodyJson === 'object' ? bodyJson : {}),
-          httpErrorMessage: cleanMsg,
-          errText,
+      if (flexAttempt > 0) {
+        await new Promise((resolve) => {
+          const retryTimer = setTimeout(resolve, 2500);
+          if (signal) {
+            signal.addEventListener(
+              'abort',
+              () => {
+                clearTimeout(retryTimer);
+                resolve();
+              },
+              { once: true },
+            );
+          }
         });
-        if (filterHit) {
-          err.filterBlock = filterHit.matchedFilter;
+        if (signal?.aborted) {
+          const abErr = new Error('Generation stopped by user');
+          abErr.name = 'AbortError';
+          throw abErr;
+        }
+      }
+
+      const connectCtrl = new AbortController();
+      const timeoutId = setTimeout(() => connectCtrl.abort(), effectiveConnectTimeoutMs);
+      const onExternalAbort = () => connectCtrl.abort();
+      if (signal) signal.addEventListener('abort', onExternalAbort, { once: true });
+
+      try {
+        const res = await fetch(requestUrl, {
+          method: 'POST',
+          headers: buildHeadersForProtocol(
+            target,
+            cleanKey,
+            payload,
+            customIncludeHeadersRaw,
+          ),
+          body: JSON.stringify(payload),
+          signal: connectCtrl.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          if (signal) signal.removeEventListener('abort', onExternalAbort);
+          const errText = await res.text().catch(() => '');
+          let bodyJson = null;
+          try {
+            bodyJson = errText ? JSON.parse(errText) : null;
+          } catch {
+            bodyJson = null;
+          }
+          const cleanMsg =
+            bodyJson?.error?.message ||
+            (typeof bodyJson?.error === 'string' ? bodyJson.error : '') ||
+            bodyJson?.message ||
+            errText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240) ||
+            `HTTP ${res.status}`;
+
+          if (isGeminiFlex && res.status === 503 && flexAttempt + 1 < maxAttemptsPerKey) {
+            continue;
+          }
+
+          const err = new Error(`${target.connectionName} (${res.status}): ${cleanMsg}`);
+          err.httpStatus = res.status;
+          err.bodyJson = bodyJson;
+          const filterHit = detectGeminiFilterRefusal({
+            ...(bodyJson && typeof bodyJson === 'object' ? bodyJson : {}),
+            httpErrorMessage: cleanMsg,
+            errText,
+          });
+          if (filterHit) {
+            err.filterBlock = filterHit.matchedFilter;
+          }
+          throw err;
+        }
+
+        return { res, onExternalAbort };
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if (signal) signal.removeEventListener('abort', onExternalAbort);
+        if (err.name === 'AbortError' && !signal?.aborted) {
+          const tErr = new Error(
+            `Upstream timed out waiting for first byte (${Math.round(effectiveConnectTimeoutMs / 1000)}s)`,
+          );
+          tErr.httpStatus = 0;
+          throw tErr;
         }
         throw err;
       }
-
-      return { res, onExternalAbort };
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (signal) signal.removeEventListener('abort', onExternalAbort);
-      if (err.name === 'AbortError' && !signal?.aborted) {
-        const tErr = new Error(
-          `Upstream timed out waiting for first byte (${Math.round(CONNECT_TIMEOUT_MS / 1000)}s)`,
-        );
-        tErr.httpStatus = 0;
-        throw tErr;
-      }
-      throw err;
     }
+
+    throw new Error(`${target.connectionName}: Flex request failed`);
   });
 }
 

@@ -121,13 +121,16 @@ export function resolveModelCapabilities({
 
   if (isGemini) {
     const isGemmaOrLearn = id.includes('gemma') || id.includes('learnlm');
-    const supportsGeminiThinking =
+    const isModernGemini25Plus =
       !isGemmaOrLearn &&
       (id.includes('2.5') ||
         id.includes('3.') ||
         id.includes('gemini-3') ||
-        id.includes('thinking') ||
+        id.includes('gemini-4') ||
+        /(?:^|\/|-)4(?:[-_.]|$)/.test(id) ||
         !id);
+    const supportsGeminiThinking = isModernGemini25Plus || (!isGemmaOrLearn && id.includes('thinking'));
+    const supportsGeminiFlex = proto === 'gemini' && isModernGemini25Plus;
     return {
       profileId: 'gemini',
       familyLabel: 'Google Gemini',
@@ -145,6 +148,7 @@ export function resolveModelCapabilities({
         reasoning_effort: supportsGeminiThinking,
         verbosity: false,
         web_search: !isGemmaOrLearn,
+        service_tier: supportsGeminiFlex,
       },
     };
   }

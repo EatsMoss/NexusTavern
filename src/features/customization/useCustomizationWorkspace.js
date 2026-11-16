@@ -22,6 +22,7 @@ import {
   deleteUserThemePreset,
   uploadCustomFontFile,
   deleteCustomFontFile,
+  importCustomizationBackup,
 } from '@core/customization/customizationApi.js';
 
 export function useCustomizationWorkspace({
@@ -244,6 +245,58 @@ export function useCustomizationWorkspace({
     onNotify?.('Appearance reset to default Indigo Slate theme', 'info');
   }, [updateConfig, onNotify]);
 
+  const resetAllSettingsToDefault = useCallback(() => {
+    const fresh = normalizeCustomizationConfig(DEFAULT_CUSTOMIZATION_CONFIG);
+    setConfig(fresh);
+    schedulePersist(fresh);
+    onNotify?.('All workspace settings reset to defaults', 'info');
+  }, [schedulePersist, onNotify]);
+
+  const handleImportBackup = useCallback(
+    async (rawPayload) => {
+      if (!rawPayload || typeof rawPayload !== 'object') {
+        throw new Error('Invalid backup JSON file.');
+      }
+      const configCandidate =
+        rawPayload.config && typeof rawPayload.config === 'object'
+          ? rawPayload.config
+          : rawPayload;
+      const presetsCandidate = Array.isArray(rawPayload.customPresets)
+        ? rawPayload.customPresets
+        : [];
+
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+
+      const res = await importCustomizationBackup({
+        config: configCandidate,
+        customPresets: presetsCandidate,
+      });
+      if (!res?.ok || !res.config) {
+        throw new Error(res?.error || 'Failed to restore workspace backup.');
+      }
+
+      const normalized = normalizeCustomizationConfig(res.config);
+      const nextPresets = Array.isArray(res.customPresets) ? res.customPresets : [];
+      setConfig(normalized);
+      setCustomPresets(nextPresets);
+      writeCachedCustomization(normalized);
+      writeCachedCustomPresets(nextPresets);
+      onNotify?.(
+        res.importedPresetCount > 0
+          ? `Workspace settings & ${res.importedPresetCount} custom theme${
+              res.importedPresetCount === 1 ? '' : 's'
+            } restored`
+          : 'Workspace settings restored from backup',
+        'success',
+      );
+      return res;
+    },
+    [onNotify],
+  );
+
   return {
     config,
     hydrated,
@@ -259,6 +312,8 @@ export function useCustomizationWorkspace({
     handleUploadFont,
     handleRemoveFont,
     resetAppearanceToDefault,
+    resetAllSettingsToDefault,
+    handleImportBackup,
   };
 }
 

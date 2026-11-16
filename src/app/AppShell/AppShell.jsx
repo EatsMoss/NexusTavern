@@ -660,6 +660,12 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       timelinesOpen={timelinesOpen}
       customization={customization}
       onNotifyToast={(message, tone = 'info') => pushToast({ message, tone })}
+      serverStatus={serverStatus}
+      tunnelBusy={tunnelBusy}
+      onToggleTunnelWithToast={handleToggleTunnelWithToast}
+      onRefreshStatus={onRefreshStatus}
+      onOpenQrModal={() => setQrModalOpen(true)}
+      onOpenWelcomeGuide={boot.openWelcomeModal}
     />
   );
 

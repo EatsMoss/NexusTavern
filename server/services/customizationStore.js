@@ -217,3 +217,31 @@ export async function removeUploadedFont(fontId) {
   });
 }
 
+export async function importCustomizationWorkspaceBackup({ config: rawConfig, customPresets: rawPresets } = {}) {
+  if (!rawConfig || typeof rawConfig !== 'object') {
+    throw new Error('Invalid workspace backup JSON: missing config object.');
+  }
+
+  const importedPresets = [];
+  if (Array.isArray(rawPresets)) {
+    for (const item of rawPresets.slice(0, 100)) {
+      if (!item || typeof item !== 'object') continue;
+      try {
+        const saved = await upsertCustomThemePreset(item);
+        if (saved) importedPresets.push(saved);
+      } catch {
+        // Ignore invalid or built-in preset entries in backup array
+      }
+    }
+  }
+
+  const savedConfig = await writeCustomizationConfig(rawConfig);
+  const customPresets = listCustomThemePresets();
+
+  return {
+    config: savedConfig,
+    customPresets,
+    importedPresetCount: importedPresets.length,
+  };
+}
+

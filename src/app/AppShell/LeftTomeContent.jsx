@@ -23,6 +23,12 @@ export function LeftTomeContent({
   timelinesOpen,
   customization,
   onNotifyToast,
+  serverStatus = null,
+  tunnelBusy = false,
+  onToggleTunnelWithToast,
+  onRefreshStatus,
+  onOpenQrModal,
+  onOpenWelcomeGuide,
 }) {
   const {
     pinnedLayout,
@@ -179,7 +185,16 @@ export function LeftTomeContent({
             />
           }
         >
-          <LazySettingsTomePanel customization={customization} onNotify={onNotifyToast} />
+          <LazySettingsTomePanel
+            customization={customization}
+            onNotify={onNotifyToast}
+            serverStatus={serverStatus}
+            tunnelBusy={tunnelBusy}
+            onToggleTunnelWithToast={onToggleTunnelWithToast}
+            onRefreshStatus={onRefreshStatus}
+            onOpenQrModal={onOpenQrModal}
+            onOpenWelcomeGuide={onOpenWelcomeGuide}
+          />
         </Suspense>
       )}
     </>

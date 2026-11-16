@@ -436,12 +436,17 @@ export function useSessionBoot({
     }
   }, []);
 
+  const openWelcomeModal = useCallback(() => {
+    setWelcomeModalOpen(true);
+  }, []);
+
   return {
     bootSplashOpen,
     bootSplashExiting,
     bootStage,
     finishBootSplash,
     welcomeModalOpen,
+    openWelcomeModal,
     markOnboardingDismissed,
     ensureSessionPromise,
     queueSessionPatch,

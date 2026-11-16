@@ -87,4 +87,19 @@ test('customizationCore — Indigo Slate default, automatic palette engine & RP 
     const clusters = extractColorClustersFromRgbSamples(samples, 2);
     assert.equal(clusters.length, 2);
   });
+
+  await t.test('normalizes clean system block without legacy ST rudiments', () => {
+    const cfg = normalizeCustomizationConfig({
+      system: {
+        lowGpu: true,
+        autoOpenBrowser: false,
+        labMode: true,
+        verbosePromptLogging: true,
+      },
+    });
+    assert.deepEqual(cfg.system, {
+      lowGpu: true,
+      autoOpenBrowser: false,
+    });
+  });
 });

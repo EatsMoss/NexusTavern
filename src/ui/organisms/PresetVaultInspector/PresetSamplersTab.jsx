@@ -60,6 +60,11 @@ const INLINE_IMAGE_QUALITY_OPTIONS = [
   { value: 'high', label: 'High' },
 ];
 
+const GEMINI_SERVICE_TIER_OPTIONS = [
+  { value: 'standard', label: 'Standard — Real-Time Latency (Default)' },
+  { value: 'flex', label: 'Flex — 50% Cheaper (Queued, 1–10 min max wait)' },
+];
+
 function resolveNamesBehaviorValue(oaiData = {}) {
   if (oaiData.names_behavior !== undefined && oaiData.names_behavior !== null) {
     const num = Number(oaiData.names_behavior);
@@ -195,6 +200,11 @@ export function PresetSamplersTab({
     ? String(oaiData.inline_image_quality).toLowerCase()
     : 'auto';
 
+  const activeGeminiServiceTier =
+    String(oaiData.gemini_service_tier || 'standard').trim().toLowerCase() === 'flex'
+      ? 'flex'
+      : 'standard';
+
   const rawContinuePostfix =
     oaiData.continue_postfix !== undefined && oaiData.continue_postfix !== null
       ? String(oaiData.continue_postfix)
@@ -276,6 +286,17 @@ export function PresetSamplersTab({
           label="Streaming"
           description="Stream tokens incrementally as they are generated"
         />
+        {caps.samplers.service_tier && (
+          <Dropdown
+            label="Gemini Service Tier"
+            hint="Flex cuts input, thinking & output token costs by 50% using queued capacity (up to 1–10 min wait; works alongside implicit context caching)."
+            options={GEMINI_SERVICE_TIER_OPTIONS}
+            value={activeGeminiServiceTier}
+            searchable={false}
+            allowStars={false}
+            onChange={(val) => patchOaiField?.({ gemini_service_tier: val })}
+          />
+        )}
       </FolderCard>
       <FolderCard
         title="Model Parameters (Samplers)"

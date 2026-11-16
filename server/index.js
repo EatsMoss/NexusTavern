@@ -14,6 +14,7 @@ import { refusalRouter } from './routes/refusal.js';
 import { recapRouter } from './routes/recap.js';
 import { stImportRouter } from './routes/stImport.js';
 import { customizationRouter } from './routes/customization.js';
+import { readCustomizationConfig } from './services/customizationStore.js';
 import { getLanAddresses } from './utils/network.js';
 import { securityGuard } from './utils/auth.js';
 import { getTunnelStatus } from './services/tunnel.js';
@@ -232,6 +233,9 @@ app.listen(PORT, HOST, () => {
   });
 
   if (process.argv.includes('--open')) {
-    openBrowser(`http://localhost:${PORT}`);
+    const custCfg = readCustomizationConfig();
+    if (custCfg?.system?.autoOpenBrowser !== false) {
+      openBrowser(`http://localhost:${PORT}`);
+    }
   }
 });

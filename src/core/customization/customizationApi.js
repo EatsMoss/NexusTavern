@@ -81,3 +81,10 @@ export async function deleteCustomFontFile(fontId) {
     method: 'DELETE',
   });
 }
+
+export async function importCustomizationBackup({ config, customPresets = [] }) {
+  return apiFetchJson('/api/customization/backup/import', {
+    method: 'POST',
+    body: { config, customPresets },
+  });
+}
