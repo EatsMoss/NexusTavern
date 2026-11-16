@@ -293,6 +293,8 @@ export function CharacterTome({
   gallery,
   selectedCardId,
   hiddenTagIds,
+  visibleCards = null,
+  visibleGroups = null,
   multiSelectActive = false,
   multiSelectedIds = [],
   onToggleMultiSelect,
@@ -815,6 +817,8 @@ export function CharacterTome({
               <CharacterGallery
                 cards={cards}
                 groups={groups}
+                visibleCards={visibleCards}
+                visibleGroups={visibleGroups}
                 tags={tags}
                 gallery={gallery}
                 gridStyle={gridStyle}

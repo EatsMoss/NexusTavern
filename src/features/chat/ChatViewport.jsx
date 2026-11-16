@@ -88,6 +88,7 @@ export function ChatViewport({
   chatListOpen = false,
   timelinesOpen = false,
   timelineChats = [],
+  timelineForest = null,
   loadingTimelines = false,
   focusedTimelineRequest = null,
   onTimelineFocusChange,
@@ -253,10 +254,22 @@ export function ChatViewport({
   );
 
   const [showJumpBottom, setShowJumpBottom] = useState(false);
-  // Which stream edges currently have content scrolled underneath them. Drives
-  // the gradient mask fade; both false means the stream rests at an edge.
-  const [scrolledUnderTop, setScrolledUnderTop] = useState(false);
-  const [scrolledUnderBottom, setScrolledUnderBottom] = useState(false);
+  // Direct DOM edge-fade class flags (zero React re-renders on scroll).
+  const edgeFadeRef = useRef({ top: false, bottom: false });
+  const applyStreamEdgeClasses = useCallback((el, nextTop, nextBottom) => {
+    if (!el) return;
+    const prev = edgeFadeRef.current;
+    const topBool = Boolean(nextTop);
+    const bottomBool = Boolean(nextBottom);
+    if (prev.top !== topBool) {
+      prev.top = topBool;
+      el.classList.toggle('is-scrolled-under-top', topBool);
+    }
+    if (prev.bottom !== bottomBool) {
+      prev.bottom = bottomBool;
+      el.classList.toggle('is-scrolled-under-bottom', bottomBool);
+    }
+  }, []);
   const prependAnchorRef = useRef(null);
   // Sticky-to-bottom state: true only while the viewport is resting at the very
   // bottom. Any upward user scroll immediately detaches it so streaming never
@@ -289,17 +302,20 @@ export function ChatViewport({
   const AT_BOTTOM_THRESHOLD_PX = 20;
   const JUMP_BOTTOM_THRESHOLD_PX = 96;
 
-  const syncScrollEdges = useCallback((el) => {
-    if (!el) return;
-    const currentTop = el.scrollTop;
-    const distanceFromBottom = Math.max(
-      0,
-      el.scrollHeight - currentTop - el.clientHeight,
-    );
-    setScrolledUnderTop(currentTop > 1);
-    setScrolledUnderBottom(distanceFromBottom > 1.5);
-    setShowJumpBottom(distanceFromBottom > JUMP_BOTTOM_THRESHOLD_PX);
-  }, []);
+  const syncScrollEdges = useCallback(
+    (el) => {
+      if (!el) return;
+      const currentTop = el.scrollTop;
+      const distanceFromBottom = Math.max(
+        0,
+        el.scrollHeight - currentTop - el.clientHeight,
+      );
+      applyStreamEdgeClasses(el, currentTop > 1, distanceFromBottom > 1.5);
+      const nextJump = distanceFromBottom > JUMP_BOTTOM_THRESHOLD_PX;
+      setShowJumpBottom((prev) => (prev === nextJump ? prev : nextJump));
+    },
+    [applyStreamEdgeClasses],
+  );
 
   const cancelPendingAutoScroll = useCallback(() => {
     if (autoScrollRafRef.current.outer) {
@@ -319,25 +335,27 @@ export function ChatViewport({
     syncScrollEdges(resolvedStreamRef.current);
   }, [cancelPendingAutoScroll, resolvedStreamRef, syncScrollEdges]);
 
-  const applyProgrammaticScrollToBottom = useCallback((el) => {
-    if (!el) return;
-    programmaticScrollRef.current = true;
-    el.scrollTop = el.scrollHeight;
-    lastScrollTopRef.current = el.scrollTop;
-    lastScrollHeightRef.current = el.scrollHeight;
-    setScrolledUnderTop(el.scrollTop > 1);
-    setScrolledUnderBottom(false);
-    setShowJumpBottom(false);
-    if (programmaticClearRafRef.current) {
-      cancelAnimationFrame(programmaticClearRafRef.current);
-    }
-    programmaticClearRafRef.current = requestAnimationFrame(() => {
+  const applyProgrammaticScrollToBottom = useCallback(
+    (el) => {
+      if (!el) return;
+      programmaticScrollRef.current = true;
+      el.scrollTop = el.scrollHeight;
+      lastScrollTopRef.current = el.scrollTop;
+      lastScrollHeightRef.current = el.scrollHeight;
+      applyStreamEdgeClasses(el, el.scrollTop > 1, false);
+      setShowJumpBottom((prev) => (prev ? false : prev));
+      if (programmaticClearRafRef.current) {
+        cancelAnimationFrame(programmaticClearRafRef.current);
+      }
       programmaticClearRafRef.current = requestAnimationFrame(() => {
-        programmaticClearRafRef.current = 0;
-        programmaticScrollRef.current = false;
+        programmaticClearRafRef.current = requestAnimationFrame(() => {
+          programmaticClearRafRef.current = 0;
+          programmaticScrollRef.current = false;
+        });
       });
-    });
-  }, []);
+    },
+    [applyStreamEdgeClasses],
+  );
 
   useEffect(() => {
     return () => {
@@ -533,9 +551,8 @@ export function ChatViewport({
         programmaticScrollRef.current = false;
       });
 
-      setScrolledUnderTop(el.scrollTop > 1);
-      setScrolledUnderBottom(false);
-      setShowJumpBottom(false);
+      applyStreamEdgeClasses(el, el.scrollTop > 1, false);
+      setShowJumpBottom((prev) => (prev ? false : prev));
 
       if (trackEl && nextSlotEl) {
         const nextBottom = nextSlotEl.getBoundingClientRect().bottom;
@@ -633,6 +650,7 @@ export function ChatViewport({
     resolvedStreamRef,
     cancelPendingAutoScroll,
     applyProgrammaticScrollToBottom,
+    applyStreamEdgeClasses,
     syncScrollEdges,
   ]);
 
@@ -755,11 +773,8 @@ export function ChatViewport({
     const el = resolvedStreamRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-    // The smooth scroll emits `scroll` events along the way, which settle the
-    // fades; nudging the top edge immediately avoids a one-frame flash.
-    setScrolledUnderTop(true);
-    setScrolledUnderBottom(false);
-  }, [resolvedStreamRef]);
+    applyStreamEdgeClasses(el, true, false);
+  }, [resolvedStreamRef, applyStreamEdgeClasses]);
 
   const handleCloseComposerEmoji = useCallback(() => {
     setComposerEmojiOpen(false);
@@ -1096,25 +1111,38 @@ export function ChatViewport({
 
   const allTimelineChats = timelineChats.length > 0 ? timelineChats : chatFiles;
 
+  const resolvedTimelineForest = useMemo(
+    () => timelineForest || buildTimelineForest(allTimelineChats),
+    [timelineForest, allTimelineChats],
+  );
+
   const parentChatInfo = useMemo(() => {
-    if (!activeChatFile || !Array.isArray(allTimelineChats) || allTimelineChats.length === 0) {
+    if (
+      !activeChatFile ||
+      !resolvedTimelineForest ||
+      resolvedTimelineForest.byFile.size === 0
+    ) {
       return null;
     }
-    const forest = buildTimelineForest(allTimelineChats);
-    const currentNode =
-      forest.byFile.get(activeChatFile) ||
-      Array.from(forest.byFile.values()).find(
-        (n) => String(n.fileName || '').toLowerCase() === activeChatFile.toLowerCase(),
-      );
+    let currentNode = resolvedTimelineForest.byFile.get(activeChatFile) || null;
+    if (!currentNode) {
+      const targetLower = activeChatFile.toLowerCase();
+      for (const n of resolvedTimelineForest.byFile.values()) {
+        if (String(n.fileName || '').toLowerCase() === targetLower) {
+          currentNode = n;
+          break;
+        }
+      }
+    }
     if (!currentNode || !currentNode.parentFile) return null;
-    const parentNode = forest.byFile.get(currentNode.parentFile);
+    const parentNode = resolvedTimelineForest.byFile.get(currentNode.parentFile);
     if (!parentNode) return null;
     const label = parentNode.branchLabel || parentNode.baseTitle || parentNode.fileName;
     return {
       fileName: parentNode.fileName,
       label,
     };
-  }, [activeChatFile, allTimelineChats]);
+  }, [activeChatFile, resolvedTimelineForest]);
 
   const handleReturnToParentChat = useCallback(() => {
     if (!parentChatInfo?.fileName || !onSelectChatFile) return;
@@ -1192,8 +1220,6 @@ export function ChatViewport({
         <div
           ref={resolvedStreamRef}
           className={`bb-chat-viewport__stream bb-scrollbar--hidden ${
-            scrolledUnderTop ? 'is-scrolled-under-top' : ''
-          } ${scrolledUnderBottom ? 'is-scrolled-under-bottom' : ''} ${
             msgMultiSelectActive ? 'has-multiselect-bar' : ''
           }`.trim()}
           onScroll={handleScroll}
@@ -1350,6 +1376,7 @@ export function ChatViewport({
                 shaderStyle={shaderStyle}
                 intensity={shaderIntensity}
                 speed={0.283}
+                paused={Boolean(timelinesOpen || chatListOpen)}
                 lowGpu={lowGpu}
               >
                 {cardElement}

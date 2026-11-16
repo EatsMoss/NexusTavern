@@ -276,6 +276,7 @@
   background-color: var(--bb-page-card-bg);
   color: var(--bb-ink-heading);
   overflow: hidden;
+  contain: layout paint style;
   cursor: pointer;
   text-align: left;
   transition: background-color 0.12s ease, border-color 0.12s ease,
@@ -391,6 +392,18 @@
 
 .bb-tag-folder:hover .bb-tag-folder__actions,
 .bb-tag-folder__actions:focus-within,
-.bb-tag-folder__actions:has(.bb-kebab-menu.is-open) {
+.bb-tag-folder__actions[data-kebab-open='true'] {
   opacity: 1;
+}
+
+.bb-char-gallery__item {
+  position: relative;
+  min-width: 0;
+}
+
+.bb-char-gallery__item.is-dragging-source,
+.bb-tag-folder.is-dragging-source {
+  opacity: 0.22;
+  transform: scale(0.94);
+  pointer-events: none;
 }

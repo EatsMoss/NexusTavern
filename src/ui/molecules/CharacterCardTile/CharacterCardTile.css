@@ -13,6 +13,7 @@
   background-color: var(--bb-page-card-bg);
   border: 1px solid var(--bb-page-border);
   overflow: hidden;
+  contain: layout paint style;
   cursor: pointer;
   user-select: none;
   transition: border-color 0.12s ease, background-color 0.12s ease,
@@ -128,6 +129,6 @@
 
 .bb-char-tile:hover .bb-char-tile__actions,
 .bb-char-tile__actions:focus-within,
-.bb-char-tile__actions:has(.bb-kebab-menu.is-open) {
+.bb-char-tile__actions[data-kebab-open='true'] {
   opacity: 1;
 }

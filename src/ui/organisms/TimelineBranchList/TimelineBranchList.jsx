@@ -1,21 +1,17 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from 'react';
-import {
-  buildTimelineForest,
-  cleanChatPreview,
-  formatShortChatDate,
-} from '@core/chats/timelineForest.js';
+import { buildTimelineForest } from '@core/chats/timelineForest.js';
 import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { Button } from '../../atoms/Button/Button.jsx';
 import { SearchInput } from '../../atoms/Input/Input.jsx';
-import { Checkbox } from '../../atoms/Checkbox/Checkbox.jsx';
 import { Switch } from '../../atoms/Switch/Switch.jsx';
 import { ScrollIndicator } from '../../atoms/ScrollIndicator/ScrollIndicator.jsx';
 import { ProgressIndicator } from '../../atoms/ProgressIndicator/ProgressIndicator.jsx';
 import { SkeletonTimelineGroup } from '../../atoms/Skeleton/Skeleton.jsx';
-import { AvatarStack } from '../../molecules/AvatarStack/AvatarStack.jsx';
 import { KebabMenu } from '../../molecules/KebabMenu/KebabMenu.jsx';
 import { MultiSelectBar } from '../MultiSelectBar/MultiSelectBar.jsx';
 import { Modal } from '../Modal/Modal.jsx';
+import { TimelineLeafRow } from './TimelineLeafRow.jsx';
+import { computeTimelineVirtualSlice } from './timelineBranchWindow.js';
 import './TimelineBranchList.css';
 
 function nodeMatchesQuery(node, q) {
@@ -34,6 +30,7 @@ function nodeMatchesQuery(node, q) {
 export function TimelineBranchList({
   isDemoCard = false,
   chats = [],
+  forest: externalForest = null,
   activeChatFile = '',
   focusedTreeFile = '',
   characterName = 'Character',
@@ -77,7 +74,10 @@ export function TimelineBranchList({
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [characterName]);
 
-  const forest = useMemo(() => buildTimelineForest(chats), [chats]);
+  const forest = useMemo(
+    () => externalForest || buildTimelineForest(chats),
+    [externalForest, chats],
+  );
 
   const visibleGroups = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -170,15 +170,186 @@ export function TimelineBranchList({
     [multiSelectActive, lastClick, allVisibleRowFiles],
   );
 
+  const selectedFilesSet = useMemo(() => new Set(selectedFiles), [selectedFiles]);
+
   const allVisibleSelected = useMemo(() => {
     if (allVisibleRowFiles.length === 0) return false;
-    const set = new Set(selectedFiles);
-    return allVisibleRowFiles.every((f) => set.has(f));
-  }, [allVisibleRowFiles, selectedFiles]);
+    return allVisibleRowFiles.every((f) => selectedFilesSet.has(f));
+  }, [allVisibleRowFiles, selectedFilesSet]);
 
   const handleToggleSelectAll = useCallback(() => {
     setSelectedFiles(allVisibleSelected ? [] : [...allVisibleRowFiles]);
   }, [allVisibleSelected, allVisibleRowFiles]);
+
+  // Stable refs so branch row callbacks never recreate across renders.
+  const latestRowActionsRef = useRef({
+    multiSelectActive,
+    timelinesOpen,
+    onFocusNodeOnTree,
+    onSelectChatFile,
+    onBranchChatFile,
+    handleToggleMultiSelectFile,
+  });
+  latestRowActionsRef.current = {
+    multiSelectActive,
+    timelinesOpen,
+    onFocusNodeOnTree,
+    onSelectChatFile,
+    onBranchChatFile,
+    handleToggleMultiSelectFile,
+  };
+
+  const handleRowPrimaryClick = useCallback((fileName, e) => {
+    const cur = latestRowActionsRef.current;
+    if (cur.multiSelectActive || e?.ctrlKey || e?.metaKey || e?.shiftKey) {
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      cur.handleToggleMultiSelectFile(fileName, e);
+      return;
+    }
+    if (cur.timelinesOpen && cur.onFocusNodeOnTree) {
+      cur.onFocusNodeOnTree(fileName, { openTree: false });
+      return;
+    }
+    cur.onSelectChatFile?.(fileName);
+  }, []);
+
+  const handleRowDoubleClickStable = useCallback((fileName) => {
+    const cur = latestRowActionsRef.current;
+    if (cur.multiSelectActive) return;
+    cur.onSelectChatFile?.(fileName);
+  }, []);
+
+  const handleRowEnterKeyStable = useCallback((fileName) => {
+    latestRowActionsRef.current.onSelectChatFile?.(fileName);
+  }, []);
+
+  const handleRowBranchStable = useCallback((fileName) => {
+    latestRowActionsRef.current.onBranchChatFile?.(fileName);
+  }, []);
+
+  const handleRowStartSelectStable = useCallback((fileName) => {
+    setMultiSelectActive(true);
+    setSelectedFiles([fileName]);
+    setLastClick({ fileName, selected: true });
+  }, []);
+
+  const handleRowRequestDeleteStable = useCallback((fileName) => {
+    setDeleteConfirm({ files: [fileName] });
+  }, []);
+
+  // rAF-coalesced scroll window state (updates React only when visible slice signature changes).
+  const [scrollWindowState, setScrollWindowState] = useState({
+    scrollTop: 0,
+    viewportHeight: 640,
+  });
+  const scrollRafRef = useRef(0);
+  const hasSearchQuery = Boolean(searchQuery.trim());
+
+  const syncScrollWindow = useCallback(() => {
+    scrollRafRef.current = 0;
+    const el = scrollRef.current;
+    if (!el) return;
+    const nextScrollTop = el.scrollTop || 0;
+    const nextViewportH = el.clientHeight > 0 ? el.clientHeight : 640;
+
+    setScrollWindowState((prev) => {
+      const prevSlice = computeTimelineVirtualSlice({
+        groups: visibleGroups,
+        collapsedRoots,
+        hasSearchQuery,
+        scrollTop: prev.scrollTop,
+        viewportHeight: prev.viewportHeight,
+      });
+      const nextSlice = computeTimelineVirtualSlice({
+        groups: visibleGroups,
+        collapsedRoots,
+        hasSearchQuery,
+        scrollTop: nextScrollTop,
+        viewportHeight: nextViewportH,
+      });
+      if (prevSlice.signature === nextSlice.signature) {
+        return prev;
+      }
+      return {
+        scrollTop: nextScrollTop,
+        viewportHeight: nextViewportH,
+      };
+    });
+  }, [visibleGroups, collapsedRoots, hasSearchQuery]);
+
+  const scheduleScrollSync = useCallback(() => {
+    if (!scrollRafRef.current) {
+      scrollRafRef.current = window.requestAnimationFrame(syncScrollWindow);
+    }
+  }, [syncScrollWindow]);
+
+  useEffect(() => {
+    scheduleScrollSync();
+  }, [visibleGroups, collapsedRoots, hasSearchQuery, scheduleScrollSync]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+
+    syncScrollWindow();
+
+    el.addEventListener('scroll', scheduleScrollSync, { passive: true });
+    const ro =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(scheduleScrollSync)
+        : null;
+    if (ro) ro.observe(el);
+
+    return () => {
+      el.removeEventListener('scroll', scheduleScrollSync);
+      if (ro) ro.disconnect();
+      if (scrollRafRef.current) {
+        window.cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = 0;
+      }
+    };
+  }, [syncScrollWindow, scheduleScrollSync]);
+
+  const virtualSlice = useMemo(
+    () =>
+      computeTimelineVirtualSlice({
+        groups: visibleGroups,
+        collapsedRoots,
+        hasSearchQuery,
+        scrollTop: scrollWindowState.scrollTop,
+        viewportHeight: scrollWindowState.viewportHeight,
+      }),
+    [
+      visibleGroups,
+      collapsedRoots,
+      hasSearchQuery,
+      scrollWindowState.scrollTop,
+      scrollWindowState.viewportHeight,
+    ],
+  );
+
+  const renderedGroups = useMemo(
+    () =>
+      virtualSlice.endGroupIndex >= virtualSlice.startGroupIndex
+        ? visibleGroups.slice(virtualSlice.startGroupIndex, virtualSlice.endGroupIndex + 1)
+        : [],
+    [visibleGroups, virtualSlice.startGroupIndex, virtualSlice.endGroupIndex],
+  );
+
+  const scrollPaddingStyle = useMemo(() => {
+    if (visibleGroups.length === 0) return undefined;
+    const baseBottom = multiSelectActive ? 104 : 8;
+    return {
+      paddingTop: `${Math.round(virtualSlice.topSpacerPx)}px`,
+      paddingBottom: `${Math.round(baseBottom + virtualSlice.bottomSpacerPx)}px`,
+    };
+  }, [
+    visibleGroups.length,
+    multiSelectActive,
+    virtualSlice.topSpacerPx,
+    virtualSlice.bottomSpacerPx,
+  ]);
 
   const handleConfirmDelete = useCallback(async () => {
     const files = deleteConfirm?.files || [];
@@ -340,7 +511,11 @@ export function TimelineBranchList({
             ariaLabel="Loading timeline"
           />
         )}
-        <div ref={scrollRef} className="bb-tl-branch-list__scroll bb-scrollbar--hidden">
+        <div
+          ref={scrollRef}
+          className="bb-tl-branch-list__scroll bb-scrollbar--hidden"
+          style={scrollPaddingStyle}
+        >
           {loadingList && visibleGroups.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '2px 0' }}>
               <SkeletonTimelineGroup branches={2} />
@@ -355,8 +530,8 @@ export function TimelineBranchList({
                   : `No saved timelines yet for ${characterName}.`}
             </div>
           ) : (
-            visibleGroups.map((grp) => {
-              const isCollapsed = collapsedRoots.has(grp.rootFile) && !searchQuery;
+            renderedGroups.map((grp, localGroupIdx) => {
+              const isCollapsed = collapsedRoots.has(grp.rootFile) && !hasSearchQuery;
               const hiddenIntermediateCount = Math.max(
                 0,
                 grp.totalChats - grp.totalLeafBranches,
@@ -374,7 +549,17 @@ export function TimelineBranchList({
                         : ''
                     }`;
 
-              const groupKebabItems = [
+              const branchRange = virtualSlice.branchRanges[localGroupIdx] || {
+                startIndex: 0,
+                endIndex: grp.visibleRows.length,
+                topPadPx: 8,
+                bottomPadPx: 8,
+              };
+              const slicedBranches = isCollapsed
+                ? []
+                : grp.visibleRows.slice(branchRange.startIndex, branchRange.endIndex);
+
+              const getGroupKebabItems = () => [
                 {
                   id: 'focus-tree',
                   label: 'Show in Timelines',
@@ -450,190 +635,47 @@ export function TimelineBranchList({
                       <KebabMenu
                         size="sm"
                         title="Timeline actions"
-                        items={groupKebabItems}
+                        getItems={getGroupKebabItems}
                       />
                     </div>
                   </div>
 
                   {!isCollapsed && (
-                    <div className="bb-tl-group-card__branches">
-                      {grp.visibleRows.map((branch) => {
-                        const isActive = branch.fileName === activeChatFile;
-                        const isFocusedOnTree =
-                          timelinesOpen && branch.fileName === focusedTreeFile;
-                        const isSelected =
-                          multiSelectActive && selectedFiles.includes(branch.fileName);
-                        const dateLabel = formatShortChatDate(branch);
-                        const preview = cleanChatPreview(branch.lastPreview);
-                        const cardScenarioAvatar =
-                          branch.characterAvatarUrl || characterAvatarUrl;
-                        const cardPersonaAvatar = branch.personaAvatarMissing
-                          ? null
-                          : branch.personaAvatarUrl || personaAvatarUrl;
-                        const cardPersonaName =
-                          branch.personaName || personaName || 'User';
-                        const cardPersonaInitials = String(cardPersonaName)
-                          .slice(0, 2)
-                          .toUpperCase();
-
-                        const displayBranchTitle = !branch.isLeaf
-                          ? `${branch.branchLabel || 'Root'} (Current Fork)`
-                          : branch.branchLabel
-                            ? branch.branchLabel
-                            : grp.totalChats === 1
-                              ? 'Main Storyline'
-                              : 'Main Line (Root)';
-
-                        const rowKebabItems = [
-                          {
-                            id: 'branch',
-                            label: 'Create Branch',
-                            icon: 'codeBranch',
-                            onClick: () => onBranchChatFile?.(branch.fileName),
-                          },
-                          {
-                            id: 'select',
-                            label: 'Select',
-                            icon: 'check',
-                            onClick: () => {
-                              setMultiSelectActive(true);
-                              setSelectedFiles([branch.fileName]);
-                              setLastClick({ fileName: branch.fileName, selected: true });
-                            },
-                          },
-                          {
-                            id: 'delete',
-                            label: 'Delete Branch',
-                            icon: 'trash',
-                            danger: true,
-                            onClick: () => setDeleteConfirm({ files: [branch.fileName] }),
-                          },
-                        ];
-
-                        const handleRowClick = (e) => {
-                          if (e.target.closest('.bb-tl-leaf-item__actions, .bb-kebab-menu')) {
-                            return;
+                    <div
+                      className="bb-tl-group-card__branches"
+                      style={{
+                        paddingTop: `${branchRange.topPadPx}px`,
+                        paddingBottom: `${branchRange.bottomPadPx}px`,
+                      }}
+                    >
+                      {slicedBranches.map((branch) => (
+                        <TimelineLeafRow
+                          key={branch.fileName}
+                          branch={branch}
+                          totalChatsInGroup={grp.totalChats}
+                          isActive={branch.fileName === activeChatFile}
+                          isFocusedOnTree={
+                            timelinesOpen && branch.fileName === focusedTreeFile
                           }
-                          if (multiSelectActive || e?.ctrlKey || e?.metaKey || e?.shiftKey) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleToggleMultiSelectFile(branch.fileName, e);
-                            return;
+                          multiSelectActive={multiSelectActive}
+                          isSelected={
+                            multiSelectActive && selectedFilesSet.has(branch.fileName)
                           }
-                          if (timelinesOpen && onFocusNodeOnTree) {
-                            onFocusNodeOnTree(branch.fileName, { openTree: false });
-                            return;
-                          }
-                          onSelectChatFile?.(branch.fileName);
-                        };
+                          timelinesOpen={timelinesOpen}
+                          characterName={characterName}
+                          characterAvatarUrl={characterAvatarUrl}
+                          characterInitials={characterInitials}
+                          personaName={personaName}
+                          personaAvatarUrl={personaAvatarUrl}
+                          onPrimaryClick={handleRowPrimaryClick}
+                          onRowDoubleClick={handleRowDoubleClickStable}
+                          onRowEnterKey={handleRowEnterKeyStable}
+                          onBranchChat={handleRowBranchStable}
+                          onStartSelectBranch={handleRowStartSelectStable}
+                          onRequestDeleteBranch={handleRowRequestDeleteStable}
+                        />
+                      ))}
 
-                        const handleRowDoubleClick = (e) => {
-                          if (multiSelectActive) return;
-                          if (e.target.closest('.bb-tl-leaf-item__actions, .bb-kebab-menu')) {
-                            return;
-                          }
-                          onSelectChatFile?.(branch.fileName);
-                        };
-
-                        return (
-                          <div
-                            key={branch.fileName}
-                            role="button"
-                            tabIndex={0}
-                            className={[
-                              'bb-tl-leaf-item',
-                              isActive ? 'is-active' : '',
-                              isFocusedOnTree ? 'is-focused-on-tree' : '',
-                              isSelected ? 'is-selected' : '',
-                            ]
-                              .filter(Boolean)
-                              .join(' ')}
-                            title={
-                              timelinesOpen
-                                ? `${branch.fileName}\nClick: Focus on tree • Double-click: Open chat`
-                                : branch.fileName
-                            }
-                            onClick={handleRowClick}
-                            onDoubleClick={handleRowDoubleClick}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                onSelectChatFile?.(branch.fileName);
-                              } else if (e.key === ' ') {
-                                e.preventDefault();
-                                handleRowClick(e);
-                              }
-                            }}
-                          >
-                            <AvatarStack
-                              size={32}
-                              overlap={0.35}
-                              cutoutGapPx={1.75}
-                              className="bb-tl-leaf-item__avatar-stack"
-                              items={[
-                                {
-                                  id: `char-${branch.fileName}`,
-                                  name: characterName || 'Scenario',
-                                  avatarUrl: cardScenarioAvatar,
-                                  initials: characterInitials || 'CH',
-                                  title: `Scenario: ${characterName}`,
-                                },
-                                {
-                                  id: `persona-${branch.fileName}`,
-                                  name: cardPersonaName,
-                                  avatarUrl: cardPersonaAvatar,
-                                  initials: cardPersonaInitials,
-                                  title: `Persona: ${cardPersonaName}`,
-                                },
-                              ]}
-                            />
-
-                            <div className="bb-tl-leaf-item__body">
-                              <div className="bb-tl-leaf-item__top">
-                                <div className="bb-tl-leaf-item__name-row">
-                                  <Icon name={branch.depth > 0 ? 'codeBranch' : 'comments'} size={12} />
-                                  <span className="bb-tl-leaf-item__name">{displayBranchTitle}</span>
-                                </div>
-
-                                {multiSelectActive ? (
-                                  <Checkbox variant="overlay" checked={isSelected} interactive={false} />
-                                ) : (
-                                  <div className="bb-tl-leaf-item__actions">
-                                    <KebabMenu size="sm" title="Branch actions" items={rowKebabItems} />
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="bb-tl-leaf-item__badges">
-                                {!branch.isLeaf && (
-                                  <span className="bb-tl-leaf-item__pill bb-tl-leaf-item__pill--fork">
-                                    Fork Node
-                                  </span>
-                                )}
-                                {branch.depth > 1 && (
-                                  <span
-                                    className="bb-tl-leaf-item__pill bb-tl-leaf-item__pill--depth"
-                                    title={`Fork depth ${branch.depth} from timeline root`}
-                                  >
-                                    Step {branch.depth + 1}
-                                  </span>
-                                )}
-                                {isActive && (
-                                  <span className="bb-tl-leaf-item__pill bb-tl-leaf-item__pill--active">
-                                    Active
-                                  </span>
-                                )}
-                                {branch.messageCount != null && (
-                                  <span className="bb-tl-leaf-item__meta">{branch.messageCount} msgs</span>
-                                )}
-                                <span className="bb-tl-leaf-item__meta">{dateLabel}</span>
-                              </div>
-
-                              {preview && <div className="bb-tl-leaf-item__preview">{preview}</div>}
-                            </div>
-                          </div>
-                        );
-                      })}
                     </div>
                   )}
                 </section>

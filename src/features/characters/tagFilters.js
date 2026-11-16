@@ -33,15 +33,10 @@ export function splitTagChips(chipState = {}) {
   return { or, and, not };
 }
 
-/**
- * Whether a card carrying `entityTagIds` satisfies the active tag chips.
- * No chips at all matches every card.
- */
-export function matchesTagChips(entityTagIds = [], chipState = {}) {
-  const { or, and, not } = splitTagChips(chipState);
+function matchesSplitTagChips(entityTagIds, { or, and, not }) {
   if (or.length === 0 && and.length === 0 && not.length === 0) return true;
 
-  const entitySet = new Set(entityTagIds.map(String));
+  const entitySet = new Set((entityTagIds || []).map(String));
 
   // NOT: a card carrying any excluded tag is dropped outright.
   for (const tagId of not) {
@@ -59,6 +54,14 @@ export function matchesTagChips(entityTagIds = [], chipState = {}) {
   }
 
   return true;
+}
+
+/**
+ * Whether a card carrying `entityTagIds` satisfies the active tag chips.
+ * No chips at all matches every card.
+ */
+export function matchesTagChips(entityTagIds = [], chipState = {}) {
+  return matchesSplitTagChips(entityTagIds, splitTagChips(chipState));
 }
 
 /**
@@ -86,10 +89,21 @@ export function matchesTextQuery(card, query = '', tagNameById = null) {
  * Applies both the text query and the tag chips, returning the visible cards.
  */
 export function filterCards(cards = [], { query = '', chipState = {}, tagNameById = null } = {}) {
+  const trimmedQuery = String(query || '').trim();
+  const parsedChips = splitTagChips(chipState);
+  const hasChips =
+    parsedChips.or.length > 0 ||
+    parsedChips.and.length > 0 ||
+    parsedChips.not.length > 0;
+
+  if (!trimmedQuery && !hasChips) {
+    return cards;
+  }
+
   return cards.filter(
     (card) =>
-      matchesTextQuery(card, query, tagNameById) &&
-      matchesTagChips(card.tagIds || card.tags || [], chipState),
+      (!trimmedQuery || matchesTextQuery(card, trimmedQuery, tagNameById)) &&
+      (!hasChips || matchesSplitTagChips(card.tagIds || card.tags || [], parsedChips)),
   );
 }
 
@@ -108,10 +122,22 @@ export function countCardsByTag(cards = []) {
   return counts;
 }
 
+function resolveEntitySortTimestampMs(entity) {
+  if (!entity) return 0;
+  if (typeof entity.sortTimestampMs === 'number' && Number.isFinite(entity.sortTimestampMs)) {
+    return entity.sortTimestampMs;
+  }
+  if (entity.latestChatMtime) {
+    const parsed = Date.parse(entity.latestChatMtime);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return Number(entity.dateAdded || 0) || 0;
+}
+
 /**
  * Sorts cards for the gallery. In `recent` mode, cards are ordered strictly by
- * latest activity (freshest chat timestamp or file creation date) without elevating
- * starred/pinned cards; in `az` mode, pinned cards remain grouped first, then A–Z.
+ * latest activity (precomputed `sortTimestampMs`, freshest chat timestamp, or file creation date)
+ * without elevating starred/pinned cards; in `az` mode, pinned cards remain grouped first, then A–Z.
  */
 export function sortCards(cards = [], sortMode = 'recent') {
   const sorted = [...cards];
@@ -122,10 +148,8 @@ export function sortCards(cards = [], sortMode = 'recent') {
       return String(a.name || '').localeCompare(String(b.name || ''));
     }
 
-    // 'recent': the freshest chat wins, and a card with no chat falls back to
-    // its file creation date so it never sorts above one with real activity.
-    const aTime = Date.parse(a.latestChatMtime || '') || a.dateAdded || 0;
-    const bTime = Date.parse(b.latestChatMtime || '') || b.dateAdded || 0;
+    const aTime = resolveEntitySortTimestampMs(a);
+    const bTime = resolveEntitySortTimestampMs(b);
     if (aTime !== bTime) return bTime - aTime;
     return String(a.name || '').localeCompare(String(b.name || ''));
   });

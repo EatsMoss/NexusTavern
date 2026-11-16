@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import {
   SearchInput,
   Slider,
@@ -15,14 +15,10 @@ import {
   SkeletonListRow,
 } from '@ui/index.js';
 import { Icon } from '@ui/atoms/Icon/Icon.jsx';
+import { useVirtualWindow } from '@core/hooks/useVirtualWindow.js';
 import { filterCards, sortCards, countCardsByTag, TAG_MODES } from './tagFilters.js';
 import { CARD_SIZE_MIN, CARD_SIZE_MAX, CARD_SIZE_DEFAULT } from './useCharacterGallery.js';
 import './CharacterGallery.css';
-
-const GALLERY_INITIAL_GRID_ROWS = 4;
-const GALLERY_STEP_GRID_ROWS = 3;
-const GALLERY_INITIAL_LIST_ITEMS = 14;
-const GALLERY_STEP_LIST_ITEMS = 12;
 
 /**
  * NexusTavern — character gallery (ALL tab of the right tome).
@@ -34,6 +30,8 @@ const GALLERY_STEP_LIST_ITEMS = 12;
 export function CharacterGallery({
   cards = [],
   groups = [],
+  visibleCards: externalVisibleCards = null,
+  visibleGroups: externalVisibleGroups = null,
   tags = [],
   gallery,
   gridStyle: externalGridStyle,
@@ -163,6 +161,9 @@ export function CharacterGallery({
   );
 
   const visibleCards = useMemo(() => {
+    if (Array.isArray(externalVisibleCards)) {
+      return externalVisibleCards;
+    }
     const nonHidden =
       hiddenTagSet.size === 0
         ? cards
@@ -171,9 +172,12 @@ export function CharacterGallery({
           );
     const filtered = filterCards(nonHidden, { query, chipState, tagNameById });
     return sortCards(filtered, sortMode);
-  }, [cards, hiddenTagSet, query, chipState, tagNameById, sortMode]);
+  }, [externalVisibleCards, cards, hiddenTagSet, query, chipState, tagNameById, sortMode]);
 
   const visibleGroups = useMemo(() => {
+    if (Array.isArray(externalVisibleGroups)) {
+      return externalVisibleGroups;
+    }
     const nonHidden =
       hiddenTagSet.size === 0
         ? groups
@@ -182,7 +186,7 @@ export function CharacterGallery({
           );
     const filtered = filterCards(nonHidden, { query, chipState, tagNameById });
     return sortCards(filtered, sortMode);
-  }, [groups, hiddenTagSet, query, chipState, tagNameById, sortMode]);
+  }, [externalVisibleGroups, groups, hiddenTagSet, query, chipState, tagNameById, sortMode]);
 
   const visibleTags = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -203,30 +207,12 @@ export function CharacterGallery({
         : visibleCards.length;
 
   const colsCount = Math.max(1, Number(gridStyle?.['--bb-char-cols']) || 5);
-  const initialChunkSize = isListMode
-    ? GALLERY_INITIAL_LIST_ITEMS
-    : Math.max(16, colsCount * GALLERY_INITIAL_GRID_ROWS);
-  const chunkStepSize = isListMode
-    ? GALLERY_STEP_LIST_ITEMS
-    : Math.max(12, colsCount * GALLERY_STEP_GRID_ROWS);
-
-  const [renderedLimit, setRenderedLimit] = useState(initialChunkSize);
-  const sentinelRef = useRef(null);
   const activeChipsKey = activeChipIds.map((id) => `${id}:${chipState[id]}`).join('|');
+  const windowResetKey = `${entityFilter}|${sortMode}|${isListMode ? 'list' : 'grid'}|${query}|${activeChipsKey}`;
 
-  // Reset progressive chunk window whenever filters, sort or layout mode change
-  useEffect(() => {
-    setRenderedLimit(initialChunkSize);
-  }, [query, entityFilter, sortMode, activeChipsKey, isListMode, initialChunkSize]);
-
-  const slicedCards = useMemo(
-    () => visibleCards.slice(0, renderedLimit),
-    [visibleCards, renderedLimit],
-  );
-
-  const slicedGroups = useMemo(
+  const normalizedGroups = useMemo(
     () =>
-      visibleGroups.slice(0, renderedLimit).map((group) => ({
+      visibleGroups.map((group) => ({
         id: group.id,
         name: group.name,
         subtitle: group.subtitle || '',
@@ -237,56 +223,53 @@ export function CharacterGallery({
         pinned: group.pinned,
         isGroup: true,
       })),
-    [visibleGroups, renderedLimit],
+    [visibleGroups],
   );
 
-  const hasMoreChunks =
-    entityFilter === 'groups'
-      ? slicedGroups.length < visibleGroups.length
-      : entityFilter === 'scenarios'
-        ? slicedCards.length < visibleCards.length
-        : false;
+  const {
+    startIndex: windowStart,
+    endIndex: windowEnd,
+    topPaddingPx,
+    bottomPaddingPx,
+  } = useVirtualWindow({
+    scrollRef: resolvedScrollRef,
+    totalItems: totalShown,
+    cols: isListMode ? 1 : colsCount,
+    isList: isListMode,
+    aspect,
+    rowGap: isListMode ? 6 : 8,
+    colGap: 8,
+    horizontalPadding: isListMode ? 16 : 0,
+    basePaddingTop: isListMode ? 8 : 0,
+    basePaddingBottom: 8,
+    overscanRows: isListMode ? 5 : colsCount <= 3 ? 3 : 2,
+    enabled: true,
+    sampleSelector: isListMode ? '.bb-char-row' : '',
+    resetKey: windowResetKey,
+  });
 
-  useEffect(() => {
-    if (!hasMoreChunks) return undefined;
-    const node = sentinelRef.current;
-    const scrollRoot =
-      resolvedScrollRef.current || node?.closest?.('.bb-char-gallery__scroll') || null;
-    if (!node || !scrollRoot) return undefined;
+  const slicedCards = useMemo(
+    () => (entityFilter === 'scenarios' ? visibleCards.slice(windowStart, windowEnd) : []),
+    [entityFilter, visibleCards, windowStart, windowEnd],
+  );
 
-    // If the viewport is taller than the initial batch and has no scrollbar yet,
-    // top up one chunk smoothly until the scroll area is filled.
-    if (scrollRoot.clientHeight > 0 && scrollRoot.scrollHeight <= scrollRoot.clientHeight + 32) {
-      const rafId = requestAnimationFrame(() => {
-        setRenderedLimit((prev) => Math.min(totalShown, prev + chunkStepSize));
-      });
-      return () => cancelAnimationFrame(rafId);
-    }
+  const slicedGroups = useMemo(
+    () => (entityFilter === 'groups' ? normalizedGroups.slice(windowStart, windowEnd) : []),
+    [entityFilter, normalizedGroups, windowStart, windowEnd],
+  );
 
-    if (typeof IntersectionObserver === 'undefined') return undefined;
+  const slicedTags = useMemo(
+    () => (entityFilter === 'tags' ? visibleTags.slice(windowStart, windowEnd) : []),
+    [entityFilter, visibleTags, windowStart, windowEnd],
+  );
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setRenderedLimit((prev) => Math.min(totalShown, prev + chunkStepSize));
-        }
-      },
-      {
-        root: scrollRoot,
-        rootMargin: '180px 0px',
-      },
-    );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [hasMoreChunks, totalShown, renderedLimit, chunkStepSize, resolvedScrollRef]);
-
-  const currentlyRenderedCount =
-    entityFilter === 'tags'
-      ? visibleTags.length
-      : entityFilter === 'groups'
-        ? slicedGroups.length
-        : slicedCards.length;
+  const virtualContainerStyle = useMemo(() => {
+    const padStyle = {
+      paddingTop: `${topPaddingPx}px`,
+      paddingBottom: `${bottomPaddingPx}px`,
+    };
+    return isListMode ? padStyle : { ...gridStyle, ...padStyle };
+  }, [isListMode, gridStyle, topPaddingPx, bottomPaddingPx]);
 
   return (
     <div
@@ -437,11 +420,7 @@ export function CharacterGallery({
 
         <div className="bb-char-gallery__meta-row">
           <div className="bb-char-gallery__count">
-            {loading
-              ? 'Loading cards...'
-              : currentlyRenderedCount < totalShown
-                ? `${currentlyRenderedCount} / ${totalShown} shown`
-                : `${totalShown} shown`}
+            {loading ? 'Loading cards...' : `${totalShown} shown`}
             {entityFilter === 'scenarios' && cards.length > 0 && totalShown !== cards.length
               ? ` (filtered from ${cards.length})`
               : ''}
@@ -524,7 +503,7 @@ export function CharacterGallery({
           {entityFilter === 'groups' ? (
         <div
           className={isListMode ? 'bb-char-gallery__list' : 'bb-char-gallery__grid'}
-          style={isListMode ? undefined : gridStyle}
+          style={virtualContainerStyle}
         >
           {slicedGroups.map((groupItem) => {
             const CardComponent = isListMode ? CharacterCardRow : CharacterCardTile;
@@ -544,13 +523,6 @@ export function CharacterGallery({
               />
             );
           })}
-          {hasMoreChunks && (
-            <div
-              ref={sentinelRef}
-              style={{ gridColumn: '1 / -1', height: 4 }}
-              aria-hidden="true"
-            />
-          )}
           {loading && visibleGroups.length === 0 && (
             <>
               {isListMode
@@ -576,8 +548,11 @@ export function CharacterGallery({
           )}
         </div>
       ) : entityFilter === 'tags' ? (
-        <div className="bb-char-gallery__grid bb-char-gallery__grid--tags" style={gridStyle}>
-          {visibleTags.map((tag) => {
+        <div
+          className="bb-char-gallery__grid bb-char-gallery__grid--tags"
+          style={virtualContainerStyle}
+        >
+          {slicedTags.map((tag) => {
             const isHidden = hiddenTagIds.includes(String(tag.id));
             const previewMembers = tagPreviewMap.get(String(tag.id)) || [];
             const isDraggingTag =
@@ -682,7 +657,7 @@ export function CharacterGallery({
       ) : (
         <div
           className={isListMode ? 'bb-char-gallery__list' : 'bb-char-gallery__grid'}
-          style={isListMode ? undefined : gridStyle}
+          style={virtualContainerStyle}
         >
           {slicedCards.map((card) => {
             const isDraggingCard =
@@ -692,7 +667,7 @@ export function CharacterGallery({
             return (
               <div
                 key={card.id}
-                className={`bb-pinned-slot ${isDraggingCard ? 'is-dragging-source' : ''}`.trim()}
+                className={`bb-char-gallery__item ${isDraggingCard ? 'is-dragging-source' : ''}`.trim()}
                 onPointerDown={(e) => {
                   if (
                     e.target.closest(
@@ -745,13 +720,6 @@ export function CharacterGallery({
               </div>
             );
           })}
-          {hasMoreChunks && (
-            <div
-              ref={sentinelRef}
-              style={{ gridColumn: '1 / -1', height: 4 }}
-              aria-hidden="true"
-            />
-          )}
           {loading && visibleCards.length === 0 && (
             <>
               {isListMode

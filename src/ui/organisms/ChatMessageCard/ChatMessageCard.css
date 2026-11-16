@@ -13,8 +13,8 @@
   border-radius: var(--md-sys-shape-corner-xs, 7px);
   border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
   background: var(--bb-mes-card-bg, var(--bb-page-card-bg, var(--md-sys-color-surface-container)));
-  backdrop-filter: blur(var(--bb-mes-backdrop-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--bb-mes-backdrop-blur, 0px));
+  backdrop-filter: var(--bb-mes-backdrop-filter, none);
+  -webkit-backdrop-filter: var(--bb-mes-backdrop-filter, none);
   box-shadow: var(--md-sys-elevation-1);
   transition: border-color 140ms ease, background-color 140ms ease;
 }
@@ -85,26 +85,16 @@
 }
 
 /* Slow gentle floating animation on the last message's portrait,
-   with dynamic elevation shadow that breathes with height and adapts to the active theme */
+   using strictly GPU-composited translate3d + static theme-aware elevation shadow */
 .bb-chat-msg-card--last .bb-chat-msg-card__avatar {
   --bb-avatar-umbra-near: color-mix(
     in srgb,
-    var(--bb-accent-soft, #6575b3) 24%,
-    rgba(0, 0, 0, 0.62)
-  );
-  --bb-avatar-umbra-far: color-mix(
-    in srgb,
-    var(--bb-accent-soft, #6575b3) 34%,
-    rgba(0, 0, 0, 0.44)
+    var(--bb-accent-soft, #6575b3) 28%,
+    rgba(0, 0, 0, 0.56)
   );
   --bb-avatar-glow-near: color-mix(
     in srgb,
-    var(--bb-accent-color, #6575b3) 18%,
-    transparent
-  );
-  --bb-avatar-glow-far: color-mix(
-    in srgb,
-    var(--bb-accent-color, #6575b3) 32%,
+    var(--bb-accent-color, #6575b3) 24%,
     transparent
   );
   border-color: color-mix(
@@ -112,29 +102,27 @@
     var(--bb-accent-border, rgba(125, 113, 98, 0.5)) 55%,
     transparent
   );
+  box-shadow:
+    0 6px 14px -2px var(--bb-avatar-umbra-near),
+    0 3px 10px 0 var(--bb-avatar-glow-near);
   animation: bb-avatar-float 9.2s ease-in-out infinite;
-  will-change: transform, box-shadow;
+  will-change: transform;
+}
+
+[data-gpu-mode='low'] .bb-chat-msg-card--last .bb-chat-msg-card__avatar {
+  animation: none;
+  will-change: auto;
 }
 
 [data-theme='light'] .bb-chat-msg-card--last .bb-chat-msg-card__avatar {
   --bb-avatar-umbra-near: color-mix(
     in srgb,
-    var(--bb-page-border-strong, #8a7964) 48%,
-    rgba(36, 28, 20, 0.24)
-  );
-  --bb-avatar-umbra-far: color-mix(
-    in srgb,
-    var(--bb-page-border-strong, #8a7964) 36%,
-    rgba(36, 28, 20, 0.15)
+    var(--bb-page-border-strong, #8a7964) 44%,
+    rgba(36, 28, 20, 0.22)
   );
   --bb-avatar-glow-near: color-mix(
     in srgb,
-    var(--bb-accent-color, #b08248) 18%,
-    transparent
-  );
-  --bb-avatar-glow-far: color-mix(
-    in srgb,
-    var(--bb-accent-color, #b08248) 30%,
+    var(--bb-accent-color, #b08248) 22%,
     transparent
   );
 }
@@ -142,18 +130,10 @@
 @keyframes bb-avatar-float {
   0%,
   100% {
-    transform: translateY(0);
-    box-shadow:
-      0 4px 10px -1px var(--bb-avatar-umbra-near),
-      0 2px 6px 0 var(--bb-avatar-glow-near);
-    animation-timing-function: ease-in-out;
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    transform: translateY(-6px);
-    box-shadow:
-      0 12px 22px -2px var(--bb-avatar-umbra-far),
-      0 6px 16px 1px var(--bb-avatar-glow-far);
-    animation-timing-function: ease-in-out;
+    transform: translate3d(0, -6px, 0);
   }
 }
 

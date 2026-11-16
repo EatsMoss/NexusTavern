@@ -8,6 +8,7 @@ import { TimelineBranchList } from '@ui/index.js';
 export function ChatsTomePanel({
   isDemoCard = false,
   chatFiles = [],
+  timelineForest = null,
   activeChatFile = '',
   focusedTreeFile = '',
   characterName = 'Character',
@@ -33,6 +34,7 @@ export function ChatsTomePanel({
     <TimelineBranchList
       isDemoCard={isDemoCard}
       chats={chatFiles}
+      forest={timelineForest}
       activeChatFile={activeChatFile}
       focusedTreeFile={focusedTreeFile}
       characterName={characterName}

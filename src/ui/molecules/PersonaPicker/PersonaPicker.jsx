@@ -8,6 +8,9 @@ import { PersonaChip } from '@ui/molecules/PersonaChip/PersonaChip.jsx';
 import { KebabMenu } from '@ui/molecules/KebabMenu/KebabMenu.jsx';
 import './PersonaPicker.css';
 
+const EMPTY_LOOKUP_MAP = new Map();
+const EMPTY_PERSONA_LIST = [];
+
 function buildSnippet(text = '') {
   const clean = String(text || '')
     .replace(/\s+/g, ' ')
@@ -92,6 +95,7 @@ export function PersonaPicker({
   const searchInputRef = useRef(null);
 
   const cardsByAvatar = useMemo(() => {
+    if (!open) return EMPTY_LOOKUP_MAP;
     const map = new Map();
     for (const c of cards || []) {
       if (!c) continue;
@@ -102,9 +106,10 @@ export function PersonaPicker({
       }
     }
     return map;
-  }, [cards]);
+  }, [open, cards]);
 
   const groupsById = useMemo(() => {
+    if (!open) return EMPTY_LOOKUP_MAP;
     const map = new Map();
     for (const g of groups || []) {
       if (g && g.id !== undefined && g.id !== null) {
@@ -112,7 +117,7 @@ export function PersonaPicker({
       }
     }
     return map;
-  }, [groups]);
+  }, [open, groups]);
 
   const activeCharAvatar = activeCharacter?.avatar || activeCharacter?.id || '';
   const isRealChar = Boolean(
@@ -125,13 +130,14 @@ export function PersonaPicker({
     activeCharacter?.thumbnailUrl || activeCharacter?.avatarUrl || null;
 
   const filteredPersonas = useMemo(() => {
+    if (!open) return EMPTY_PERSONA_LIST;
     const q = query.trim().toLowerCase();
     if (!q) return personas;
     return personas.filter((p) => {
       const hay = `${p.name || ''} ${p.title || ''} ${p.description || ''}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [personas, query]);
+  }, [open, personas, query]);
 
   const updatePosition = useCallback(() => {
     if (!wrapRef.current || typeof window === 'undefined') return;

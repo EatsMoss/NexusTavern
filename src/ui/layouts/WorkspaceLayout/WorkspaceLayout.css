@@ -65,8 +65,10 @@
   min-height: 0;
   padding: 10px 12px 14px;
   background-color: var(--bb-tome-surface-bg, var(--bb-page-bg));
-  backdrop-filter: blur(var(--bb-tome-backdrop-blur, 0px));
-  -webkit-backdrop-filter: blur(var(--bb-tome-backdrop-blur, 0px));
+  backdrop-filter: var(--bb-tome-backdrop-filter, none);
+  -webkit-backdrop-filter: var(--bb-tome-backdrop-filter, none);
+  contain: layout style;
+  isolation: isolate;
   box-sizing: border-box;
   flex-shrink: 0;
   transition: opacity 0.16s ease;
@@ -105,6 +107,7 @@
   flex: 1 1 0%;
   min-height: 0;
   width: 100%;
+  contain: layout paint;
 }
 
 .bb-tome__body {
@@ -112,6 +115,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  contain: layout paint;
   padding-top: 10px;
   display: flex;
   flex-direction: column;

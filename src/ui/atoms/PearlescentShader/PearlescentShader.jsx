@@ -148,11 +148,15 @@ function readThemeNormalizedRgb(varName, fallbackHex) {
   return [r / 255, g / 255, b / 255];
 }
 
+const DEFAULT_SHADER_FPS = 28;
+
 export function PearlescentShader({
   variant = 'last-message',
-  shaderStyle = 'caustics', // 'caustics' | 'nacre'
+  shaderStyle = 'caustics', // 'caustics' | 'nacre' | 'off' | 'none'
   intensity = 0.55,
   speed = 1,
+  fpsLimit = DEFAULT_SHADER_FPS,
+  paused = false,
   lowGpu = false,
   className = '',
   style,
@@ -160,12 +164,37 @@ export function PearlescentShader({
 }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
-  const paramsRef = useRef({ variant, shaderStyle, intensity, speed });
-  paramsRef.current = { variant, shaderStyle, intensity, speed };
+  const wakeLoopRef = useRef(null);
+  const isShaderOff =
+    shaderStyle === 'off' ||
+    shaderStyle === 'none' ||
+    !(Number(intensity) > 0);
+  const disableWebgl = Boolean(lowGpu || isShaderOff);
+
+  const paramsRef = useRef({
+    variant,
+    shaderStyle,
+    intensity,
+    speed,
+    fpsLimit,
+    paused,
+  });
+  paramsRef.current = {
+    variant,
+    shaderStyle,
+    intensity,
+    speed,
+    fpsLimit,
+    paused,
+  };
   const [webglSupported, setWebglSupported] = useState(true);
 
   useEffect(() => {
-    if (lowGpu) return undefined;
+    wakeLoopRef.current?.();
+  }, [variant, shaderStyle, intensity, speed, fpsLimit, paused]);
+
+  useEffect(() => {
+    if (disableWebgl) return undefined;
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return undefined;
@@ -242,15 +271,15 @@ export function PearlescentShader({
       };
     };
 
-    const mo = new MutationObserver(refreshThemeColors);
-    mo.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['style', 'class', 'data-theme'],
-    });
+    let cachedCssW = 1;
+    let cachedCssH = 1;
+    let lastDrawNow = 0;
 
     const syncCanvasDimensions = () => {
       const cssW = Math.max(1, container.clientWidth || container.getBoundingClientRect().width || 1);
       const cssH = Math.max(1, container.clientHeight || container.getBoundingClientRect().height || 1);
+      cachedCssW = cssW;
+      cachedCssH = cssH;
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const w = Math.min(3072, Math.max(1, Math.floor(cssW * dpr * 0.65)));
       const h = Math.min(3072, Math.max(1, Math.floor(cssH * dpr * 0.65)));
@@ -264,7 +293,6 @@ export function PearlescentShader({
     };
 
     const drawFrame = (now) => {
-      const { cssW, cssH } = syncCanvasDimensions();
       const {
         variant: curVariant,
         shaderStyle: curStyle,
@@ -274,6 +302,7 @@ export function PearlescentShader({
 
       const dt = Math.max(0, Math.min(0.1, (now - lastNow) * 0.001));
       lastNow = now;
+      lastDrawNow = now;
       elapsedSec += dt * curSpeed;
 
       const modeValue = curVariant === 'splash' ? 1.0 : curVariant === 'loader' ? 2.0 : 0.0;
@@ -286,7 +315,7 @@ export function PearlescentShader({
 
       gl.uniform1f(uTime, elapsedSec);
       gl.uniform2f(uRes, canvas.width, canvas.height);
-      gl.uniform2f(uCssSize, cssW, cssH);
+      gl.uniform2f(uCssSize, cachedCssW, cachedCssH);
       gl.uniform3fv(uBase, cachedColors.base);
       gl.uniform3fv(uPearlA, cachedColors.pearlA);
       gl.uniform3fv(uPearlB, cachedColors.pearlB);
@@ -298,14 +327,81 @@ export function PearlescentShader({
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     };
 
+    const shouldAnimate = () => {
+      const p = paramsRef.current;
+      return (
+        isVisible &&
+        !document.hidden &&
+        !p.paused &&
+        p.shaderStyle !== 'off' &&
+        p.shaderStyle !== 'none' &&
+        Number(p.intensity) > 0 &&
+        Number(p.speed) > 0
+      );
+    };
+
+    const stopLoop = () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
+    };
+
+    const render = (now) => {
+      if (!shouldAnimate()) {
+        rafId = 0;
+        return;
+      }
+      rafId = requestAnimationFrame(render);
+
+      const targetFps = Math.max(1, Math.min(60, Number(paramsRef.current.fpsLimit) || DEFAULT_SHADER_FPS));
+      const minIntervalMs = 1000 / targetFps;
+      if (lastDrawNow > 0 && now - lastDrawNow < minIntervalMs - 1.5) {
+        return;
+      }
+      drawFrame(now);
+    };
+
+    const syncLoopState = (forceStaticRedraw = false) => {
+      if (shouldAnimate()) {
+        if (!rafId) {
+          lastNow = performance.now();
+          lastDrawNow = 0;
+          rafId = requestAnimationFrame(render);
+        } else if (forceStaticRedraw) {
+          drawFrame(performance.now());
+        }
+      } else {
+        stopLoop();
+        if (forceStaticRedraw && isVisible && !document.hidden && !paramsRef.current.paused) {
+          lastNow = performance.now();
+          drawFrame(lastNow);
+        }
+      }
+    };
+
+    wakeLoopRef.current = () => syncLoopState(true);
+
+    const onThemeMutated = () => {
+      refreshThemeColors();
+      if (isVisible && !document.hidden && !paramsRef.current.paused) {
+        drawFrame(performance.now());
+      }
+    };
+    const themeMo = new MutationObserver(onThemeMutated);
+    themeMo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style', 'class', 'data-theme'],
+    });
+
     const resize = () => {
       const { changed } = syncCanvasDimensions();
-      if (changed) {
+      if (changed && isVisible && !document.hidden && !paramsRef.current.paused) {
         drawFrame(performance.now());
       }
     };
 
-    resize();
+    syncCanvasDimensions();
     drawFrame(performance.now());
     const ro = new ResizeObserver(resize);
     ro.observe(container);
@@ -313,47 +409,53 @@ export function PearlescentShader({
     const io = new IntersectionObserver(
       (entries) => {
         isVisible = entries[0]?.isIntersecting ?? true;
-        if (isVisible) {
-          lastNow = performance.now();
-        }
+        syncLoopState();
       },
       { threshold: 0.05 },
     );
     io.observe(container);
 
-    const render = (now) => {
-      rafId = requestAnimationFrame(render);
-      if (!isVisible || document.hidden) return;
-      drawFrame(now);
+    const onVisibilityChange = () => {
+      syncLoopState();
     };
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
-    rafId = requestAnimationFrame(render);
+    syncLoopState();
 
     return () => {
-      cancelAnimationFrame(rafId);
+      wakeLoopRef.current = null;
+      stopLoop();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       ro.disconnect();
       io.disconnect();
-      mo.disconnect();
+      themeMo.disconnect();
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
       gl.deleteShader(vs);
       gl.deleteShader(fs);
     };
-  }, [lowGpu]);
+  }, [disableWebgl]);
 
-  const showShader = !lowGpu && webglSupported;
+  const showShader = !disableWebgl && webglSupported;
 
   return (
     <div
       ref={containerRef}
-      className={`bb-pearl-shader bb-pearl-shader--${variant} ${className}`.trim()}
+      className={[
+        'bb-pearl-shader',
+        `bb-pearl-shader--${variant}`,
+        isShaderOff ? 'bb-pearl-shader--off' : '',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={style}
     >
       {showShader ? (
         <canvas ref={canvasRef} className="bb-pearl-shader__canvas" aria-hidden="true" />
-      ) : (
+      ) : !isShaderOff ? (
         <div className="bb-pearl-shader__fallback" aria-hidden="true" />
-      )}
+      ) : null}
       {children && <div className="bb-pearl-shader__content">{children}</div>}
     </div>
   );

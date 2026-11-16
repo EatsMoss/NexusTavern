@@ -29,14 +29,23 @@
   background: transparent;
 }
 
-.bb-scroll-indicator.is-visible {
+.bb-scroll-indicator:not(.is-overflowing) .bb-scroll-indicator__track,
+.bb-scroll-indicator:not(.is-overflowing) .bb-scroll-indicator__thumb {
+  pointer-events: none;
+}
+
+.bb-scroll-indicator.is-overflowing.is-visible,
+.bb-scroll-indicator.is-overflowing.is-dragging {
   opacity: 1;
 }
 
 .bb-scroll-indicator__thumb {
   position: absolute;
+  top: 0;
   right: 0;
   width: 6px;
+  height: 0;
+  transform: translate3d(0, 0, 0);
   border-radius: var(--bb-scrollbar-radius, 9999px);
   background: var(--bb-scrollbar-thumb);
   box-shadow: var(--md-sys-elevation-1);

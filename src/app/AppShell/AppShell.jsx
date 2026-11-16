@@ -341,7 +341,6 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   const chat = useChatWorkspace({
     isMobile,
     cards: scenario.cards,
-    setCards: scenario.setCards,
     groups: scenario.groups,
     selectedCardId: scenario.selectedCardId,
     selectedCardIdRef: scenario.selectedCardIdRef,
@@ -352,7 +351,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     activeIntroIdx: scenario.activeIntroIdx,
     setActiveIntroIdx: scenario.setActiveIntroIdx,
     commitLoadedActiveCard: scenario.commitLoadedActiveCard,
-    loadCardsAndPersonas: scenario.loadCardsAndPersonas,
+    patchCardChatSummary: scenario.patchCardChatSummary,
     handleDeleteCard: scenario.handleDeleteCard,
     setCardSaveStatus: scenario.setCardSaveStatus,
     personaName: personasWs.personaName,

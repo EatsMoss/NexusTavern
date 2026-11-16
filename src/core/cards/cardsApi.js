@@ -11,6 +11,222 @@ function appendCacheVersion(url, lastModified) {
   return ts ? `${url}${sep}v=${ts}&tv=3` : `${url}${sep}tv=3`;
 }
 
+const CHAT_PREVIEW_REASONING_RE =
+  /<(?:think|thinking|reasoning|thought)>[\s\S]*?<\/(?:think|thinking|reasoning|thought)>/gi;
+
+/**
+ * Precomputes the numeric sort timestamp once at card/group normalization so
+ * `sortCards` never invokes `Date.parse()` thousands of times inside `Array.sort`.
+ */
+export function computeCardSortTimestampMs(entity) {
+  if (!entity) return 0;
+  const rawLatest = entity.latestChatMtime;
+  if (typeof rawLatest === 'number' && Number.isFinite(rawLatest) && rawLatest > 0) {
+    return rawLatest;
+  }
+  if (typeof rawLatest === 'string' && rawLatest) {
+    const parsed = Date.parse(rawLatest);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return Number(entity.dateAdded || 0) || 0;
+}
+
+/**
+ * Strips CoT blocks, HTML comments/tags, and collapses whitespace into a single-line
+ * snippet (max 220 chars) matching server-side `cardStore.js` preview extraction.
+ */
+export function cleanChatPreviewSnippet(rawText) {
+  if (!rawText) return '';
+  return String(rawText)
+    .replace(CHAT_PREVIEW_REASONING_RE, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 220);
+}
+
+function extractMessageSnippetCandidate(msg) {
+  if (!msg || typeof msg !== 'object') return null;
+  const rawText = msg.text !== undefined ? msg.text : msg.mes;
+  const cleaned = cleanChatPreviewSnippet(rawText);
+  const hasAttachments =
+    Array.isArray(msg.attachments) && msg.attachments.length > 0;
+  const preview = cleaned || (hasAttachments ? '[Attachment]' : '');
+  if (!preview) return null;
+  const sender = String(msg.sender ?? msg.name ?? '').trim();
+  const isUser = Boolean(msg.isUser ?? msg.is_user);
+  return { preview, sender, isUser };
+}
+
+function resolveLatestChatMtimeIso(chats = [], fallbackMtimeIso = null) {
+  let maxMs = 0;
+  if (Array.isArray(chats)) {
+    for (let i = 0; i < chats.length; i += 1) {
+      const c = chats[i];
+      if (!c) continue;
+      const ms =
+        typeof c.lastModifiedMs === 'number' && Number.isFinite(c.lastModifiedMs)
+          ? c.lastModifiedMs
+          : c.lastModifiedIso
+            ? Date.parse(c.lastModifiedIso)
+            : 0;
+      if (Number.isFinite(ms) && ms > maxMs) {
+        maxMs = ms;
+      }
+    }
+  }
+  if (fallbackMtimeIso) {
+    const fbMs =
+      typeof fallbackMtimeIso === 'number'
+        ? fallbackMtimeIso
+        : Date.parse(String(fallbackMtimeIso));
+    if (Number.isFinite(fbMs) && fbMs > maxMs) {
+      maxMs = fbMs;
+    }
+  }
+  return maxMs > 0 ? new Date(maxMs).toISOString() : null;
+}
+
+/**
+ * Derives an atomic delta patch (`chatsCount`, `latestChatPreview`, `latestChatSender`,
+ * `latestChatIsUser`, `latestChatMtime`) for a single character card from its local
+ * chat list and/or active message window without re-fetching all 800+ cards.
+ */
+export function deriveCardChatSummaryPatch({
+  chatsCount,
+  chats = [],
+  activeChatFile = '',
+  activeMessages = null,
+  fallbackMtimeIso = null,
+} = {}) {
+  const safeChats = Array.isArray(chats) ? chats : [];
+  const resolvedCount = Math.max(
+    0,
+    Number(chatsCount !== undefined ? chatsCount : safeChats.length) || 0,
+  );
+
+  if (resolvedCount === 0) {
+    return {
+      chatsCount: 0,
+      latestChatPreview: '',
+      latestChatSender: '',
+      latestChatIsUser: false,
+      latestChatMtime: null,
+    };
+  }
+
+  let chosenSnippet = null;
+
+  if (Array.isArray(activeMessages) && activeMessages.length > 0) {
+    for (let i = activeMessages.length - 1; i >= 0; i -= 1) {
+      const candidate = extractMessageSnippetCandidate(activeMessages[i]);
+      if (candidate) {
+        chosenSnippet = candidate;
+        break;
+      }
+    }
+  }
+
+  if (!chosenSnippet && safeChats.length > 0) {
+    const cleanActive = String(activeChatFile || '').trim().toLowerCase();
+    const activeEntry = cleanActive
+      ? safeChats.find((c) => String(c?.fileName || '').toLowerCase() === cleanActive)
+      : null;
+    const substantiveEntry = safeChats.find(
+      (c) => c && (Number(c.messageCount ?? 0) > 1 || Boolean(c.hasUserMessages)),
+    );
+    const nonEmptyEntry = safeChats.find(
+      (c) => c && (c.lastPreview || c.lastMessage || Number(c.messageCount ?? 0) > 0),
+    );
+    const picked = activeEntry || substantiveEntry || nonEmptyEntry || safeChats[0];
+    if (picked) {
+      chosenSnippet =
+        extractMessageSnippetCandidate(picked.lastMessage) ||
+        (picked.lastPreview
+          ? {
+              preview: cleanChatPreviewSnippet(picked.lastPreview),
+              sender: '',
+              isUser: false,
+            }
+          : null);
+    }
+  }
+
+  const latestChatMtime = resolveLatestChatMtimeIso(safeChats, fallbackMtimeIso);
+
+  return {
+    chatsCount: resolvedCount,
+    latestChatPreview: chosenSnippet?.preview || '',
+    latestChatSender: chosenSnippet?.sender || '',
+    latestChatIsUser: Boolean(chosenSnippet?.isUser),
+    ...(latestChatMtime !== null ? { latestChatMtime } : {}),
+  };
+}
+
+/**
+ * Applies a delta chat summary patch to a single card in `cards`, preserving strict
+ * object reference identity on the remaining N-1 cards and returning `cards` untouched
+ * when nothing actually changed.
+ */
+export function applyCardChatSummaryPatch(cards, cardId, patch) {
+  if (!Array.isArray(cards) || !cardId || !patch) return cards;
+  const idx = cards.findIndex((c) => c && c.id === cardId);
+  if (idx === -1) return cards;
+
+  const current = cards[idx];
+  const nextChatsCount =
+    patch.chatsCount !== undefined
+      ? Math.max(0, Number(patch.chatsCount) || 0)
+      : (current.chatsCount ?? 0);
+  const nextPreview =
+    patch.latestChatPreview !== undefined
+      ? String(patch.latestChatPreview || '')
+      : (current.latestChatPreview ?? '');
+  const nextSender =
+    patch.latestChatSender !== undefined
+      ? String(patch.latestChatSender || '')
+      : (current.latestChatSender ?? '');
+  const nextIsUser =
+    patch.latestChatIsUser !== undefined
+      ? Boolean(patch.latestChatIsUser)
+      : Boolean(current.latestChatIsUser);
+  const nextMtime =
+    patch.latestChatMtime !== undefined
+      ? patch.latestChatMtime
+      : (current.latestChatMtime ?? null);
+
+  const nextSortTimestampMs = computeCardSortTimestampMs({
+    latestChatMtime: nextMtime,
+    dateAdded: current.dateAdded,
+  });
+
+  if (
+    current.chatsCount === nextChatsCount &&
+    current.latestChatPreview === nextPreview &&
+    (current.latestChatSender ?? '') === nextSender &&
+    Boolean(current.latestChatIsUser) === nextIsUser &&
+    (current.latestChatMtime ?? null) === nextMtime &&
+    current.sortTimestampMs === nextSortTimestampMs
+  ) {
+    return cards;
+  }
+
+  const updatedCard = {
+    ...current,
+    chatsCount: nextChatsCount,
+    latestChatPreview: nextPreview,
+    latestChatSender: nextSender,
+    latestChatIsUser: nextIsUser,
+    latestChatMtime: nextMtime,
+    sortTimestampMs: nextSortTimestampMs,
+  };
+
+  const next = cards.slice();
+  next[idx] = updatedCard;
+  return next;
+}
+
 /**
  * Rewrites a full-resolution or gallery thumbnail URL into its dedicated
  * smooth 128px chat portrait thumbnail URL (`?size=chat&tv=3` or `/api/thumbnails/portrait/...`).
@@ -91,6 +307,7 @@ export async function fetchCharacterSummaries() {
     latestChatIsUser: Boolean(c.latestChatIsUser),
     initials: String(c.name || 'CH').slice(0, 2).toUpperCase(),
     pinned: Boolean(c.fav),
+    sortTimestampMs: computeCardSortTimestampMs(c),
     thumbnailUrl: appendCacheVersion(
       getAuthorizedAssetUrl(c.thumbnailUrl),
       c.lastModified,
@@ -135,12 +352,18 @@ function normalizeScenarioMetaUrls(scenarioMeta) {
 function normalizeFullCard(card) {
   if (!card) return null;
   const scenarioMeta = normalizeScenarioMetaUrls(card.scenarioMeta);
+  const chatStats = card.chatStats || null;
+  const mergedTimingSource = {
+    latestChatMtime: chatStats?.latestChatMtime ?? card.latestChatMtime,
+    dateAdded: card.dateAdded,
+  };
   return {
     ...card,
     id: card.avatar,
     subtitle: String(scenarioMeta?.subtitle || card.subtitle || ''),
     initials: String(card.name || 'CH').slice(0, 2).toUpperCase(),
     pinned: Boolean(card.fav),
+    sortTimestampMs: computeCardSortTimestampMs(mergedTimingSource),
     thumbnailUrl: appendCacheVersion(
       getAuthorizedAssetUrl(card.thumbnailUrl),
       card.lastModified,
@@ -369,17 +592,23 @@ export async function bulkSetCardTags(avatars = [], tagId, mode = 'add') {
   return { tags: res?.tags || [], tagMap: res?.tagMap || {} };
 }
 
+function normalizeGroupItem(g) {
+  if (!g) return null;
+  return {
+    ...g,
+    id: g.id,
+    pinned: Boolean(g.fav),
+    sortTimestampMs: computeCardSortTimestampMs(g),
+    avatarUrl: getAuthorizedAssetUrl(g.avatarUrl),
+  };
+}
+
 /**
  * Fetches group definitions from `data/default-user/groups` (`GET /api/characters/groups`).
  */
 export async function fetchGroups() {
   const res = await apiFetchJson('/api/characters/groups');
-  const groups = (res?.groups || []).map((g) => ({
-    ...g,
-    id: g.id,
-    pinned: Boolean(g.fav),
-    avatarUrl: getAuthorizedAssetUrl(g.avatarUrl),
-  }));
+  const groups = (res?.groups || []).map(normalizeGroupItem).filter(Boolean);
   return { count: res?.count || groups.length, groups };
 }
 
@@ -391,21 +620,9 @@ export async function createGroupChat({ name, members = [], fav = false } = {}) 
     method: 'POST',
     body: { name, members, fav },
   });
-  const groups = (res?.groups || []).map((g) => ({
-    ...g,
-    id: g.id,
-    pinned: Boolean(g.fav),
-    avatarUrl: getAuthorizedAssetUrl(g.avatarUrl),
-  }));
+  const groups = (res?.groups || []).map(normalizeGroupItem).filter(Boolean);
   return {
-    group: res?.group
-      ? {
-          ...res.group,
-          id: res.group.id,
-          pinned: Boolean(res.group.fav),
-          avatarUrl: getAuthorizedAssetUrl(res.group.avatarUrl),
-        }
-      : null,
+    group: res?.group ? normalizeGroupItem(res.group) : null,
     groups,
   };
 }
@@ -507,21 +724,9 @@ export async function updateGroupChat(groupId, patch = {}) {
       body: patch,
     },
   );
-  const groups = (res?.groups || []).map((g) => ({
-    ...g,
-    id: g.id,
-    pinned: Boolean(g.fav),
-    avatarUrl: getAuthorizedAssetUrl(g.avatarUrl),
-  }));
+  const groups = (res?.groups || []).map(normalizeGroupItem).filter(Boolean);
   return {
-    group: res?.group
-      ? {
-          ...res.group,
-          id: res.group.id,
-          pinned: Boolean(res.group.fav),
-          avatarUrl: getAuthorizedAssetUrl(res.group.avatarUrl),
-        }
-      : null,
+    group: res?.group ? normalizeGroupItem(res.group) : null,
     groups,
   };
 }

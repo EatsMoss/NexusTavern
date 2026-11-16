@@ -349,6 +349,11 @@ export function CenterWorkspaceSheets({
             : chat.chatFiles
           : []
       }
+      timelineForest={
+        chat.committedChatCardId === scenario.selectedCardId
+          ? chat.timelineForest
+          : null
+      }
       loadingTimelines={chat.loadingTimelines}
       focusedTimelineRequest={chat.focusedTimelineRequest}
       onTimelineFocusChange={chat.setFocusedTimelineNodeFile}

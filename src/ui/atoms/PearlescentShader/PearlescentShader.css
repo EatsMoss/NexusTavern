@@ -53,6 +53,10 @@
   box-shadow: var(--md-sys-elevation-1);
 }
 
+.bb-pearl-shader--off {
+  background-color: var(--bb-mes-card-bg, var(--bb-shader-base, var(--bb-page-card-bg)));
+}
+
 .bb-pearl-shader--loader {
   border-radius: 4px;
   border: 1px solid var(--bb-page-border-mid);

@@ -1,7 +1,12 @@
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { safeWriteFileAtomic as writeFileAtomic } from '../utils/safeWriteFile.js';
-import { DEFAULT_USER_DIR } from '../utils/paths.js';
+import {
+  DEFAULT_USER_DIR,
+  NEXUSTAVERN_CHARACTERS_DIR,
+  NEXUSTAVERN_INDEX_CACHE_FILE,
+} from '../utils/paths.js';
 import { buildZipBuffer } from '../utils/zipBuilder.js';
 import {
   isPngBuffer,
@@ -27,17 +32,171 @@ export const CHATS_DIR = path.join(DEFAULT_USER_DIR, 'chats');
 export const USER_AVATARS_DIR = path.join(DEFAULT_USER_DIR, 'User Avatars');
 export const SETTINGS_FILE_PATH = path.join(DEFAULT_USER_DIR, 'settings.json');
 
-/**
- * High-speed in-memory metadata index cache keyed by filename.
- * Entry: { mtimeMs, size, card }
- * Avoids re-reading and re-parsing 500 KB PNG buffers when files have not changed.
- */
+const INDEX_CACHE_SCHEMA_VER = 1;
+const MAX_FULL_CARD_CACHE_ENTRIES = 64;
+const INDEX_SAVE_DEBOUNCE_MS = 400;
+
 const cardIndexCache = new Map();
+const cardSummaryIndexCache = new Map();
 const chatFolderCache = new Map();
 
-export function invalidateCardStoreCaches() {
+let persistentIndexLoaded = false;
+let persistentIndexLoadPromise = null;
+let persistentIndexSaveTimer = null;
+
+function setBoundedFullCardCache(safeName, entry) {
+  if (cardIndexCache.has(safeName)) {
+    cardIndexCache.delete(safeName);
+  } else {
+    while (cardIndexCache.size >= MAX_FULL_CARD_CACHE_ENTRIES) {
+      const oldest = cardIndexCache.keys().next().value;
+      if (oldest === undefined) break;
+      cardIndexCache.delete(oldest);
+    }
+  }
+  cardIndexCache.set(safeName, entry);
+}
+
+function getBoundedFullCardCache(safeName) {
+  if (!cardIndexCache.has(safeName)) return undefined;
+  const val = cardIndexCache.get(safeName);
+  cardIndexCache.delete(safeName);
+  cardIndexCache.set(safeName, val);
+  return val;
+}
+
+export function hydratePersistentIndexSnapshot(raw) {
+  if (!raw || typeof raw !== 'object' || raw.version !== INDEX_CACHE_SCHEMA_VER) {
+    return false;
+  }
+  if (raw.cards && typeof raw.cards === 'object') {
+    for (const [key, entry] of Object.entries(raw.cards)) {
+      if (entry && typeof entry === 'object' && entry.core) {
+        cardSummaryIndexCache.set(key, entry);
+      }
+    }
+  }
+  if (raw.chatFolders && typeof raw.chatFolders === 'object') {
+    for (const [key, entry] of Object.entries(raw.chatFolders)) {
+      if (entry && typeof entry === 'object' && entry.stats) {
+        chatFolderCache.set(key, entry);
+      }
+    }
+  }
+  return true;
+}
+
+export function serializePersistentIndexSnapshot() {
+  return {
+    version: INDEX_CACHE_SCHEMA_VER,
+    updatedAt: new Date().toISOString(),
+    cards: Object.fromEntries(cardSummaryIndexCache),
+    chatFolders: Object.fromEntries(chatFolderCache),
+  };
+}
+
+function ensurePersistentIndexLoadedSync() {
+  if (persistentIndexLoaded) return;
+  persistentIndexLoaded = true;
+  try {
+    if (fs.existsSync(NEXUSTAVERN_INDEX_CACHE_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(NEXUSTAVERN_INDEX_CACHE_FILE, 'utf8'));
+      hydratePersistentIndexSnapshot(parsed);
+    }
+  } catch {
+    // ignore missing or corrupted index cache
+  }
+}
+
+async function ensurePersistentIndexLoadedAsync() {
+  if (persistentIndexLoaded) return;
+  if (persistentIndexLoadPromise) return persistentIndexLoadPromise;
+
+  persistentIndexLoadPromise = (async () => {
+    try {
+      const rawText = await fsp.readFile(NEXUSTAVERN_INDEX_CACHE_FILE, 'utf8');
+      hydratePersistentIndexSnapshot(JSON.parse(rawText));
+    } catch {
+      // ignore missing or corrupted index cache on first cold run
+    } finally {
+      persistentIndexLoaded = true;
+      persistentIndexLoadPromise = null;
+    }
+  })();
+
+  return persistentIndexLoadPromise;
+}
+
+export async function flushPersistentIndexCache(targetFile = NEXUSTAVERN_INDEX_CACHE_FILE) {
+  if (persistentIndexSaveTimer) {
+    clearTimeout(persistentIndexSaveTimer);
+    persistentIndexSaveTimer = null;
+  }
+  try {
+    await fsp.mkdir(path.dirname(targetFile), { recursive: true });
+    const snapshot = serializePersistentIndexSnapshot();
+    await writeFileAtomic(targetFile, JSON.stringify(snapshot), 'utf8');
+  } catch {
+    // ignore background persistence failure
+  }
+}
+
+export function cancelScheduledPersistentIndexSave() {
+  if (persistentIndexSaveTimer) {
+    clearTimeout(persistentIndexSaveTimer);
+    persistentIndexSaveTimer = null;
+  }
+}
+
+function schedulePersistentIndexSave() {
+  if (!persistentIndexLoaded || persistentIndexSaveTimer) return;
+  persistentIndexSaveTimer = setTimeout(() => {
+    persistentIndexSaveTimer = null;
+    flushPersistentIndexCache().catch(() => {});
+  }, INDEX_SAVE_DEBOUNCE_MS);
+  persistentIndexSaveTimer.unref?.();
+}
+
+function invalidateCardCacheEntry(avatarFilename) {
+  ensurePersistentIndexLoadedSync();
+  const safeName = path.basename(String(avatarFilename || ''));
+  if (!safeName) return;
+  cardIndexCache.delete(safeName);
+  if (cardSummaryIndexCache.delete(safeName)) {
+    schedulePersistentIndexSave();
+  }
+}
+
+export function invalidateChatFolderCacheByChatFile(filePath) {
+  if (!filePath) return;
+  const parentName = path.basename(path.dirname(String(filePath)));
+  if (!parentName) return;
+  const lowerParent = parentName.toLowerCase();
+  let removed = false;
+  for (const [key, entry] of chatFolderCache.entries()) {
+    const entryFolder = String(entry?.folderName || entry?.stats?.chatFolder || '');
+    if (
+      entryFolder === parentName ||
+      (process.platform === 'win32' && entryFolder.toLowerCase() === lowerParent) ||
+      key.toLowerCase().endsWith(`::${lowerParent}`)
+    ) {
+      chatFolderCache.delete(key);
+      removed = true;
+    }
+  }
+  if (removed) {
+    schedulePersistentIndexSave();
+  }
+}
+
+export function invalidateCardStoreCaches({ clearSummaries = false } = {}) {
+  ensurePersistentIndexLoadedSync();
   cardIndexCache.clear();
   chatFolderCache.clear();
+  if (clearSummaries) {
+    cardSummaryIndexCache.clear();
+  }
+  schedulePersistentIndexSave();
 }
 
 /**
@@ -169,6 +328,98 @@ function hasChatRecordAttachment(msg) {
   return false;
 }
 
+const EMPTY_CHAT_SNIPPET = Object.freeze({
+  preview: '',
+  sender: '',
+  isUser: false,
+  hasMessages: false,
+  hasConversation: false,
+});
+
+function parseTailLinesChunk(chunkText, startOffset) {
+  const lines = chunkText.split(/\r?\n/);
+  // When `startOffset > 0`, `lines[0]` may begin mid-line or mid-UTF-8 sequence;
+  // every subsequent element starts right after `\n` (0x0A) on a clean boundary.
+  const minLineIdx = startOffset === 0 ? 0 : 1;
+
+  let newestMsg = null;
+  let snippetMsg = null;
+  let snippetText = '';
+  let messageLinesSeen = 0;
+  let sawUserMessage = false;
+
+  for (let i = lines.length - 1; i >= minLineIdx; i -= 1) {
+    const trimmed = lines[i].trim();
+    if (!trimmed || !trimmed.startsWith('{')) continue;
+    let parsed;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== 'object') continue;
+    // Skip JSONL metadata header line when scanning up to line 0
+    if (
+      parsed.mes === undefined &&
+      !Array.isArray(parsed.swipes) &&
+      (parsed.chat_metadata !== undefined || parsed.user_name !== undefined)
+    ) {
+      continue;
+    }
+
+    messageLinesSeen += 1;
+    if (parsed.is_user) sawUserMessage = true;
+    if (!newestMsg) {
+      newestMsg = parsed;
+    }
+    if (!snippetMsg) {
+      const cleaned = cleanChatRecordText(parsed);
+      if (cleaned) {
+        snippetMsg = parsed;
+        snippetText = cleaned;
+      }
+    }
+
+    if (snippetMsg && (messageLinesSeen >= 2 || sawUserMessage)) {
+      break;
+    }
+  }
+
+  const done =
+    Boolean(snippetMsg && (messageLinesSeen >= 2 || sawUserMessage)) ||
+    startOffset === 0;
+
+  return {
+    done,
+    newestMsg,
+    snippetMsg,
+    snippetText,
+    messageLinesSeen,
+    sawUserMessage,
+  };
+}
+
+function finalizeChatSnippetResult(scanState) {
+  if (!scanState) return EMPTY_CHAT_SNIPPET;
+  const chosenMsg = scanState.snippetMsg || scanState.newestMsg;
+  if (!chosenMsg) return EMPTY_CHAT_SNIPPET;
+
+  const preview = scanState.snippetText
+    ? scanState.snippetText.slice(0, 220)
+    : hasChatRecordAttachment(chosenMsg)
+      ? '[Attachment]'
+      : '';
+  return {
+    preview,
+    sender: String(chosenMsg.name || '').trim(),
+    isUser: Boolean(chosenMsg.is_user),
+    hasMessages: scanState.messageLinesSeen > 0,
+    hasConversation: Boolean(
+      scanState.messageLinesSeen > 1 || scanState.sawUserMessage,
+    ),
+  };
+}
+
 /**
  * Reads the tail of a `.jsonl` chat file using an adaptive backward window
  * (starting at 64 KB and expanding only when a multi-swipe / CoT / attachment
@@ -178,22 +429,10 @@ function hasChatRecordAttachment(msg) {
 function extractLatestChatSnippet(filePath, fileSize = 0) {
   try {
     const size = fileSize || fs.statSync(filePath).size;
-    if (!size || size <= 2) {
-      return {
-        preview: '',
-        sender: '',
-        isUser: false,
-        hasMessages: false,
-        hasConversation: false,
-      };
-    }
+    if (!size || size <= 2) return EMPTY_CHAT_SNIPPET;
 
     let tailBytes = Math.min(size, 65536);
-    let newestMsg = null;
-    let snippetMsg = null;
-    let snippetText = '';
-    let messageLinesSeen = 0;
-    let sawUserMessage = false;
+    let scanState = null;
 
     const fd = fs.openSync(filePath, 'r');
     try {
@@ -202,98 +441,103 @@ function extractLatestChatSnippet(filePath, fileSize = 0) {
         const buf = Buffer.allocUnsafe(tailBytes);
         const bytesRead = fs.readSync(fd, buf, 0, tailBytes, startOffset);
         const chunk = buf.subarray(0, bytesRead).toString('utf8');
-        const lines = chunk.split(/\r?\n/);
-        // When `startOffset > 0`, `lines[0]` may begin mid-line or mid-UTF-8 sequence;
-        // every subsequent element starts right after `\n` (0x0A) on a clean boundary.
-        const minLineIdx = startOffset === 0 ? 0 : 1;
-
-        newestMsg = null;
-        snippetMsg = null;
-        snippetText = '';
-        messageLinesSeen = 0;
-        sawUserMessage = false;
-
-        for (let i = lines.length - 1; i >= minLineIdx; i -= 1) {
-          const trimmed = lines[i].trim();
-          if (!trimmed || !trimmed.startsWith('{')) continue;
-          let parsed = null;
-          try {
-            parsed = JSON.parse(trimmed);
-          } catch {
-            continue;
-          }
-          if (!parsed || typeof parsed !== 'object') continue;
-          // Skip JSONL metadata header line when scanning up to line 0
-          if (
-            parsed.mes === undefined &&
-            !Array.isArray(parsed.swipes) &&
-            (parsed.chat_metadata !== undefined || parsed.user_name !== undefined)
-          ) {
-            continue;
-          }
-
-          messageLinesSeen += 1;
-          if (parsed.is_user) sawUserMessage = true;
-          if (!newestMsg) {
-            newestMsg = parsed;
-          }
-          if (!snippetMsg) {
-            const cleaned = cleanChatRecordText(parsed);
-            if (cleaned) {
-              snippetMsg = parsed;
-              snippetText = cleaned;
-            }
-          }
-
-          if (snippetMsg && (messageLinesSeen >= 2 || sawUserMessage)) {
-            break;
-          }
-        }
-
-        if (
-          (snippetMsg && (messageLinesSeen >= 2 || sawUserMessage)) ||
-          startOffset === 0
-        ) {
-          break;
-        }
-
+        scanState = parseTailLinesChunk(chunk, startOffset);
+        if (scanState.done) break;
         tailBytes = Math.min(size, tailBytes * 4);
       }
     } finally {
       fs.closeSync(fd);
     }
 
-    const chosenMsg = snippetMsg || newestMsg;
-    if (chosenMsg) {
-      const preview = snippetText
-        ? snippetText.slice(0, 220)
-        : hasChatRecordAttachment(chosenMsg)
-          ? '[Attachment]'
-          : '';
-      return {
-        preview,
-        sender: String(chosenMsg.name || '').trim(),
-        isUser: Boolean(chosenMsg.is_user),
-        hasMessages: messageLinesSeen > 0,
-        hasConversation: Boolean(messageLinesSeen > 1 || sawUserMessage),
-      };
-    }
+    return finalizeChatSnippetResult(scanState);
   } catch {
-    // ignore unreadable or mid-write file
+    return EMPTY_CHAT_SNIPPET;
   }
+}
+
+async function extractLatestChatSnippetAsync(filePath, fileSize = 0) {
+  try {
+    const size = fileSize || (await fsp.stat(filePath)).size;
+    if (!size || size <= 2) return EMPTY_CHAT_SNIPPET;
+
+    let tailBytes = Math.min(size, 65536);
+    let scanState = null;
+
+    const fh = await fsp.open(filePath, 'r');
+    try {
+      while (true) {
+        const startOffset = size - tailBytes;
+        const buf = Buffer.allocUnsafe(tailBytes);
+        const { bytesRead } = await fh.read(buf, 0, tailBytes, startOffset);
+        const chunk = buf.subarray(0, bytesRead).toString('utf8');
+        scanState = parseTailLinesChunk(chunk, startOffset);
+        if (scanState.done) break;
+        tailBytes = Math.min(size, tailBytes * 4);
+      }
+    } finally {
+      await fh.close();
+    }
+
+    return finalizeChatSnippetResult(scanState);
+  } catch {
+    return EMPTY_CHAT_SNIPPET;
+  }
+}
+
+function normalizeJsonlChatName(raw) {
+  const clean = path.basename(String(raw || '').trim());
+  if (!clean) return '';
+  return clean.toLowerCase().endsWith('.jsonl') ? clean : `${clean}.jsonl`;
+}
+
+function createEmptyChatFolderStats(chatFolder) {
   return {
-    preview: '',
-    sender: '',
-    isUser: false,
-    hasMessages: false,
-    hasConversation: false,
+    chatFolder,
+    chatsCount: 0,
+    latestChatFile: null,
+    latestChatMtime: null,
+    latestChatPreview: '',
+    latestChatSender: '',
+    latestChatIsUser: false,
+    totalChatBytes: 0,
   };
 }
 
+function sortChatEntryMetaCandidates(entryMeta) {
+  return [...entryMeta].sort((a, b) => {
+    if (Math.abs(b.mtimeMs - a.mtimeMs) > 1000) {
+      return b.mtimeMs - a.mtimeMs;
+    }
+    const embDiff =
+      parseEmbeddedChatStampMs(b.name) - parseEmbeddedChatStampMs(a.name);
+    if (embDiff !== 0) return embDiff;
+    return b.size - a.size;
+  });
+}
+
+function findEntryMetaByName(entryMeta, targetName) {
+  if (!targetName) return null;
+  const lower = targetName.toLowerCase();
+  return (
+    entryMeta.find((e) => e.name === targetName) ||
+    entryMeta.find((e) => e.name.toLowerCase() === lower) ||
+    null
+  );
+}
+
+async function statOrNullAsync(filePath) {
+  try {
+    return await fsp.stat(filePath);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Resolves the chat folder and `.jsonl` chat statistics for a given character card.
+ * Resolves the chat folder and `.jsonl` chat statistics for a given character card (sync).
  */
 export function getCharacterChatStats(card, options = {}) {
+  ensurePersistentIndexLoadedSync();
   const { rememberedChatFile = '' } = options;
   const baseFolder = String(card.avatar || '')
     .replace(/\.(png|json)$/i, '')
@@ -309,164 +553,400 @@ export function getCharacterChatStats(card, options = {}) {
     }
   }
 
-  const normalizeJsonlName = (raw) => {
-    const clean = path.basename(String(raw || '').trim());
-    if (!clean) return '';
-    return clean.toLowerCase().endsWith('.jsonl') ? clean : `${clean}.jsonl`;
-  };
-
-  const preferredRemembered = normalizeJsonlName(rememberedChatFile);
-  const preferredCardChat = normalizeJsonlName(card.chat || '');
+  const preferredRemembered = normalizeJsonlChatName(rememberedChatFile);
+  const preferredCardChat = normalizeJsonlChatName(card.chat || '');
 
   for (const folderName of candidates) {
     const dirPath = path.join(CHATS_DIR, folderName);
-    if (fs.existsSync(dirPath)) {
-      const dirStat = fs.statSync(dirPath);
-      if (!dirStat.isDirectory()) continue;
+    if (!fs.existsSync(dirPath)) continue;
+    const dirStat = fs.statSync(dirPath);
+    if (!dirStat.isDirectory()) continue;
 
-      const entries = fs
-        .readdirSync(dirPath, { withFileTypes: true })
-        .filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.jsonl'));
-
-      let latestFile = null;
-      let latestMtime = 0;
-      let latestSize = 0;
-      let totalBytes = 0;
-      const entryMeta = [];
-
-      for (const entry of entries) {
-        try {
-          const st = fs.statSync(path.join(dirPath, entry.name));
-          totalBytes += st.size;
-          entryMeta.push({ name: entry.name, mtimeMs: st.mtimeMs, size: st.size });
-          if (st.mtimeMs > latestMtime) {
-            latestMtime = st.mtimeMs;
-            latestFile = entry.name;
-            latestSize = st.size;
-          }
-        } catch {
-          // ignore unreadable entry
-        }
-      }
-
-      const cacheKey = `${card.avatar || folderName}::${folderName}`;
-      const cacheSignature = `${entries.length}:${latestFile || ''}:${latestMtime}:${latestSize}:${totalBytes}:${preferredRemembered}:${preferredCardChat}`;
-      const cachedStats = chatFolderCache.get(cacheKey);
-      if (cachedStats && cachedStats.signature === cacheSignature) {
+    const cacheKey = `${card.avatar || folderName}::${folderName}`;
+    const cachedStats = chatFolderCache.get(cacheKey);
+    if (
+      cachedStats &&
+      cachedStats.dirMtimeMs === dirStat.mtimeMs &&
+      cachedStats.rememberedFile === preferredRemembered &&
+      cachedStats.preferredCardChat === preferredCardChat
+    ) {
+      if (!cachedStats.latestFile) {
         return cachedStats.stats;
       }
-
-      const findEntry = (targetName) => {
-        if (!targetName) return null;
-        const lower = targetName.toLowerCase();
-        return (
-          entryMeta.find((e) => e.name === targetName) ||
-          entryMeta.find((e) => e.name.toLowerCase() === lower) ||
-          null
-        );
-      };
-
-      let chosenFile = latestFile;
-      let latestSnippet = {
-        preview: '',
-        sender: '',
-        isUser: false,
-        hasMessages: false,
-        hasConversation: false,
-      };
-
-      const snippetMemo = new Map();
-      const readEntrySnippet = (entryObj) => {
-        if (!entryObj || entryObj.size <= 2) {
-          return {
-            preview: '',
-            sender: '',
-            isUser: false,
-            hasMessages: false,
-            hasConversation: false,
-          };
+      try {
+        const latestSt = fs.statSync(path.join(dirPath, cachedStats.latestFile));
+        if (
+          latestSt.mtimeMs === cachedStats.latestFileMtimeMs &&
+          latestSt.size === cachedStats.latestFileSize
+        ) {
+          return cachedStats.stats;
         }
-        if (snippetMemo.has(entryObj.name)) {
-          return snippetMemo.get(entryObj.name);
+      } catch {
+        // fall through to full folder scan
+      }
+    }
+
+    const entries = fs
+      .readdirSync(dirPath, { withFileTypes: true })
+      .filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.jsonl'));
+
+    let latestFile = null;
+    let latestMtime = 0;
+    let latestSize = 0;
+    let totalBytes = 0;
+    const entryMeta = [];
+
+    for (const entry of entries) {
+      try {
+        const st = fs.statSync(path.join(dirPath, entry.name));
+        totalBytes += st.size;
+        entryMeta.push({ name: entry.name, mtimeMs: st.mtimeMs, size: st.size });
+        if (st.mtimeMs > latestMtime) {
+          latestMtime = st.mtimeMs;
+          latestFile = entry.name;
+          latestSize = st.size;
         }
-        const res = extractLatestChatSnippet(path.join(dirPath, entryObj.name), entryObj.size);
-        snippetMemo.set(entryObj.name, res);
-        return res;
-      };
+      } catch {
+        // ignore unreadable entry
+      }
+    }
 
-      const rememberedEntry = findEntry(preferredRemembered);
-      const rememberedSnippet = rememberedEntry ? readEntrySnippet(rememberedEntry) : null;
+    const cacheSignature = `${entries.length}:${latestFile || ''}:${latestMtime}:${latestSize}:${totalBytes}:${preferredRemembered}:${preferredCardChat}`;
+    if (cachedStats && cachedStats.signature === cacheSignature) {
+      cachedStats.dirMtimeMs = dirStat.mtimeMs;
+      cachedStats.latestFile = latestFile;
+      cachedStats.latestFileMtimeMs = latestMtime;
+      cachedStats.latestFileSize = latestSize;
+      cachedStats.rememberedFile = preferredRemembered;
+      cachedStats.preferredCardChat = preferredCardChat;
+      return cachedStats.stats;
+    }
 
-      if (rememberedEntry && (rememberedSnippet.hasMessages || entryMeta.length === 1)) {
-        chosenFile = rememberedEntry.name;
-        latestSnippet = rememberedSnippet;
-      } else if (entryMeta.length > 0) {
-        const sortedCandidates = [...entryMeta].sort((a, b) => {
-          if (Math.abs(b.mtimeMs - a.mtimeMs) > 1000) {
-            return b.mtimeMs - a.mtimeMs;
-          }
-          const embDiff = parseEmbeddedChatStampMs(b.name) - parseEmbeddedChatStampMs(a.name);
-          if (embDiff !== 0) return embDiff;
-          return b.size - a.size;
-        });
+    let chosenFile = latestFile;
+    let latestSnippet = EMPTY_CHAT_SNIPPET;
+    const snippetMemo = new Map();
+    const readEntrySnippet = (entryObj) => {
+      if (!entryObj || entryObj.size <= 2) return EMPTY_CHAT_SNIPPET;
+      if (snippetMemo.has(entryObj.name)) return snippetMemo.get(entryObj.name);
+      const res = extractLatestChatSnippet(path.join(dirPath, entryObj.name), entryObj.size);
+      snippetMemo.set(entryObj.name, res);
+      return res;
+    };
 
-        let fallbackNonEmpty = null;
-        let foundSubstantive = false;
+    const rememberedEntry = findEntryMetaByName(entryMeta, preferredRemembered);
+    const rememberedSnippet = rememberedEntry ? readEntrySnippet(rememberedEntry) : null;
 
-        for (const cand of sortedCandidates) {
-          if (cand.size <= 2) continue;
-          const candSnippet = readEntrySnippet(cand);
-          if (candSnippet.hasConversation) {
-            chosenFile = cand.name;
-            latestSnippet = candSnippet;
-            foundSubstantive = true;
-            break;
-          }
-          if (!fallbackNonEmpty && (candSnippet.preview || candSnippet.hasMessages)) {
-            fallbackNonEmpty = { name: cand.name, snippet: candSnippet };
-          }
+    if (rememberedEntry && (rememberedSnippet.hasMessages || entryMeta.length === 1)) {
+      chosenFile = rememberedEntry.name;
+      latestSnippet = rememberedSnippet;
+    } else if (entryMeta.length > 0) {
+      const sortedCandidates = sortChatEntryMetaCandidates(entryMeta);
+      let fallbackNonEmpty = null;
+      let foundSubstantive = false;
+
+      for (const cand of sortedCandidates) {
+        if (cand.size <= 2) continue;
+        const candSnippet = readEntrySnippet(cand);
+        if (candSnippet.hasConversation) {
+          chosenFile = cand.name;
+          latestSnippet = candSnippet;
+          foundSubstantive = true;
+          break;
         }
-
-        if (!foundSubstantive) {
-          const cardChatEntry = findEntry(preferredCardChat);
-          const cardChatSnippet = cardChatEntry ? readEntrySnippet(cardChatEntry) : null;
-          if (cardChatEntry && (cardChatSnippet.preview || cardChatSnippet.hasMessages)) {
-            chosenFile = cardChatEntry.name;
-            latestSnippet = cardChatSnippet;
-          } else if (fallbackNonEmpty) {
-            chosenFile = fallbackNonEmpty.name;
-            latestSnippet = fallbackNonEmpty.snippet;
-          } else {
-            chosenFile = sortedCandidates[0].name;
-            latestSnippet = readEntrySnippet(sortedCandidates[0]);
-          }
+        if (!fallbackNonEmpty && (candSnippet.preview || candSnippet.hasMessages)) {
+          fallbackNonEmpty = { name: cand.name, snippet: candSnippet };
         }
       }
 
-      const stats = {
-        chatFolder: folderName,
-        chatsCount: entries.length,
-        latestChatFile: chosenFile,
-        latestChatMtime: latestMtime ? new Date(latestMtime).toISOString() : null,
-        latestChatPreview: latestSnippet.preview,
-        latestChatSender: latestSnippet.sender,
-        latestChatIsUser: latestSnippet.isUser,
-        totalChatBytes: totalBytes,
-      };
-      chatFolderCache.set(cacheKey, { signature: cacheSignature, stats });
-      return stats;
+      if (!foundSubstantive) {
+        const cardChatEntry = findEntryMetaByName(entryMeta, preferredCardChat);
+        const cardChatSnippet = cardChatEntry ? readEntrySnippet(cardChatEntry) : null;
+        if (cardChatEntry && (cardChatSnippet.preview || cardChatSnippet.hasMessages)) {
+          chosenFile = cardChatEntry.name;
+          latestSnippet = cardChatSnippet;
+        } else if (fallbackNonEmpty) {
+          chosenFile = fallbackNonEmpty.name;
+          latestSnippet = fallbackNonEmpty.snippet;
+        } else {
+          chosenFile = sortedCandidates[0].name;
+          latestSnippet = readEntrySnippet(sortedCandidates[0]);
+        }
+      }
+    }
+
+    const stats = {
+      chatFolder: folderName,
+      chatsCount: entries.length,
+      latestChatFile: chosenFile,
+      latestChatMtime: latestMtime ? new Date(latestMtime).toISOString() : null,
+      latestChatPreview: latestSnippet.preview,
+      latestChatSender: latestSnippet.sender,
+      latestChatIsUser: latestSnippet.isUser,
+      totalChatBytes: totalBytes,
+    };
+    chatFolderCache.set(cacheKey, {
+      folderName,
+      dirMtimeMs: dirStat.mtimeMs,
+      latestFile,
+      latestFileMtimeMs: latestMtime,
+      latestFileSize: latestSize,
+      rememberedFile: preferredRemembered,
+      preferredCardChat,
+      signature: cacheSignature,
+      stats,
+    });
+    schedulePersistentIndexSave();
+    return stats;
+  }
+
+  return createEmptyChatFolderStats(baseFolder);
+}
+
+async function pickPreferredChatAsync(
+  entryMeta,
+  latestFile,
+  preferredRemembered,
+  preferredCardChat,
+  readEntrySnippetAsync,
+) {
+  let chosenFile = latestFile;
+  let latestSnippet = EMPTY_CHAT_SNIPPET;
+
+  const rememberedEntry = findEntryMetaByName(entryMeta, preferredRemembered);
+  const rememberedSnippet = rememberedEntry
+    ? await readEntrySnippetAsync(rememberedEntry)
+    : null;
+
+  if (rememberedEntry && (rememberedSnippet.hasMessages || entryMeta.length === 1)) {
+    return { chosenFile: rememberedEntry.name, latestSnippet: rememberedSnippet };
+  }
+
+  if (entryMeta.length > 0) {
+    const sortedCandidates = sortChatEntryMetaCandidates(entryMeta);
+    let fallbackNonEmpty = null;
+
+    for (const cand of sortedCandidates) {
+      if (cand.size <= 2) continue;
+      const candSnippet = await readEntrySnippetAsync(cand);
+      if (candSnippet.hasConversation) {
+        return { chosenFile: cand.name, latestSnippet: candSnippet };
+      }
+      if (!fallbackNonEmpty && (candSnippet.preview || candSnippet.hasMessages)) {
+        fallbackNonEmpty = { name: cand.name, snippet: candSnippet };
+      }
+    }
+
+    const cardChatEntry = findEntryMetaByName(entryMeta, preferredCardChat);
+    const cardChatSnippet = cardChatEntry
+      ? await readEntrySnippetAsync(cardChatEntry)
+      : null;
+    if (cardChatEntry && (cardChatSnippet.preview || cardChatSnippet.hasMessages)) {
+      chosenFile = cardChatEntry.name;
+      latestSnippet = cardChatSnippet;
+    } else if (fallbackNonEmpty) {
+      chosenFile = fallbackNonEmpty.name;
+      latestSnippet = fallbackNonEmpty.snippet;
+    } else {
+      chosenFile = sortedCandidates[0].name;
+      latestSnippet = await readEntrySnippetAsync(sortedCandidates[0]);
     }
   }
 
+  return { chosenFile, latestSnippet };
+}
+
+
+async function getCharacterChatStatsAsync(
+  cardCore,
+  {
+    rememberedChatFile = '',
+    knownCardFilesLowerSet = null,
+    chatDirsMap = null,
+  } = {},
+) {
+  const baseFolder = String(cardCore.avatar || '')
+    .replace(/\.(png|json)$/i, '')
+    .trim();
+
+  const candidates = [baseFolder].filter(Boolean);
+  if (cardCore.name && cardCore.name !== baseFolder) {
+    let separateCardOwnsName;
+    if (knownCardFilesLowerSet) {
+      const lowerName = String(cardCore.name).toLowerCase();
+      separateCardOwnsName =
+        knownCardFilesLowerSet.has(`${lowerName}.png`) ||
+        knownCardFilesLowerSet.has(`${lowerName}.json`);
+    } else {
+      const [pngSt, jsonSt] = await Promise.all([
+        statOrNullAsync(path.join(CHARACTERS_DIR, `${cardCore.name}.png`)),
+        statOrNullAsync(path.join(CHARACTERS_DIR, `${cardCore.name}.json`)),
+      ]);
+      separateCardOwnsName = Boolean(pngSt || jsonSt);
+    }
+    if (!separateCardOwnsName) {
+      candidates.push(cardCore.name);
+    }
+  }
+
+  const preferredRemembered = normalizeJsonlChatName(rememberedChatFile);
+  const preferredCardChat = normalizeJsonlChatName(cardCore.chat || '');
+
+  for (const rawFolderName of candidates) {
+    let folderName = rawFolderName;
+    if (chatDirsMap) {
+      const key =
+        process.platform === 'win32' ? rawFolderName.toLowerCase() : rawFolderName;
+      const mapped = chatDirsMap.get(key);
+      if (!mapped) continue;
+      folderName = mapped;
+    }
+
+    const dirPath = path.join(CHATS_DIR, folderName);
+    const dirStat = await statOrNullAsync(dirPath);
+    if (!dirStat || !dirStat.isDirectory()) continue;
+
+    const cacheKey = `${cardCore.avatar || folderName}::${folderName}`;
+    const cachedStats = chatFolderCache.get(cacheKey);
+    if (
+      cachedStats &&
+      cachedStats.dirMtimeMs === dirStat.mtimeMs &&
+      cachedStats.rememberedFile === preferredRemembered &&
+      cachedStats.preferredCardChat === preferredCardChat
+    ) {
+      if (!cachedStats.latestFile) return cachedStats.stats;
+      const latestSt = await statOrNullAsync(
+        path.join(dirPath, cachedStats.latestFile),
+      );
+      if (
+        latestSt &&
+        latestSt.mtimeMs === cachedStats.latestFileMtimeMs &&
+        latestSt.size === cachedStats.latestFileSize
+      ) {
+        return cachedStats.stats;
+      }
+    }
+
+    let rawEntries;
+    try {
+      rawEntries = await fsp.readdir(dirPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    const entries = rawEntries.filter(
+      (e) => e.isFile() && e.name.toLowerCase().endsWith('.jsonl'),
+    );
+    const entryStats = await Promise.all(
+      entries.map(async (entry) => {
+        const st = await statOrNullAsync(path.join(dirPath, entry.name));
+        return st ? { name: entry.name, mtimeMs: st.mtimeMs, size: st.size } : null;
+      }),
+    );
+
+    let latestFile = null;
+    let latestMtime = 0;
+    let latestSize = 0;
+    let totalBytes = 0;
+    const entryMeta = [];
+
+    for (const meta of entryStats) {
+      if (!meta) continue;
+      totalBytes += meta.size;
+      entryMeta.push(meta);
+      if (meta.mtimeMs > latestMtime) {
+        latestMtime = meta.mtimeMs;
+        latestFile = meta.name;
+        latestSize = meta.size;
+      }
+    }
+
+    const cacheSignature = `${entries.length}:${latestFile || ''}:${latestMtime}:${latestSize}:${totalBytes}:${preferredRemembered}:${preferredCardChat}`;
+    if (cachedStats && cachedStats.signature === cacheSignature) {
+      cachedStats.dirMtimeMs = dirStat.mtimeMs;
+      cachedStats.latestFile = latestFile;
+      cachedStats.latestFileMtimeMs = latestMtime;
+      cachedStats.latestFileSize = latestSize;
+      cachedStats.rememberedFile = preferredRemembered;
+      cachedStats.preferredCardChat = preferredCardChat;
+      return cachedStats.stats;
+    }
+
+    const snippetMemo = new Map();
+    const readEntrySnippetAsync = async (entryObj) => {
+      if (!entryObj || entryObj.size <= 2) return EMPTY_CHAT_SNIPPET;
+      if (snippetMemo.has(entryObj.name)) return snippetMemo.get(entryObj.name);
+      const res = await extractLatestChatSnippetAsync(
+        path.join(dirPath, entryObj.name),
+        entryObj.size,
+      );
+      snippetMemo.set(entryObj.name, res);
+      return res;
+    };
+
+    const { chosenFile, latestSnippet } = await pickPreferredChatAsync(
+      entryMeta,
+      latestFile,
+      preferredRemembered,
+      preferredCardChat,
+      readEntrySnippetAsync,
+    );
+
+    const stats = {
+      chatFolder: folderName,
+      chatsCount: entries.length,
+      latestChatFile: chosenFile,
+      latestChatMtime: latestMtime ? new Date(latestMtime).toISOString() : null,
+      latestChatPreview: latestSnippet.preview,
+      latestChatSender: latestSnippet.sender,
+      latestChatIsUser: latestSnippet.isUser,
+      totalChatBytes: totalBytes,
+    };
+    chatFolderCache.set(cacheKey, {
+      folderName,
+      dirMtimeMs: dirStat.mtimeMs,
+      latestFile,
+      latestFileMtimeMs: latestMtime,
+      latestFileSize: latestSize,
+      rememberedFile: preferredRemembered,
+      preferredCardChat,
+      signature: cacheSignature,
+      stats,
+    });
+    schedulePersistentIndexSave();
+    return stats;
+  }
+
+  return createEmptyChatFolderStats(baseFolder);
+}
+
+
+function extractCardSummaryCore(card) {
+  const greetingsCount = 1 + (card.alternate_greetings?.length || 0);
+  const loreEntriesCount = Array.isArray(card.character_book?.entries)
+    ? card.character_book.entries.length
+    : card.character_book?.entries && typeof card.character_book.entries === 'object'
+      ? Object.keys(card.character_book.entries).length
+      : 0;
+
   return {
-    chatFolder: baseFolder,
-    chatsCount: 0,
-    latestChatFile: null,
-    latestChatMtime: null,
-    latestChatPreview: '',
-    latestChatSender: '',
-    latestChatIsUser: false,
-    totalChatBytes: 0,
+    avatar: card.avatar,
+    name: card.name,
+    creator: card.creator,
+    character_version: card.character_version,
+    spec: card.spec,
+    spec_version: card.spec_version,
+    hasCcv3Chunk: Boolean(card.hasCcv3Chunk),
+    hasCharaChunk: Boolean(card.hasCharaChunk),
+    fav: Boolean(card.fav),
+    tags: Array.isArray(card.tags) ? card.tags : [],
+    chat: card.chat || '',
+    descriptionPreview: String(card.description || '').slice(0, 220),
+    firstMesPreview: String(card.first_mes || '').slice(0, 220),
+    creatorNotesPreview: String(card.creator_notes || '').slice(0, 180),
+    greetingsCount,
+    hasLorebook: loreEntriesCount > 0,
+    loreEntriesCount,
+    fileSize: card.fileSize,
+    lastModified: card.lastModified,
   };
 }
 
@@ -474,6 +954,7 @@ export function getCharacterChatStats(card, options = {}) {
  * Reads a single character card file (`.png` or `.json`), utilizing the `mtimeMs + size` cache.
  */
 export function loadCharacterCardByFilename(filename) {
+  ensurePersistentIndexLoadedSync();
   const safeName = path.basename(filename);
   const fullPath = path.join(CHARACTERS_DIR, safeName);
   if (!fs.existsSync(fullPath)) {
@@ -481,7 +962,7 @@ export function loadCharacterCardByFilename(filename) {
   }
 
   const stat = fs.statSync(fullPath);
-  const cached = cardIndexCache.get(safeName);
+  const cached = getBoundedFullCardCache(safeName);
   if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
     return cached.card;
   }
@@ -502,22 +983,94 @@ export function loadCharacterCardByFilename(filename) {
   card.fileSize = stat.size;
   card.lastModified = new Date(stat.mtimeMs).toISOString();
 
-  cardIndexCache.set(safeName, {
+  setBoundedFullCardCache(safeName, {
     mtimeMs: stat.mtimeMs,
     size: stat.size,
     card,
   });
 
+  const birthtimeMs = Number(stat.birthtimeMs || stat.mtimeMs || 0);
+  cardSummaryIndexCache.set(safeName, {
+    mtimeMs: stat.mtimeMs,
+    size: stat.size,
+    birthtimeMs,
+    core: extractCardSummaryCore(card),
+  });
+  schedulePersistentIndexSave();
+
   return card;
+}
+
+async function loadCardSummaryRecordAsync(safeName) {
+  const fullPath = path.join(CHARACTERS_DIR, safeName);
+  const stat = await statOrNullAsync(fullPath);
+  if (!stat || !stat.isFile()) return null;
+
+  const birthtimeMs = Number(stat.birthtimeMs || stat.mtimeMs || 0);
+  const cachedSummary = cardSummaryIndexCache.get(safeName);
+  if (
+    cachedSummary &&
+    cachedSummary.mtimeMs === stat.mtimeMs &&
+    cachedSummary.size === stat.size &&
+    cachedSummary.core
+  ) {
+    return {
+      birthtimeMs: Number(cachedSummary.birthtimeMs || birthtimeMs),
+      core: cachedSummary.core,
+    };
+  }
+
+  const cachedFull = getBoundedFullCardCache(safeName);
+  if (
+    cachedFull &&
+    cachedFull.mtimeMs === stat.mtimeMs &&
+    cachedFull.size === stat.size
+  ) {
+    const core = extractCardSummaryCore(cachedFull.card);
+    cardSummaryIndexCache.set(safeName, {
+      mtimeMs: stat.mtimeMs,
+      size: stat.size,
+      birthtimeMs,
+      core,
+    });
+    schedulePersistentIndexSave();
+    return { birthtimeMs, core };
+  }
+
+  const ext = path.extname(safeName).toLowerCase();
+  const buf = await fsp.readFile(fullPath);
+  let card;
+  if (ext === '.png' && isPngBuffer(buf)) {
+    card = readCardFromPngBuffer(buf, safeName);
+  } else if (ext === '.json') {
+    const raw = JSON.parse(buf.toString('utf8'));
+    card = normalizeCardData(raw, safeName);
+  } else {
+    return null;
+  }
+
+  card.fileSize = stat.size;
+  card.lastModified = new Date(stat.mtimeMs).toISOString();
+  const core = extractCardSummaryCore(card);
+
+  cardSummaryIndexCache.set(safeName, {
+    mtimeMs: stat.mtimeMs,
+    size: stat.size,
+    birthtimeMs,
+    core,
+  });
+  schedulePersistentIndexSave();
+  return { birthtimeMs, core };
 }
 
 /**
  * Merges external tag_map from `settings.json` with embedded card tags.
  */
-function resolveMergedTags(card, settings) {
+function resolveMergedTags(card, settings, prebuiltTagById = null) {
   const tagMap = settings?.tag_map || {};
-  const tagDefs = Array.isArray(settings?.tags) ? settings.tags : [];
-  const tagById = new Map(tagDefs.map((t) => [t.id, t.name]));
+  const tagById =
+    prebuiltTagById ||
+    new Map((Array.isArray(settings?.tags) ? settings.tags : []).map((t) => [t.id, t.name]));
 
   const mappedIds = Array.isArray(tagMap[card.avatar]) ? tagMap[card.avatar] : [];
   const mappedNames = mappedIds.map((id) => tagById.get(id)).filter(Boolean);
@@ -535,91 +1088,163 @@ function resolveMappedTagIds(card, settings) {
   return Array.isArray(mapped) ? mapped.map(String) : [];
 }
 
+async function readScenarioSubtitleIfPresentAsync(avatarFilename, metaFilesLowerSet) {
+  const safeBase = path.basename(String(avatarFilename || ''));
+  if (!safeBase) return '';
+  const metaName = `${safeBase}.json`;
+  const lookupKey =
+    process.platform === 'win32' ? metaName.toLowerCase() : metaName;
+  if (metaFilesLowerSet && !metaFilesLowerSet.has(lookupKey)) {
+    return '';
+  }
+  try {
+    const raw = JSON.parse(
+      await fsp.readFile(path.join(NEXUSTAVERN_CHARACTERS_DIR, metaName), 'utf8'),
+    );
+    return typeof raw?.subtitle === 'string' ? raw.subtitle.trim().slice(0, 120) : '';
+  } catch {
+    return '';
+  }
+}
+
 /**
- * Returns a lightweight summary list of all character/scenario cards in `data/default-user/characters`.
+ * Returns a lightweight summary list of all character/scenario cards in `data/default-user/characters`
+ * using the persistent `.nexustavern/index-cache.json` and bounded async `fs.promises` I/O.
  */
 export async function listCharacterCards() {
-  if (!fs.existsSync(CHARACTERS_DIR)) {
+  await ensurePersistentIndexLoadedAsync();
+
+  let entries;
+  try {
+    entries = await fsp.readdir(CHARACTERS_DIR, { withFileTypes: true });
+  } catch {
     return [];
   }
 
-  const settings = readUserSettings();
-  const session = readSession();
-  const lastChatsMap = session?.lastChats || {};
-  const entries = fs.readdirSync(CHARACTERS_DIR, { withFileTypes: true });
-  const summaries = [];
+  const [chatDirEntries, metaDirEntries] = await Promise.all([
+    fsp.readdir(CHATS_DIR, { withFileTypes: true }).catch(() => []),
+    fsp.readdir(NEXUSTAVERN_CHARACTERS_DIR, { withFileTypes: true }).catch(() => []),
+  ]);
+
+  const chatDirsMap = new Map();
+  for (const d of chatDirEntries) {
+    if (!d.isDirectory()) continue;
+    const k = process.platform === 'win32' ? d.name.toLowerCase() : d.name;
+    chatDirsMap.set(k, d.name);
+  }
+
+  const metaFilesSet = new Set();
+  for (const f of metaDirEntries) {
+    if (!f.isFile()) continue;
+    metaFilesSet.add(process.platform === 'win32' ? f.name.toLowerCase() : f.name);
+  }
+
+  const validCardNames = [];
+  const knownCardFilesLowerSet = new Set();
+  const seenCardNames = new Set();
 
   for (const entry of entries) {
     if (!entry.isFile() || entry.name === '.gitkeep') continue;
     const ext = path.extname(entry.name).toLowerCase();
     if (ext !== '.png' && ext !== '.json') continue;
+    validCardNames.push(entry.name);
+    seenCardNames.add(entry.name);
+    knownCardFilesLowerSet.add(entry.name.toLowerCase());
+  }
 
-    try {
-      const card = loadCharacterCardByFilename(entry.name);
-      if (!card) continue;
-
-      if (ext === '.png') {
-        await ensureThumbnailFile('avatar', entry.name);
-      }
-
-      const fileStat = fs.statSync(path.join(CHARACTERS_DIR, entry.name));
-      const rememberedChatFile =
-        lastChatsMap[card.avatar]?.file ||
-        (session?.lastChat?.avatar === card.avatar ? session.lastChat.file : '') ||
-        '';
-      const chatStats = getCharacterChatStats(card, { rememberedChatFile });
-      const scenarioMeta = readScenarioMeta(card.avatar);
-      const mergedTags = resolveMergedTags(card, settings);
-      const mappedTagIds = resolveMappedTagIds(card, settings);
-      const greetingsCount = 1 + (card.alternate_greetings?.length || 0);
-      const loreEntriesCount = Array.isArray(card.character_book?.entries)
-        ? card.character_book.entries.length
-        : card.character_book?.entries && typeof card.character_book.entries === 'object'
-          ? Object.keys(card.character_book.entries).length
-          : 0;
-
-      summaries.push({
-        avatar: card.avatar,
-        name: card.name,
-        subtitle: scenarioMeta.subtitle || '',
-        creator: card.creator,
-        character_version: card.character_version,
-        spec: card.spec,
-        spec_version: card.spec_version,
-        hasCcv3Chunk: Boolean(card.hasCcv3Chunk),
-        hasCharaChunk: Boolean(card.hasCharaChunk),
-        fav: Boolean(card.fav),
-        tags: mergedTags,
-        tagIds: mappedTagIds,
-        dateAdded: Number(fileStat.birthtimeMs || fileStat.mtimeMs || 0),
-        descriptionPreview: card.description.slice(0, 220),
-        firstMesPreview: card.first_mes.slice(0, 220),
-        creatorNotesPreview: card.creator_notes.slice(0, 180),
-        greetingsCount,
-        hasLorebook: loreEntriesCount > 0,
-        loreEntriesCount,
-        chatFolder: chatStats.chatFolder,
-        chatsCount: chatStats.chatsCount,
-        latestChatFile: chatStats.latestChatFile,
-        latestChatMtime: chatStats.latestChatMtime,
-        latestChatPreview: chatStats.latestChatPreview,
-        latestChatSender: chatStats.latestChatSender,
-        latestChatIsUser: chatStats.latestChatIsUser,
-        totalChatBytes: chatStats.totalChatBytes,
-        fileSize: card.fileSize,
-        lastModified: card.lastModified,
-        thumbnailUrl:
-          ext === '.png'
-            ? `/api/thumbnails/avatar/${encodeURIComponent(card.avatar)}`
-            : null,
-        avatarUrl:
-          ext === '.png'
-            ? `/user-data/characters/${encodeURIComponent(card.avatar)}`
-            : null,
-      });
-    } catch {
-      // skip corrupted file
+  for (const cachedKey of cardSummaryIndexCache.keys()) {
+    if (!seenCardNames.has(cachedKey)) {
+      cardSummaryIndexCache.delete(cachedKey);
+      schedulePersistentIndexSave();
     }
+  }
+
+  const settings = readUserSettings();
+  const session = readSession();
+  const lastChatsMap = session?.lastChats || {};
+  const tagDefs = Array.isArray(settings?.tags) ? settings.tags : [];
+  const prebuiltTagById = new Map(tagDefs.map((t) => [t.id, t.name]));
+
+  const summaries = [];
+  const CONCURRENCY = 24;
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < validCardNames.length) {
+      const idx = cursor++;
+      const fileName = validCardNames[idx];
+      const ext = path.extname(fileName).toLowerCase();
+
+      try {
+        const record = await loadCardSummaryRecordAsync(fileName);
+        if (!record) continue;
+
+        const { birthtimeMs, core } = record;
+        const rememberedChatFile =
+          lastChatsMap[core.avatar]?.file ||
+          (session?.lastChat?.avatar === core.avatar ? session.lastChat.file : '') ||
+          '';
+
+        const [chatStats, subtitle] = await Promise.all([
+          getCharacterChatStatsAsync(core, {
+            rememberedChatFile,
+            knownCardFilesLowerSet,
+            chatDirsMap,
+          }),
+          readScenarioSubtitleIfPresentAsync(core.avatar, metaFilesSet),
+        ]);
+
+        const mergedTags = resolveMergedTags(core, settings, prebuiltTagById);
+        const mappedTagIds = resolveMappedTagIds(core, settings);
+
+        summaries.push({
+          avatar: core.avatar,
+          name: core.name,
+          subtitle,
+          creator: core.creator,
+          character_version: core.character_version,
+          spec: core.spec,
+          spec_version: core.spec_version,
+          hasCcv3Chunk: Boolean(core.hasCcv3Chunk),
+          hasCharaChunk: Boolean(core.hasCharaChunk),
+          fav: Boolean(core.fav),
+          tags: mergedTags,
+          tagIds: mappedTagIds,
+          dateAdded: Number(birthtimeMs || 0),
+          descriptionPreview: core.descriptionPreview,
+          firstMesPreview: core.firstMesPreview,
+          creatorNotesPreview: core.creatorNotesPreview,
+          greetingsCount: core.greetingsCount,
+          hasLorebook: core.hasLorebook,
+          loreEntriesCount: core.loreEntriesCount,
+          chatFolder: chatStats.chatFolder,
+          chatsCount: chatStats.chatsCount,
+          latestChatFile: chatStats.latestChatFile,
+          latestChatMtime: chatStats.latestChatMtime,
+          latestChatPreview: chatStats.latestChatPreview,
+          latestChatSender: chatStats.latestChatSender,
+          latestChatIsUser: chatStats.latestChatIsUser,
+          totalChatBytes: chatStats.totalChatBytes,
+          fileSize: core.fileSize,
+          lastModified: core.lastModified,
+          thumbnailUrl:
+            ext === '.png'
+              ? `/api/thumbnails/avatar/${encodeURIComponent(core.avatar)}`
+              : null,
+          avatarUrl:
+            ext === '.png'
+              ? `/user-data/characters/${encodeURIComponent(core.avatar)}`
+              : null,
+        });
+      } catch {
+        // skip corrupted file
+      }
+    }
+  };
+
+  const workerCount = Math.min(CONCURRENCY, validCardNames.length);
+  if (workerCount > 0) {
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
   }
 
   summaries.sort((a, b) => {
@@ -744,7 +1369,7 @@ export async function saveCharacterCard(avatarFilename, updates = {}) {
       await saveScenarioMeta(safeName, scenarioMetaPatch);
     }
 
-    cardIndexCache.delete(safeName);
+    invalidateCardCacheEntry(safeName);
     return getFullCharacterCard(safeName);
   });
 }
@@ -889,7 +1514,7 @@ export async function importCharacterCards(
         await syncTagNamesToAvatar(avatar, parsed.tags);
       }
 
-      cardIndexCache.delete(avatar);
+      invalidateCardCacheEntry(avatar);
       const full = getFullCharacterCard(avatar);
       if (full) imported.push(full);
     } else if (item.jsonPayload || item.fileBase64) {
@@ -920,7 +1545,7 @@ export async function importCharacterCards(
         await syncTagNamesToAvatar(avatar, normalized.tags);
       }
 
-      cardIndexCache.delete(avatar);
+      invalidateCardCacheEntry(avatar);
       const full = getFullCharacterCard(avatar);
       if (full) imported.push(full);
     }
@@ -1000,7 +1625,7 @@ export async function replaceCharacterCardAvatar(
       }
     }
 
-    cardIndexCache.delete(safeName);
+    invalidateCardCacheEntry(safeName);
     return getFullCharacterCard(safeName);
   });
 }
@@ -1038,7 +1663,7 @@ export async function applyGalleryPortraitAsMainAvatar(avatarFilename, portraitI
     }
 
     await saveScenarioMeta(safeName, { activePortraitId: stored.entry.id });
-    cardIndexCache.delete(safeName);
+    invalidateCardCacheEntry(safeName);
     return getFullCharacterCard(safeName);
   });
 }
@@ -1131,10 +1756,7 @@ export async function replaceCharacterCardFromFile(
         writeV3: incomingCard.spec === 'chara_card_v3' || incomingCard.hasCcv3Chunk,
       });
       await writeFileAtomic(fullPath, updatedPng);
-      const thumbPath = path.join(DEFAULT_USER_DIR, 'thumbnails', 'avatar', safeName);
-      if (fs.existsSync(thumbPath)) {
-        fs.rmSync(thumbPath, { force: true });
-      }
+      invalidateThumbnailCache('avatar', safeName);
       await ensureThumbnailFile('avatar', safeName);
     } else {
       const payload = serializeCardPayload(
@@ -1144,7 +1766,7 @@ export async function replaceCharacterCardFromFile(
       await writeFileAtomic(fullPath, JSON.stringify(payload, null, 2), 'utf8');
     }
 
-    cardIndexCache.delete(safeName);
+    invalidateCardCacheEntry(safeName);
     return getFullCharacterCard(safeName);
   });
 }
@@ -1159,7 +1781,7 @@ export async function importEmbeddedTagsForCard(avatarFilename) {
     throw new Error(`Character card not found: ${safeName}`);
   }
   await syncTagNamesToAvatar(safeName, card.tags || []);
-  cardIndexCache.delete(safeName);
+  invalidateCardCacheEntry(safeName);
   return getFullCharacterCard(safeName);
 }
 
@@ -1193,7 +1815,7 @@ export async function duplicateCharacterCard(avatarFilename) {
 
   await duplicateScenarioMeta(safeName, avatar);
 
-  cardIndexCache.delete(avatar);
+  invalidateCardCacheEntry(avatar);
   return getFullCharacterCard(avatar);
 }
 
@@ -1222,15 +1844,7 @@ export async function deleteCharacterCards(
           : '';
 
       fs.rmSync(fullPath, { force: true });
-
-      const thumbPath = path.join(
-        path.join(DEFAULT_USER_DIR, 'thumbnails', 'avatar'),
-        safeName,
-      );
-      if (fs.existsSync(thumbPath)) {
-        fs.rmSync(thumbPath, { force: true });
-      }
-
+      invalidateThumbnailCache('avatar', safeName);
       deleteScenarioMeta(safeName);
 
       if (deleteChats && resolvedChatFolder) {
@@ -1241,7 +1855,7 @@ export async function deleteCharacterCards(
         chatFolderCache.clear();
       }
 
-      cardIndexCache.delete(safeName);
+      invalidateCardCacheEntry(safeName);
       deletedFiles.push(safeName);
     });
   }

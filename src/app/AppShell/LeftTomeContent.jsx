@@ -34,6 +34,8 @@ export function LeftTomeContent({
     pinnedLayout,
     cards,
     groups,
+    visibleCards,
+    visibleGroups,
     tags,
     gallery,
     selectedCardId,
@@ -73,6 +75,7 @@ export function LeftTomeContent({
     committedChatCardId,
     loadingCardAndChats,
     timelineChats,
+    timelineForest,
     chatFiles,
     activeChatFile,
     focusedTimelineNodeFile,
@@ -96,6 +99,8 @@ export function LeftTomeContent({
           pinnedLayout={pinnedLayout}
           cards={cards}
           groups={groups}
+          visibleCards={visibleCards}
+          visibleGroups={visibleGroups}
           tags={tags}
           gallery={gallery}
           selectedCardId={selectedCardId}
@@ -138,6 +143,11 @@ export function LeftTomeContent({
                 ? timelineChats
                 : chatFiles
               : []
+          }
+          timelineForest={
+            committedChatCardId === selectedCardId || !loadingCardAndChats
+              ? timelineForest
+              : null
           }
           activeChatFile={committedChatCardId === selectedCardId ? activeChatFile : ''}
           focusedTreeFile={focusedTimelineNodeFile}

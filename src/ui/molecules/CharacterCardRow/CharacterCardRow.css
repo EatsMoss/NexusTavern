@@ -14,6 +14,7 @@
   border-radius: var(--md-sys-shape-corner-xs, 6px);
   background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
   border: 1px solid transparent;
+  contain: layout paint style;
   cursor: pointer;
   user-select: none;
   transition:
@@ -191,7 +192,7 @@
 
 .bb-char-row:hover .bb-char-row__actions,
 .bb-char-row__actions:focus-within,
-.bb-char-row__actions:has(.bb-kebab-menu.is-open) {
+.bb-char-row__actions[data-kebab-open='true'] {
   opacity: 1;
 }
 

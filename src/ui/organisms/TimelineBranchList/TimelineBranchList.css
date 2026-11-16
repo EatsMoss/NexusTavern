@@ -96,7 +96,13 @@
   background: var(--bb-sheet-bg, var(--bb-page-card-bg));
   border: 1px solid var(--bb-page-border);
   overflow: hidden;
+  contain: layout paint style;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.bb-tl-group-card.is-collapsed {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
 }
 
 .bb-tl-group-card.has-active {
@@ -191,6 +197,9 @@
   border-radius: var(--md-sys-shape-corner-xs, 6px);
   background: var(--bb-sheet-well-bg, var(--bb-page-input-bg));
   border: 1px solid transparent;
+  contain: layout paint style;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 86px;
   cursor: pointer;
   transition: background-color 0.14s ease, border-color 0.14s ease;
 }

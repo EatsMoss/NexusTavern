@@ -167,11 +167,24 @@ export function applyCustomizationToDom(rawConfig, options = {}) {
 
   // 3. Message Card & Side Tome Surface Opacity / Blur
   const mesAlpha = Number((cfg.mesBgOpacity / 100).toFixed(3));
+  const effectiveMesBlur =
+    !lowGpu && cfg.mesBackdropBlur > 0 && cfg.mesBgOpacity < 100 ? cfg.mesBackdropBlur : 0;
+  const effectiveTomeBlur =
+    !lowGpu && cfg.tomeBackdropBlur > 0 && cfg.tomeSurfaceOpacity < 100 ? cfg.tomeBackdropBlur : 0;
+
   root.style.setProperty('--bb-mes-card-bg', hexToRgba(derived.slots.bgCardHex, mesAlpha));
-  root.style.setProperty('--bb-mes-backdrop-blur', lowGpu ? '0px' : `${cfg.mesBackdropBlur}px`);
+  root.style.setProperty('--bb-mes-backdrop-blur', `${effectiveMesBlur}px`);
+  root.style.setProperty(
+    '--bb-mes-backdrop-filter',
+    effectiveMesBlur > 0 ? `blur(${effectiveMesBlur}px)` : 'none',
+  );
   root.style.setProperty('--bb-tome-idle-opacity', String(Number((cfg.tomeIdleOpacity / 100).toFixed(2))));
   root.style.setProperty('--bb-tome-surface-bg', hexToRgba(derived.slots.bgDeepHex, cfg.tomeSurfaceOpacity / 100));
-  root.style.setProperty('--bb-tome-backdrop-blur', lowGpu ? '0px' : `${cfg.tomeBackdropBlur}px`);
+  root.style.setProperty('--bb-tome-backdrop-blur', `${effectiveTomeBlur}px`);
+  root.style.setProperty(
+    '--bb-tome-backdrop-filter',
+    effectiveTomeBlur > 0 ? `blur(${effectiveTomeBlur}px)` : 'none',
+  );
 
   // 4. Stage Backdrop / JRPG Pattern
   if (cfg.backdropMode === 'jrpg-pattern') {

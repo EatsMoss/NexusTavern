@@ -181,7 +181,17 @@ export function PinnedSection({
       </div>
 
       <div className="bb-pinned-grid-wrap">
-        <div className="bb-pinned-grid bb-scrollbar--hidden" style={gridStyle} ref={resolvedGridRef}>
+        <div
+          className={[
+            'bb-pinned-grid',
+            'bb-scrollbar--hidden',
+            isPinnedDragActive ? 'is-drag-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          style={gridStyle}
+          ref={resolvedGridRef}
+        >
         {mainDropSlotBox && (
           <div
             className="bb-pinned-drop-slot-indicator"

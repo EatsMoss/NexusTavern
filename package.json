@@ -5,7 +5,8 @@
   "type": "module",
   "description": "NexusTavern RP AI Frontend & Clean Server Core (100% SillyTavern Data Compatible)",
   "scripts": {
-    "dev": "concurrently -k -n SERVER,CLIENT,BUILD -c yellow,cyan,green \"node --watch-path=server server/index.js\" \"vite\" \"vite build --watch\"",
+    "dev": "concurrently -k -n SERVER,CLIENT -c yellow,cyan \"node --watch-path=server server/index.js\" \"vite\"",
+    "dev:tunnel": "concurrently -k -n SERVER,CLIENT,BUILD -c yellow,cyan,green \"node --watch-path=server server/index.js\" \"vite\" \"vite build --watch\"",
     "dev:server": "node --watch-path=server server/index.js",
     "dev:client": "vite",
     "build": "vite build",

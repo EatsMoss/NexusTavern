@@ -16,6 +16,7 @@ export function KebabMenu({
   align = 'right',
   title = 'Card actions',
   disabled = false,
+  onOpenChange = null,
   className = '',
 }) {
   const [open, setOpen] = useState(false);
@@ -28,6 +29,19 @@ export function KebabMenu({
   const [coords, setCoords] = useState({ top: 0, left: 0, ready: false });
   const rootRef = useRef(null);
   const menuRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const parentEl = rootRef.current?.parentElement;
+    if (open && parentEl) {
+      parentEl.setAttribute('data-kebab-open', 'true');
+    } else if (parentEl) {
+      parentEl.removeAttribute('data-kebab-open');
+    }
+    onOpenChange?.(open);
+    return () => {
+      parentEl?.removeAttribute('data-kebab-open');
+    };
+  }, [open, onOpenChange]);
 
   const updatePosition = useCallback(() => {
     const anchor = rootRef.current;

@@ -4,26 +4,9 @@
 
 /* Scroll-aware edge fading for the message stream.
    --------------------------------------------------------------------------
-   Messages fade to transparent near the top and bottom edges of the stream via
-   a vertical gradient mask, so any background or theme shows through the fading
-   messages (a box-shadow could only paint a solid colour on top).
-
-   The fade lengths start at 0 and are ANIMATED, which requires registering
-   them with @property — plain custom properties are not interpolatable, so a
-   transition on them would snap instead of easing. An edge only fades while
-   content is scrolled underneath it; when the stream rests at its start or end,
-   that edge stays fully solid. */
-@property --bb-chat-fade-top {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
-
-@property --bb-chat-fade-bottom {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
+   Uses static cached gradient masks without @property transitions so the
+   compositor never rasterizes animated full-viewport alpha masks on scroll,
+   and keeps `mask-image: none` whenever resting flush at stream boundaries. */
 
 .bb-chat-viewport {
   position: relative;
@@ -47,6 +30,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  contain: layout paint;
 }
 
 .bb-chat-viewport__stream {
@@ -63,40 +47,65 @@
   gap: 12px;
   overflow-anchor: none;
 
-  /* Edge fade lengths. Tune here: the top edge is kept shorter than the bottom
-     because the composer sits directly below the stream and needs less run-up. */
   --bb-chat-fade-max-top: 24px;
   --bb-chat-fade-max-bottom: 40px;
 
+  -webkit-mask-image: none;
+  mask-image: none;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* An edge fades only while content is scrolled under it (static GPU-cached masks). */
+.bb-chat-viewport__stream.is-scrolled-under-top:not(.is-scrolled-under-bottom) {
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 var(--bb-chat-fade-top),
-    #000 calc(100% - var(--bb-chat-fade-bottom)),
+    #000 var(--bb-chat-fade-max-top),
+    #000 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--bb-chat-fade-max-top),
+    #000 100%
+  );
+}
+
+.bb-chat-viewport__stream.is-scrolled-under-bottom:not(.is-scrolled-under-top) {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--bb-chat-fade-max-bottom)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--bb-chat-fade-max-bottom)),
+    transparent 100%
+  );
+}
+
+.bb-chat-viewport__stream.is-scrolled-under-top.is-scrolled-under-bottom {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--bb-chat-fade-max-top),
+    #000 calc(100% - var(--bb-chat-fade-max-bottom)),
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 var(--bb-chat-fade-top),
-    #000 calc(100% - var(--bb-chat-fade-bottom)),
+    #000 var(--bb-chat-fade-max-top),
+    #000 calc(100% - var(--bb-chat-fade-max-bottom)),
     transparent 100%
   );
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  transition: --bb-chat-fade-top 0.18s ease-out, --bb-chat-fade-bottom 0.18s ease-out;
 }
 
-/* An edge fades only while content is scrolled under it. */
-.bb-chat-viewport__stream.is-scrolled-under-top {
-  --bb-chat-fade-top: var(--bb-chat-fade-max-top);
-}
-
-.bb-chat-viewport__stream.is-scrolled-under-bottom {
-  --bb-chat-fade-bottom: var(--bb-chat-fade-max-bottom);
-}
-
-[data-hide-edge-fade='true'] .bb-chat-viewport__stream {
+[data-hide-edge-fade='true'] .bb-chat-viewport__stream,
+[data-gpu-mode='low'] .bb-chat-viewport__stream {
   -webkit-mask-image: none;
   mask-image: none;
 }
@@ -776,7 +785,7 @@
 
 .bb-chat-history__item:hover .bb-chat-history__actions,
 .bb-chat-history__actions:focus-within,
-.bb-chat-history__actions:has(.bb-kebab-menu.is-open) {
+.bb-chat-history__actions[data-kebab-open='true'] {
   opacity: 1;
 }
 

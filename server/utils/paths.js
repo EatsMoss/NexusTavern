@@ -54,6 +54,7 @@ export const NEXUSTAVERN_REFUSAL_FILE = path.join(NEXUSTAVERN_DIR, 'refusal-catc
 export const NEXUSTAVERN_RECAP_FILE = path.join(NEXUSTAVERN_DIR, 'message-recap.json');
 export const NEXUSTAVERN_ST_IMPORTER_FILE = path.join(NEXUSTAVERN_DIR, 'st-importer.json');
 export const NEXUSTAVERN_CUSTOMIZATION_FILE = path.join(NEXUSTAVERN_DIR, 'customization.json');
+export const NEXUSTAVERN_INDEX_CACHE_FILE = path.join(NEXUSTAVERN_DIR, 'index-cache.json');
 export const NEXUSTAVERN_THEMES_DIR = path.join(NEXUSTAVERN_DIR, 'themes');
 export const NEXUSTAVERN_FONTS_DIR = path.join(NEXUSTAVERN_DIR, 'fonts');
 export const USER_IMAGES_DIR = path.join(DEFAULT_USER_DIR, 'user', 'images');

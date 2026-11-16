@@ -4,6 +4,7 @@ import {
   fetchCharacterCard,
   isDemoCardId,
   toChatPortraitUrl,
+  deriveCardChatSummaryPatch,
 } from '@core/cards/cardsApi.js';
 import {
   fetchCharacterChats,
@@ -23,7 +24,10 @@ import {
   deleteMessagesFromChat,
   updateChatMetadata,
 } from '@core/chats/chatsApi.js';
-import { resolvePreferredCharacterChatFile } from '@core/chats/timelineForest.js';
+import {
+  buildTimelineForest,
+  resolvePreferredCharacterChatFile,
+} from '@core/chats/timelineForest.js';
 import { getCustomizationRuntimeSnapshot } from '@core/customization/customizationRuntimeStore.js';
 import { applyTextFormattingRules } from '@core/messages/messageDecorator.js';
 import { readFileAsBase64 } from '@core/utils/imageCodec.js';
@@ -38,7 +42,6 @@ import { useChatStreaming } from './useChatStreaming.js';
 export function useChatWorkspace({
   isMobile,
   cards,
-  setCards,
   groups,
   selectedCardId,
   selectedCardIdRef,
@@ -49,7 +52,7 @@ export function useChatWorkspace({
   activeIntroIdx,
   setActiveIntroIdx,
   commitLoadedActiveCard,
-  loadCardsAndPersonas,
+  patchCardChatSummary,
   handleDeleteCard,
   setCardSaveStatus,
   personaName,
@@ -774,7 +777,8 @@ export function useChatWorkspace({
               : null,
           );
           setCommittedChatCardId(targetCardId);
-          setMessages((branched.messages || []).map(mapServerMsgToUi));
+          const branchedUiMessages = (branched.messages || []).map(mapServerMsgToUi);
+          setMessages(branchedUiMessages);
           setChatMetaStats({
             totalMessages: branched.totalMessages || 0,
             startIndex: branched.startIndex || 0,
@@ -799,13 +803,22 @@ export function useChatWorkspace({
           sessionPersonaHintRef.current = nextHint;
           syncSessionPersona(nextHint);
           recordSessionPointer(targetCardId, branched.fileName);
+          patchCardChatSummary(
+            targetCardId,
+            deriveCardChatSummaryPatch({
+              chatsCount: chatListRes?.totalChats ?? files.length,
+              chats: files,
+              activeChatFile: branched.fileName,
+              activeMessages: branchedUiMessages,
+              fallbackMtimeIso: new Date().toISOString(),
+            }),
+          );
           pushToast({
             variant: 'success',
             icon: 'codeBranch',
             message: 'Branch created',
           });
         }
-        await loadCardsAndPersonas();
       } catch (err) {
         pushToast({
           variant: 'error',
@@ -822,7 +835,7 @@ export function useChatWorkspace({
       sessionPersonaHintRef,
       syncSessionPersona,
       recordSessionPointer,
-      loadCardsAndPersonas,
+      patchCardChatSummary,
       pushToast,
     ],
   );
@@ -851,6 +864,7 @@ export function useChatWorkspace({
 
         forgetDeletedCharacterChats(selectedCardId, list);
 
+        let nextActiveChatFile = activeChatFile;
         if (list.includes(activeChatFile)) {
           if (files.length > 0) {
             const nextTarget =
@@ -858,9 +872,11 @@ export function useChatWorkspace({
                 rememberedFile: '',
                 cardChat: activeCardFull?.chat || '',
               }) || files[0].fileName;
+            nextActiveChatFile = nextTarget;
             // Opening the replacement chat records the new pointer itself.
             await openChatFileWindow(selectedCardId, nextTarget, { force: true });
           } else {
+            nextActiveChatFile = '';
             loadedSessionRef.current = { cardId: selectedCardId, chatFile: '' };
             setActiveChatFile('');
             setMessages([]);
@@ -876,7 +892,14 @@ export function useChatWorkspace({
             recordSessionPointer(selectedCardId, '', { clearCharacterChat: true });
           }
         }
-        await loadCardsAndPersonas();
+        patchCardChatSummary(
+          selectedCardId,
+          deriveCardChatSummaryPatch({
+            chatsCount: chatListRes?.totalChats ?? files.length,
+            chats: files,
+            activeChatFile: nextActiveChatFile,
+          }),
+        );
         pushToast({
           variant: 'info',
           icon: 'trash',
@@ -896,7 +919,7 @@ export function useChatWorkspace({
       openChatFileWindow,
       forgetDeletedCharacterChats,
       recordSessionPointer,
-      loadCardsAndPersonas,
+      patchCardChatSummary,
       pushToast,
     ],
   );
@@ -951,7 +974,15 @@ export function useChatWorkspace({
           await openChatFileWindow(selectedCardId, firstImported, { force: true });
         }
 
-        await loadCardsAndPersonas();
+        patchCardChatSummary(
+          selectedCardId,
+          deriveCardChatSummaryPatch({
+            chatsCount: res?.totalChats ?? files.length,
+            chats: files,
+            activeChatFile: firstImported || activeChatFile,
+            fallbackMtimeIso: new Date().toISOString(),
+          }),
+        );
         const count = res?.count || res?.imported?.length || 0;
         const skippedNote =
           res?.skippedCount > 0 ? ` (${res.skippedCount} skipped)` : '';
@@ -971,9 +1002,10 @@ export function useChatWorkspace({
     },
     [
       selectedCardId,
+      activeChatFile,
       chatBulkBusy,
       openChatFileWindow,
-      loadCardsAndPersonas,
+      patchCardChatSummary,
       pushToast,
     ],
   );
@@ -1005,7 +1037,10 @@ export function useChatWorkspace({
         setMessages([]);
         recordSessionPointer(selectedCardId, '', { clearCharacterChat: true });
 
-        await loadCardsAndPersonas();
+        patchCardChatSummary(
+          selectedCardId,
+          deriveCardChatSummaryPatch({ chatsCount: 0, chats: [] }),
+        );
         const deletedCount = res?.deletedCount ?? 0;
         pushToast({
           variant: 'info',
@@ -1029,7 +1064,7 @@ export function useChatWorkspace({
       setTimelinesOpen,
       forgetDeletedCharacterChats,
       recordSessionPointer,
-      loadCardsAndPersonas,
+      patchCardChatSummary,
       pushToast,
     ],
   );
@@ -1093,7 +1128,8 @@ export function useChatWorkspace({
                 : null,
           );
           setCommittedChatCardId(selectedCardId);
-          setMessages((created.messages || []).map(mapServerMsgToUi));
+          const createdUiMessages = (created.messages || []).map(mapServerMsgToUi);
+          setMessages(createdUiMessages);
           sessionPersonaHintRef.current = {
             chatPersonaAvatar: null,
             hasUserMessages: false,
@@ -1116,9 +1152,18 @@ export function useChatWorkspace({
           setChatListOpen(false);
           setTimelinesOpen(false);
           recordSessionPointer(selectedCardId, created.fileName);
+          patchCardChatSummary(
+            selectedCardId,
+            deriveCardChatSummaryPatch({
+              chatsCount: chatListRes?.totalChats ?? files.length,
+              chats: files,
+              activeChatFile: created.fileName,
+              activeMessages: createdUiMessages,
+              fallbackMtimeIso: new Date().toISOString(),
+            }),
+          );
           scrollToChatBottom();
         }
-        await loadCardsAndPersonas();
       } finally {
         setLoadingChat(false);
       }
@@ -1134,8 +1179,8 @@ export function useChatWorkspace({
       setChatListOpen,
       setTimelinesOpen,
       recordSessionPointer,
+      patchCardChatSummary,
       scrollToChatBottom,
-      loadCardsAndPersonas,
     ],
   );
 
@@ -1174,85 +1219,58 @@ export function useChatWorkspace({
 
     if (!activeChatFile) {
       if (chatFiles.length === 0 && !chatListMeta.hasMore) {
-        setCards((prev) => {
-          let changed = false;
-          const next = prev.map((c) => {
-            if (c.id !== committedChatCardId) return c;
-            if (Number(c.chatsCount ?? 0) === 0 && !c.latestChatPreview) return c;
-            changed = true;
-            return {
-              ...c,
-              chatsCount: 0,
-              latestChatPreview: '',
-            };
-          });
-          return changed ? next : prev;
-        });
+        patchCardChatSummary(
+          committedChatCardId,
+          deriveCardChatSummaryPatch({ chatsCount: 0, chats: [] }),
+        );
       }
       return;
     }
 
-    const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-    if (lastMsg?.isStreaming) return;
-    let rawPreview = '';
     for (let i = messages.length - 1; i >= 0; i -= 1) {
-      const cand = messages[i];
-      if (!cand) continue;
-      const cleaned = String(cand.text || '')
-        .replace(
-          /<(?:think|thinking|reasoning|thought)>[\s\S]*?<\/(?:think|thinking|reasoning|thought)>/gi,
-          ' ',
-        )
-        .replace(/<!--[\s\S]*?-->/g, ' ')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (cleaned) {
-        rawPreview = cleaned.slice(0, 220);
-        break;
-      }
+      if (messages[i]?.isStreaming) return;
     }
-    if (!rawPreview && Array.isArray(lastMsg?.attachments) && lastMsg.attachments.length > 0) {
-      rawPreview = '[Attachment]';
-    }
+
     const liveChatsCount = Math.max(
       Number(chatListMeta.totalChats || 0),
       chatFiles.length,
       1,
     );
-
-    setCards((prev) => {
-      let changed = false;
-      const next = prev.map((c) => {
-        if (c.id !== committedChatCardId) return c;
-        const curCount = Number(c.chatsCount ?? 0);
-        const nextPreview = rawPreview || c.latestChatPreview || '';
-        const nextCount = chatListMeta.hasMore
-          ? Math.max(curCount, liveChatsCount)
-          : liveChatsCount;
-        if (c.latestChatPreview === nextPreview && curCount === nextCount) {
-          return c;
-        }
-        changed = true;
-        return {
-          ...c,
-          chatsCount: nextCount,
-          latestChatPreview: nextPreview,
-        };
-      });
-      return changed ? next : prev;
+    const effectiveChatsCount = chatListMeta.hasMore
+      ? Math.max(Number(committedCharacterObj?.chatsCount ?? 0), liveChatsCount)
+      : liveChatsCount;
+    const derived = deriveCardChatSummaryPatch({
+      chatsCount: effectiveChatsCount,
+      chats: chatFiles,
+      activeChatFile,
+      activeMessages: messages,
     });
+
+    const patch = {
+      chatsCount: derived.chatsCount,
+      ...(derived.latestChatPreview
+        ? {
+            latestChatPreview: derived.latestChatPreview,
+            latestChatSender: derived.latestChatSender,
+            latestChatIsUser: derived.latestChatIsUser,
+          }
+        : {}),
+      ...(derived.latestChatMtime ? { latestChatMtime: derived.latestChatMtime } : {}),
+    };
+
+    patchCardChatSummary(committedChatCardId, patch);
   }, [
     committedChatCardId,
+    committedCharacterObj?.chatsCount,
     selectedCardId,
     loadingCardAndChats,
     loadingChat,
     activeChatFile,
     messages,
-    chatFiles.length,
+    chatFiles,
     chatListMeta.totalChats,
     chatListMeta.hasMore,
-    setCards,
+    patchCardChatSummary,
   ]);
 
   const setSyncedChatFiles = useCallback((files) => {
@@ -1574,7 +1592,8 @@ export function useChatWorkspace({
               : null,
           );
           setCommittedChatCardId(targetCardId);
-          setMessages((branched.messages || []).map(mapServerMsgToUi));
+          const branchedUiMessages = (branched.messages || []).map(mapServerMsgToUi);
+          setMessages(branchedUiMessages);
           setChatFiles(files);
           setTimelineChats(files);
           const nextHint = {
@@ -1607,7 +1626,16 @@ export function useChatWorkspace({
             elapsedMs: branched.elapsedMs || 0,
             syncStatus: `Created ${branched.fileName} up to msg #${mesIndex + 1} (${branched.elapsedMs || 0} ms)`,
           });
-          loadCardsAndPersonas();
+          patchCardChatSummary(
+            targetCardId,
+            deriveCardChatSummaryPatch({
+              chatsCount: chatListRes?.totalChats ?? files.length,
+              chats: files,
+              activeChatFile: branched.fileName,
+              activeMessages: branchedUiMessages,
+              fallbackMtimeIso: new Date().toISOString(),
+            }),
+          );
         };
 
         if (!deferApply) {
@@ -1634,7 +1662,7 @@ export function useChatWorkspace({
       sessionPersonaHintRef,
       syncSessionPersona,
       recordSessionPointer,
-      loadCardsAndPersonas,
+      patchCardChatSummary,
       pushComposerToast,
     ],
   );
@@ -1835,6 +1863,9 @@ export function useChatWorkspace({
           }
 
           if (hasPayload || createdFreshChat) {
+            patchCardChatSummary(selectedCardId, {
+              latestChatMtime: new Date().toISOString(),
+            });
             scrollToChatBottom();
           }
           const sendEmptyContinues =
@@ -1995,6 +2026,12 @@ export function useChatWorkspace({
       null;
   const chatScenarioAvatarUrl = toChatPortraitUrl(rawChatScenarioAvatarUrl);
 
+  const activeTimelineChats = timelineChats.length > 0 ? timelineChats : chatFiles;
+  const timelineForest = useMemo(
+    () => buildTimelineForest(activeTimelineChats),
+    [activeTimelineChats],
+  );
+
   return {
     committedChatCardId,
     loadingCardAndChats,
@@ -2006,6 +2043,7 @@ export function useChatWorkspace({
     chatListMeta,
     activeChatFile,
     timelineChats,
+    timelineForest,
     setTimelineChats,
     loadingTimelines,
     focusedTimelineRequest,

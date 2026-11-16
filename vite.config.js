@@ -26,6 +26,9 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: true,
     open: `http://localhost:${CLIENT_PORT}`,
+    watch: {
+      ignored: ['**/data/**', '**/dist/**'],
+    },
     proxy: {
       '/api': {
         target: `http://127.0.0.1:${SERVER_PORT}`,

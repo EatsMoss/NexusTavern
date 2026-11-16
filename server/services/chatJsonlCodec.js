@@ -7,6 +7,7 @@ import {
   USER_AVATARS_DIR,
   getFullCharacterCard,
   readUserSettings,
+  invalidateChatFolderCacheByChatFile,
 } from './cardStore.js';
 import { resolveActiveRegexScriptsServer } from './regexStore.js';
 import { readMessageRecapConfig } from './recapStore.js';
@@ -16,17 +17,49 @@ import { estimateHistorySliceTokenBreakdown } from '../../src/core/presets/token
 export const GROUP_CHATS_DIR = path.join(DEFAULT_USER_DIR, 'group chats');
 
 /**
- * High-speed in-memory cache of parsed `.jsonl` chats keyed by absolute file path.
+ * Bounded LRU in-memory cache of parsed `.jsonl` chats keyed by normalized file path.
  * Value: { mtimeMs, size, header, messages }
  */
+export const MAX_PARSED_CHAT_CACHE_ENTRIES = 24;
+const MAX_CHAT_SUMMARY_CACHE_ENTRIES = 8192;
 const parsedChatCache = new Map();
 
 /**
- * Lightweight summary cache for `listCharacterChats` keyed by absolute file path.
+ * Lightweight summary cache for `listCharacterChats` keyed by normalized file path.
  * Value: { schemaVer, mtimeMs, size, summary }
  */
 const CHAT_SUMMARY_CACHE_SCHEMA_VER = 4;
 const chatSummaryCache = new Map();
+
+function normalizeChatCacheKey(filePath) {
+  const resolved = path.resolve(String(filePath || ''));
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function getLruEntry(map, key) {
+  if (!map.has(key)) return undefined;
+  const value = map.get(key);
+  map.delete(key);
+  map.set(key, value);
+  return value;
+}
+
+function setLruEntry(map, key, value, maxEntries) {
+  if (map.has(key)) {
+    map.delete(key);
+  } else {
+    while (map.size >= maxEntries) {
+      const oldestKey = map.keys().next().value;
+      if (oldestKey === undefined) break;
+      map.delete(oldestKey);
+    }
+  }
+  map.set(key, value);
+}
+
+export function getParsedChatCacheSize() {
+  return parsedChatCache.size;
+}
 
 export function invalidateChatCodecCaches() {
   parsedChatCache.clear();
@@ -35,13 +68,17 @@ export function invalidateChatCodecCaches() {
 
 export function invalidateChatFileCache(filePath) {
   if (!filePath) return;
-  parsedChatCache.delete(filePath);
-  chatSummaryCache.delete(filePath);
+  const key = normalizeChatCacheKey(filePath);
+  parsedChatCache.delete(key);
+  chatSummaryCache.delete(key);
+  invalidateChatFolderCacheByChatFile(filePath);
 }
 
 export function invalidateChatSummaryFileCache(filePath) {
   if (!filePath) return;
-  chatSummaryCache.delete(filePath);
+  const key = normalizeChatCacheKey(filePath);
+  chatSummaryCache.delete(key);
+  invalidateChatFolderCacheByChatFile(filePath);
 }
 
 export function formatSillyTavernSendDate(date = new Date()) {
@@ -139,7 +176,8 @@ export function readParsedJsonlChat(filePath) {
   if (!fs.existsSync(filePath)) return null;
 
   const stat = fs.statSync(filePath);
-  const cached = parsedChatCache.get(filePath);
+  const cacheKey = normalizeChatCacheKey(filePath);
+  const cached = getLruEntry(parsedChatCache, cacheKey);
   if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
     return cached;
   }
@@ -181,7 +219,7 @@ export function readParsedJsonlChat(filePath) {
     header,
     messages,
   };
-  parsedChatCache.set(filePath, entry);
+  setLruEntry(parsedChatCache, cacheKey, entry, MAX_PARSED_CHAT_CACHE_ENTRIES);
   return entry;
 }
 
@@ -200,7 +238,13 @@ export async function writeParsedJsonlChat(filePath, header, messages) {
     header,
     messages,
   };
-  parsedChatCache.set(filePath, entry);
+  setLruEntry(
+    parsedChatCache,
+    normalizeChatCacheKey(filePath),
+    entry,
+    MAX_PARSED_CHAT_CACHE_ENTRIES,
+  );
+  invalidateChatFolderCacheByChatFile(filePath);
   return entry;
 }
 
@@ -717,7 +761,8 @@ export function listCharacterChats(avatarOrFolder, options = {}) {
     const fullPath = path.join(dirPath, entry.name);
     try {
       const st = fs.statSync(fullPath);
-      const summaryCached = chatSummaryCache.get(fullPath);
+      const fileCacheKey = normalizeChatCacheKey(fullPath);
+      const summaryCached = getLruEntry(chatSummaryCache, fileCacheKey);
       if (
         summaryCached &&
         summaryCached.schemaVer === CHAT_SUMMARY_CACHE_SCHEMA_VER &&
@@ -728,7 +773,7 @@ export function listCharacterChats(avatarOrFolder, options = {}) {
         continue;
       }
 
-      const cached = parsedChatCache.get(fullPath);
+      const cached = parsedChatCache.get(fileCacheKey);
       let messageCount = null;
       let hasUserMessages = false;
       let lastPreview = '';
@@ -895,12 +940,17 @@ export function listCharacterChats(avatarOrFolder, options = {}) {
         personaAvatarMissing,
       };
 
-      chatSummaryCache.set(fullPath, {
-        schemaVer: CHAT_SUMMARY_CACHE_SCHEMA_VER,
-        mtimeMs: st.mtimeMs,
-        size: st.size,
-        summary,
-      });
+      setLruEntry(
+        chatSummaryCache,
+        fileCacheKey,
+        {
+          schemaVer: CHAT_SUMMARY_CACHE_SCHEMA_VER,
+          mtimeMs: st.mtimeMs,
+          size: st.size,
+          summary,
+        },
+        MAX_CHAT_SUMMARY_CACHE_ENTRIES,
+      );
 
       chats.push(summary);
     } catch {

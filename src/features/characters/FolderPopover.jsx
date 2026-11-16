@@ -10,11 +10,11 @@ import { createPortal } from 'react-dom';
 import { Icon } from '@ui/atoms/Icon/Icon.jsx';
 import { ScrollIndicator } from '@ui/atoms/ScrollIndicator/ScrollIndicator.jsx';
 import { CharacterCardTile } from '@ui/molecules/CharacterCardTile/CharacterCardTile.jsx';
+import { useVirtualWindow } from '@core/hooks/useVirtualWindow.js';
 import { computeSlotDisplacement, computeDropSlotBox } from './PinnedSection.jsx';
 
-const FOLDER_INITIAL_CHUNK = 24;
-const FOLDER_CHUNK_STEP = 24;
 const EMPTY_ARRAY = Object.freeze([]);
+const USER_FOLDER_VIRTUALIZE_MIN = 60;
 
 export function FolderPopover({
   activeFolder = null,
@@ -41,7 +41,6 @@ export function FolderPopover({
   const resolvedPopoverRef = externalPopoverRef || internalPopoverRef;
   const internalPopoverGridRef = useRef(null);
   const resolvedPopoverGridRef = externalPopoverGridRef || internalPopoverGridRef;
-  const sentinelRef = useRef(null);
 
   const handleMemberOpen = useCallback(
     (id) => {
@@ -61,19 +60,40 @@ export function FolderPopover({
 
   const members = activeFolder?.items || EMPTY_ARRAY;
   const isUserFolder = activeFolder?.type === 'folder';
+  const colsCount = Math.max(1, Number(gridStyle?.['--bb-char-cols']) || 5);
+  const aspect = gridStyle?.['--bb-char-aspect'] === '1 / 1' ? 'square' : 'portrait';
 
-  const [renderedLimit, setRenderedLimit] = useState(FOLDER_INITIAL_CHUNK);
+  // Keep all slots mounted for standard user folders (and whenever reordering inside a user folder)
+  // so slot index hit-testing works directly; virtualize tag folders & massive folders (800+ cards).
+  const virtualizePopover =
+    Boolean(activeFolder) &&
+    (!isUserFolder || (!dragState?.active && members.length > USER_FOLDER_VIRTUALIZE_MIN));
 
-  useEffect(() => {
-    setRenderedLimit(FOLDER_INITIAL_CHUNK);
-  }, [activeFolder?.id]);
+  const {
+    startIndex: windowStart,
+    endIndex: windowEnd,
+    topPaddingPx,
+    bottomPaddingPx,
+  } = useVirtualWindow({
+    scrollRef: resolvedPopoverGridRef,
+    totalItems: members.length,
+    cols: colsCount,
+    isList: false,
+    aspect,
+    rowGap: 8,
+    colGap: 8,
+    horizontalPadding: 0,
+    basePaddingTop: 0,
+    basePaddingBottom: 0,
+    overscanRows: colsCount <= 3 ? 3 : 2,
+    enabled: virtualizePopover,
+    resetKey: String(activeFolder?.id || ''),
+  });
 
   const visibleMembers = useMemo(
-    () => (isUserFolder ? members : members.slice(0, renderedLimit)),
-    [isUserFolder, members, renderedLimit],
+    () => (virtualizePopover ? members.slice(windowStart, windowEnd) : members),
+    [virtualizePopover, members, windowStart, windowEnd],
   );
-
-  const hasMoreMembers = !isUserFolder && visibleMembers.length < members.length;
 
   const multiSelectedSet = useMemo(
     () => new Set(multiSelectedIds || []),
@@ -141,36 +161,15 @@ export function FolderPopover({
       if (ro) ro.disconnect();
       window.removeEventListener('resize', updatePopoverPosition);
     };
-  }, [activeFolder, visibleMembers.length, gridStyle, anchorSectionRef, updatePopoverPosition]);
-
-  useEffect(() => {
-    if (!activeFolder || !hasMoreMembers) return undefined;
-    const scrollEl = resolvedPopoverGridRef.current;
-    const node = sentinelRef.current;
-    if (!scrollEl || !node) return undefined;
-
-    if (scrollEl.clientHeight > 0 && scrollEl.scrollHeight <= scrollEl.clientHeight + 24) {
-      const rafId = requestAnimationFrame(() => {
-        setRenderedLimit((prev) => Math.min(members.length, prev + FOLDER_CHUNK_STEP));
-      });
-      return () => cancelAnimationFrame(rafId);
-    }
-
-    if (typeof IntersectionObserver === 'undefined') return undefined;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setRenderedLimit((prev) => Math.min(members.length, prev + FOLDER_CHUNK_STEP));
-        }
-      },
-      {
-        root: scrollEl,
-        rootMargin: '160px 0px',
-      },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [activeFolder, hasMoreMembers, members.length, renderedLimit, resolvedPopoverGridRef]);
+  }, [
+    activeFolder,
+    members.length,
+    topPaddingPx,
+    bottomPaddingPx,
+    gridStyle,
+    anchorSectionRef,
+    updatePopoverPosition,
+  ]);
 
   useEffect(() => {
     if (!activeFolder || typeof document === 'undefined') return undefined;
@@ -293,7 +292,21 @@ export function FolderPopover({
 
       <div className="bb-folder-popover-grid-wrap">
         <div
-          className="bb-folder-popover-grid bb-scrollbar--hidden"
+          className={[
+            'bb-folder-popover-grid',
+            'bb-scrollbar--hidden',
+            dragState?.active ? 'is-drag-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          style={
+            virtualizePopover
+              ? {
+                  paddingTop: `${topPaddingPx}px`,
+                  paddingBottom: `${bottomPaddingPx}px`,
+                }
+              : undefined
+          }
           ref={resolvedPopoverGridRef}
         >
           {popoverDropSlotBox && (
@@ -308,7 +321,8 @@ export function FolderPopover({
             />
           )}
 
-          {visibleMembers.map((member, mIndex) => {
+          {visibleMembers.map((member, localIdx) => {
+            const mIndex = virtualizePopover ? windowStart + localIdx : localIdx;
             const isPopoverSource =
               dragState?.active &&
               dragState.sourceOrigin === 'folder-popover' &&
@@ -323,7 +337,7 @@ export function FolderPopover({
                 key={member.id}
                 data-bb-popover-slot={mIndex}
                 style={memberDisplacement}
-                className={`bb-pinned-slot ${isPopoverSource ? 'is-dragging-source' : ''}`}
+                className={`${isUserFolder ? 'bb-pinned-slot' : 'bb-char-gallery__item'} ${isPopoverSource ? 'is-dragging-source' : ''}`.trim()}
                 onPointerDown={(e) => {
                   if (
                     e.target.closest(
@@ -374,14 +388,6 @@ export function FolderPopover({
               </div>
             );
           })}
-
-          {hasMoreMembers && (
-            <div
-              ref={sentinelRef}
-              style={{ gridColumn: '1 / -1', height: 4 }}
-              aria-hidden="true"
-            />
-          )}
 
           {members.length === 0 && (
             <div className="bb-pinned-empty">This folder is empty.</div>

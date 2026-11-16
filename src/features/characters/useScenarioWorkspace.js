@@ -31,6 +31,7 @@ import {
   updateCharacterLoreBindings,
   importEmbeddedCardLore,
   isDemoCardId,
+  applyCardChatSummaryPatch,
 } from '@core/cards/cardsApi.js';
 import { readFileAsBase64 } from '@core/utils/imageCodec.js';
 import { useImageCropQueue } from '@ui/index.js';
@@ -201,6 +202,57 @@ export function useScenarioWorkspace({
       setLoadingCards(false);
     }
   }, [consumeRestoredCardAvatar]);
+
+  const patchCardChatSummary = useCallback((cardId, patch) => {
+    if (!cardId || !patch || isDemoCardId(cardId)) return;
+    setCards((prev) => applyCardChatSummaryPatch(prev, cardId, patch));
+    setActiveCardFull((prev) => {
+      if (!prev || prev.avatar !== cardId) return prev;
+      const prevStats = prev.chatStats || {};
+      const nextChatsCount =
+        patch.chatsCount !== undefined
+          ? Math.max(0, Number(patch.chatsCount) || 0)
+          : (prevStats.chatsCount ?? 0);
+      const nextPreview =
+        patch.latestChatPreview !== undefined
+          ? String(patch.latestChatPreview || '')
+          : (prevStats.latestChatPreview ?? '');
+      const nextSender =
+        patch.latestChatSender !== undefined
+          ? String(patch.latestChatSender || '')
+          : (prevStats.latestChatSender ?? '');
+      const nextIsUser =
+        patch.latestChatIsUser !== undefined
+          ? Boolean(patch.latestChatIsUser)
+          : Boolean(prevStats.latestChatIsUser);
+      const nextMtime =
+        patch.latestChatMtime !== undefined
+          ? patch.latestChatMtime
+          : (prevStats.latestChatMtime ?? null);
+
+      if (
+        prevStats.chatsCount === nextChatsCount &&
+        (prevStats.latestChatPreview ?? '') === nextPreview &&
+        (prevStats.latestChatSender ?? '') === nextSender &&
+        Boolean(prevStats.latestChatIsUser) === nextIsUser &&
+        (prevStats.latestChatMtime ?? null) === nextMtime
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        chatStats: {
+          ...prevStats,
+          chatsCount: nextChatsCount,
+          latestChatPreview: nextPreview,
+          latestChatSender: nextSender,
+          latestChatIsUser: nextIsUser,
+          latestChatMtime: nextMtime,
+        },
+      };
+    });
+  }, []);
 
   const handleSaveCardToPng = useCallback(async () => {
     if (!activeCardFull || cardSaving) return false;
@@ -1174,43 +1226,53 @@ export function useScenarioWorkspace({
     [gallery],
   );
 
-  const visibleSelectableIds = useMemo(() => {
-    const tagNameById = new Map();
-    for (const t of tags) tagNameById.set(String(t.id), String(t.name || ''));
-    const hiddenSet = new Set((hiddenTagIds || []).map(String));
+  const tagNameById = useMemo(() => {
+    const map = new Map();
+    for (const t of tags) map.set(String(t.id), String(t.name || ''));
+    return map;
+  }, [tags]);
 
-    if (gallery.entityFilter === 'groups') {
-      const q = String(gallery.query || '').trim().toLowerCase();
-      const filteredGroups = q
-        ? groups.filter((g) => String(g.name || '').toLowerCase().includes(q))
-        : groups;
-      return sortCards(filteredGroups, gallery.sortMode).map((g) => g.id);
-    }
+  const hiddenTagSet = useMemo(
+    () => new Set((hiddenTagIds || []).map(String)),
+    [hiddenTagIds],
+  );
 
+  const visibleGalleryCards = useMemo(() => {
     const nonHidden =
-      hiddenSet.size === 0
+      hiddenTagSet.size === 0
         ? cards
-        : cards.filter((card) => {
-            const cTags = card.tagIds || card.tags || [];
-            return !cTags.some((tid) => hiddenSet.has(String(tid)));
-          });
-
+        : cards.filter(
+            (card) => !(card.tagIds || card.tags || []).some((tid) => hiddenTagSet.has(String(tid))),
+          );
     const filtered = filterCards(nonHidden, {
       query: gallery.query,
       chipState: gallery.chipState,
       tagNameById,
     });
-    return sortCards(filtered, gallery.sortMode).map((c) => c.id);
-  }, [
-    cards,
-    groups,
-    tags,
-    hiddenTagIds,
-    gallery.entityFilter,
-    gallery.query,
-    gallery.chipState,
-    gallery.sortMode,
-  ]);
+    return sortCards(filtered, gallery.sortMode);
+  }, [cards, hiddenTagSet, gallery.query, gallery.chipState, tagNameById, gallery.sortMode]);
+
+  const visibleGalleryGroups = useMemo(() => {
+    const nonHidden =
+      hiddenTagSet.size === 0
+        ? groups
+        : groups.filter(
+            (grp) => !(grp.tagIds || grp.tags || []).some((tid) => hiddenTagSet.has(String(tid))),
+          );
+    const filtered = filterCards(nonHidden, {
+      query: gallery.query,
+      chipState: gallery.chipState,
+      tagNameById,
+    });
+    return sortCards(filtered, gallery.sortMode);
+  }, [groups, hiddenTagSet, gallery.query, gallery.chipState, tagNameById, gallery.sortMode]);
+
+  const visibleSelectableIds = useMemo(() => {
+    if (gallery.entityFilter === 'groups') {
+      return visibleGalleryGroups.map((g) => g.id);
+    }
+    return visibleGalleryCards.map((c) => c.id);
+  }, [gallery.entityFilter, visibleGalleryCards, visibleGalleryGroups]);
 
   const allResultsSelected = useMemo(() => {
     if (visibleSelectableIds.length === 0) return false;
@@ -2220,6 +2282,8 @@ export function useScenarioWorkspace({
     multiSelectActive,
     multiSelectedIds,
     multiSelectSubpopover,
+    visibleCards: visibleGalleryCards,
+    visibleGroups: visibleGalleryGroups,
     visibleSelectableIds,
     allResultsSelected,
     multiSelectPopover,
@@ -2251,6 +2315,7 @@ export function useScenarioWorkspace({
     isActiveCardDirty,
     resolvedEditingIntro,
     loadCardsAndPersonas,
+    patchCardChatSummary,
     handleSaveCardToPng,
     handlePersistCardPatch,
     handleDiscardCardChanges,
