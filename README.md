@@ -1,3 +1,6 @@
+(Начальный этап. На данный момент адаптация только под десктоп пк)
+
+
 # NexusTavern
 
 **Modern Material You (M3) AI Roleplay Workspace — 100% Compatible with SillyTavern User Data**
