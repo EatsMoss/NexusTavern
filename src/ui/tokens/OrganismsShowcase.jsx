@@ -7,6 +7,7 @@ import {
   MarkdownEditor,
   PinnedLayout,
   Modal,
+  ImageCropModal,
   UnsavedChangesModal,
   TopBar,
   ChatMessageCard,
@@ -86,6 +87,7 @@ export function OrganismsShowcase() {
   const [cards, setCards] = useState(INITIAL_CARDS);
   const [selectedCardId, setSelectedCardId] = useState('c1');
   const [modalOpen, setModalOpen] = useState(false);
+  const [cropDemoOpen, setCropDemoOpen] = useState(false);
   const [welcomeDemoOpen, setWelcomeDemoOpen] = useState(false);
   const [unsavedDemoOpen, setUnsavedDemoOpen] = useState(false);
   const [demoChatListOpen, setDemoChatListOpen] = useState(false);
@@ -172,6 +174,9 @@ export function OrganismsShowcase() {
           </p>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <Button variant="b1" emphasis="tonal" icon="crop" onClick={() => setCropDemoOpen(true)}>
+            Preview M3 ImageCropModal
+          </Button>
           <Button variant="b1" emphasis="tonal" icon="sparkles" onClick={() => setWelcomeDemoOpen(true)}>
             Preview First-Run Welcome Modal
           </Button>
@@ -607,6 +612,15 @@ export function OrganismsShowcase() {
           onChange={setMdText}
         />
       </Modal>
+
+      <ImageCropModal
+        open={cropDemoOpen}
+        imageSrc="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='900'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%232b3354'/><stop offset='100%' stop-color='%236575b3'/></linearGradient></defs><rect width='900' height='900' fill='url(%23g)'/><circle cx='450' cy='360' r='130' fill='%23ececf4' opacity='0.9'/><path d='M230 820c35-170 130-260 220-260s185 90 220 260' fill='%23ececf4' opacity='0.85'/></svg>"
+        fileName="demo-square-artwork.png"
+        title="Crop Portrait (2:3 M3 Preview)"
+        onCancel={() => setCropDemoOpen(false)}
+        onConfirm={() => setCropDemoOpen(false)}
+      />
 
       <WelcomeModal
         open={welcomeDemoOpen}

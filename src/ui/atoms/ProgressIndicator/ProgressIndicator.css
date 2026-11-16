@@ -7,7 +7,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--bb-space-2);
-  color: var(--md-sys-color-primary);
+  color: var(--bb-accent-color, var(--md-sys-color-primary));
   user-select: none;
 }
 
@@ -82,8 +82,12 @@
 
 .bb-progress__circular-track {
   fill: none;
-  stroke: var(--md-sys-color-surface-container-highest);
-  opacity: 0.72;
+  stroke: color-mix(
+    in srgb,
+    var(--bb-accent-color, var(--md-sys-color-primary)) 22%,
+    var(--bb-page-border, var(--md-sys-color-outline-variant))
+  );
+  opacity: 0.78;
 }
 
 .bb-progress__circular-active {
@@ -126,7 +130,11 @@
   width: 100%;
   height: 4px;
   border-radius: var(--md-sys-shape-corner-full, 9999px);
-  background-color: var(--md-sys-color-surface-container-highest);
+  background-color: color-mix(
+    in srgb,
+    var(--bb-accent-color, var(--md-sys-color-primary)) 18%,
+    var(--bb-page-border, var(--md-sys-color-surface-container-highest))
+  );
   overflow: hidden;
 }
 
@@ -146,8 +154,8 @@
   border-radius: inherit;
   background: linear-gradient(
     90deg,
-    var(--md-sys-color-primary) 0%,
-    var(--md-sys-color-tertiary, var(--md-sys-color-primary)) 100%
+    var(--bb-accent-color, var(--md-sys-color-primary)) 0%,
+    var(--md-sys-color-tertiary, var(--bb-accent-bright, var(--md-sys-color-primary))) 100%
   );
   transition: width 240ms var(--md-sys-motion-easing-standard);
 }

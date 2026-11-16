@@ -650,9 +650,9 @@ export function decoratorStyles() {
 .bb-decorator-blockquote {
   margin: 2px 0;
   padding: 6px 12px;
-  border-left: 3px solid var(--md-sys-color-tertiary, #8e7cc3);
+  border-left: 3px solid var(--md-sys-color-tertiary, var(--bb-ink-accent));
   border-radius: 0 6px 6px 0;
-  background: rgba(101, 117, 179, 0.06);
+  background: color-mix(in srgb, var(--md-sys-color-primary) 7%, transparent);
   font-style: italic;
 }
 .bb-decorator-hr {

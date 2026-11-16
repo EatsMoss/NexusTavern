@@ -171,23 +171,38 @@ export function buildDerivedTavernPalette({
     const inkMutedHex = hslToHex(h, sLight(16, 26), 43);
 
     const accentHex = normalizeHexColor(ov.accentHex, hslToHex(accH, accS, accBaseL));
-    const accentBrightHex = hslToHex(accH, clamp(accS * 1.05, 0, 58), clamp(accBaseL - 8, 22, 40));
-    const accentSoftHex = hslToHex(accH, clamp(accS * 0.75, 0, 46), clamp(accBaseL + 14, 44, 64));
+    const effAccHsl = rgbToHsl(hexToRgb(accentHex));
+    const accentBrightHex = hslToHex(effAccHsl.h, clamp(effAccHsl.s * 1.05, 0, 62), clamp(effAccHsl.l - 8, 22, 40));
+    const accentSoftHex = hslToHex(effAccHsl.h, clamp(effAccHsl.s * 0.75, 0, 48), clamp(effAccHsl.l + 14, 44, 64));
     const accentBorderHex = normalizeHexColor(
       ov.accentBorderHex,
-      isTwoColor ? hslToHex(accH, clamp(accS * 0.65, 0, 46), clamp(accBaseL + 12, 44, 66)) : borderBaseHex,
+      isTwoColor ? hslToHex(effAccHsl.h, clamp(effAccHsl.s * 0.65, 0, 46), clamp(effAccHsl.l + 12, 44, 66)) : borderBaseHex,
     );
 
     const accentSurfaceTop = hslToHex(
-      accH,
-      isTwoColor ? clamp(accS * 0.36, 0, 28) : sLight(16, 24),
+      effAccHsl.h,
+      isTwoColor ? clamp(effAccHsl.s * 0.36, 0, 28) : sLight(16, 24),
       clamp(surfBaseL - 4.5, 82, 92),
     );
     const accentSurfaceBot = hslToHex(
-      accH,
-      isTwoColor ? clamp(accS * 0.44, 0, 32) : sLight(18, 28),
+      effAccHsl.h,
+      isTwoColor ? clamp(effAccHsl.s * 0.44, 0, 32) : sLight(18, 28),
       clamp(surfBaseL - 10.5, 76, 86),
     );
+
+    const secondaryHex = hslToHex(h, sLight(18, 28), 40);
+    const secondaryContainerHex = hslToHex(h, sLight(16, 24), clamp(surfBaseL - 3.5, 84, 93));
+    const tertiaryHex = hslToHex(
+      effAccHsl.h,
+      clamp(effAccHsl.s * 0.96, 0, 64),
+      clamp(effAccHsl.l - 4, 26, 44),
+    );
+    const tertiaryContainerHex = hslToHex(
+      effAccHsl.h,
+      clamp(effAccHsl.s * 0.42, 0, 32),
+      clamp(surfBaseL - 5, 82, 92),
+    );
+    const onPrimaryHex = effAccHsl.l > 62 ? inkHeadingHex : '#ffffff';
 
     const pageBgRgba = hexToRgba(bgMidHex, 0.94);
     const cardBgRgba = hexToRgba(bgCardHex, 0.92);
@@ -269,9 +284,17 @@ export function buildDerivedTavernPalette({
         '--md-sys-color-on-surface-variant': inkMainHex,
         '--md-sys-color-on-surface-muted': inkMutedHex,
         '--md-sys-color-primary': accentHex,
-        '--md-sys-color-on-primary': '#ffffff',
+        '--md-sys-color-on-primary': onPrimaryHex,
         '--md-sys-color-primary-container': accentSurfaceTop,
         '--md-sys-color-on-primary-container': inkHeadingHex,
+        '--md-sys-color-secondary': secondaryHex,
+        '--md-sys-color-on-secondary': '#ffffff',
+        '--md-sys-color-secondary-container': secondaryContainerHex,
+        '--md-sys-color-on-secondary-container': inkMainHex,
+        '--md-sys-color-tertiary': tertiaryHex,
+        '--md-sys-color-on-tertiary': '#ffffff',
+        '--md-sys-color-tertiary-container': tertiaryContainerHex,
+        '--md-sys-color-on-tertiary-container': inkHeadingHex,
         '--md-sys-color-surface-container-low-user': hslToRgba(h, sLight(13, 18), clamp(surfBaseL + 1, 89, 96), 0.93),
         '--md-sys-color-outline': borderBaseHex,
         '--md-sys-color-outline-variant': borderSoftRgba,
@@ -332,25 +355,40 @@ export function buildDerivedTavernPalette({
   const inkMutedHex = borderBaseHex;
 
   const accentHex = normalizeHexColor(ov.accentHex, hslToHex(accH, accS, accBaseL));
-  const accentBrightHex = hslToHex(accH, clamp(accS * 1.05, 0, 96), clamp(accBaseL + 16, 58, 96));
-  const accentSoftHex = hslToHex(accH, clamp(accS * 0.85, 0, 82), clamp(accBaseL - 10, 22, 74));
+  const effAccHsl = rgbToHsl(hexToRgb(accentHex));
+  const accentBrightHex = hslToHex(effAccHsl.h, clamp(effAccHsl.s * 1.05, 0, 96), clamp(effAccHsl.l + 16, 58, 96));
+  const accentSoftHex = hslToHex(effAccHsl.h, clamp(effAccHsl.s * 0.85, 0, 82), clamp(effAccHsl.l - 10, 22, 74));
   const accentBorderHex = normalizeHexColor(
     ov.accentBorderHex,
     isTwoColor
-      ? hslToHex(accH, clamp(accS * 0.85, 0, 88), clamp(accBaseL + 4, 34, 84))
+      ? hslToHex(effAccHsl.h, clamp(effAccHsl.s * 0.85, 0, 88), clamp(effAccHsl.l + 4, 34, 84))
       : borderBaseHex,
   );
 
   const accentSurfaceTop = hslToHex(
-    accH,
-    isTwoColor ? clamp(accS * 0.58, 0, 68) : sScaled(15, 52),
-    isTwoColor ? clamp(Math.max(accBaseL * 0.46, darkBaseL + 10), 10, 66) : clamp(darkBaseL + 15, 8, 66),
+    effAccHsl.h,
+    isTwoColor ? clamp(effAccHsl.s * 0.58, 0, 68) : sScaled(15, 52),
+    isTwoColor ? clamp(Math.max(effAccHsl.l * 0.46, darkBaseL + 10), 10, 66) : clamp(darkBaseL + 15, 8, 66),
   );
   const accentSurfaceBot = hslToHex(
-    accH,
-    isTwoColor ? clamp(accS * 0.5, 0, 60) : sScaled(15, 48),
-    isTwoColor ? clamp(Math.max(accBaseL * 0.31, darkBaseL + 4), 5, 58) : clamp(darkBaseL + 8, 4, 58),
+    effAccHsl.h,
+    isTwoColor ? clamp(effAccHsl.s * 0.5, 0, 60) : sScaled(15, 48),
+    isTwoColor ? clamp(Math.max(effAccHsl.l * 0.31, darkBaseL + 4), 5, 58) : clamp(darkBaseL + 8, 4, 58),
   );
+
+  const m3SecondaryHex = borderBaseHex;
+  const m3SecondaryContainerHex = hslToHex(h, sScaled(15, 24), clamp(darkBaseL + 12, 13, 56));
+  const m3TertiaryHex = hslToHex(
+    effAccHsl.h,
+    clamp(effAccHsl.s * 0.88, 0, 88),
+    clamp(effAccHsl.l + 10, 62, 86),
+  );
+  const m3TertiaryContainerHex = hslToHex(
+    effAccHsl.h,
+    clamp(effAccHsl.s * 0.52, 0, 64),
+    clamp(Math.max(effAccHsl.l * 0.42, darkBaseL + 11), 11, 62),
+  );
+  const onPrimaryHex = effAccHsl.l > 66 ? bgDeepHex : inkHeadingHex;
 
   const pageBgRgba = hexToRgba(bgDeepHex, 0.9);
   const cardBgRgba = hexToRgba(bgCardHex, 0.84);
@@ -433,9 +471,17 @@ export function buildDerivedTavernPalette({
       '--md-sys-color-on-surface-variant': inkMainHex,
       '--md-sys-color-on-surface-muted': inkMutedHex,
       '--md-sys-color-primary': accentHex,
-      '--md-sys-color-on-primary': inkHeadingHex,
+      '--md-sys-color-on-primary': onPrimaryHex,
       '--md-sys-color-primary-container': accentSurfaceTop,
       '--md-sys-color-on-primary-container': inkHeadingHex,
+      '--md-sys-color-secondary': m3SecondaryHex,
+      '--md-sys-color-on-secondary': inkHeadingHex,
+      '--md-sys-color-secondary-container': m3SecondaryContainerHex,
+      '--md-sys-color-on-secondary-container': inkMainHex,
+      '--md-sys-color-tertiary': m3TertiaryHex,
+      '--md-sys-color-on-tertiary': bgDeepHex,
+      '--md-sys-color-tertiary-container': m3TertiaryContainerHex,
+      '--md-sys-color-on-tertiary-container': inkHeadingHex,
       '--md-sys-color-surface-container-low-user': hslToRgba(h, sScaled(13, 16), clamp(darkBaseL + 3, 9, 52), 0.88),
       '--md-sys-color-outline': borderBaseHex,
       '--md-sys-color-outline-variant': borderSoftRgba,

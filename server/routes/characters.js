@@ -42,7 +42,10 @@ import {
   updateCharacterAuxWorlds,
   extractEmbeddedLorebookToWorld,
 } from '../services/worldBindingsStore.js';
-import { ensureThumbnailFile } from '../services/thumbnails.js';
+import {
+  ensureThumbnailFile,
+  ensureScenarioPortraitThumbnailFile,
+} from '../services/thumbnails.js';
 import { invalidateChatStoreCaches } from '../services/chatStore.js';
 import { readSession, saveSession } from '../services/sessionStore.js';
 import {
@@ -571,15 +574,26 @@ charactersRouter.post('/:avatar/import-embedded-lore', async (req, res) => {
 
 /**
  * DELETE /api/characters/:avatar/portraits/:portraitId
- * Removes a portrait from the scenario's gallery.
+ * Removes a portrait from the scenario's gallery (blocked when only 1 portrait remains).
  */
 charactersRouter.delete('/:avatar/portraits/:portraitId', async (req, res) => {
   try {
-    const scenarioMeta = await removeScenarioGalleryPortrait(
+    const result = await removeScenarioGalleryPortrait(
       req.params.avatar,
       req.params.portraitId,
     );
-    res.json({ ok: true, scenarioMeta });
+    let card = null;
+    if (result?.switchedActiveToId) {
+      card = await applyGalleryPortraitAsMainAvatar(
+        req.params.avatar,
+        result.switchedActiveToId,
+      );
+    }
+    res.json({
+      ok: true,
+      scenarioMeta: card?.scenarioMeta || result?.scenarioMeta || result,
+      card,
+    });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
@@ -622,14 +636,36 @@ charactersRouter.delete('/:avatar', async (req, res) => {
 });
 
 /**
- * Thumbnail router mounted at /api/thumbnails/:type/:filename
+ * Thumbnail router mounted at /api/thumbnails
+ * Supports:
+ *   - GET /api/thumbnails/:type/:filename (`?size=chat` -> 128px smooth chat portrait)
+ *   - GET /api/thumbnails/portrait/:slug/:filename (custom scenario/intro portraits)
  */
 export const thumbnailsRouter = Router();
+
+thumbnailsRouter.get('/portrait/:slug/:filename', async (req, res) => {
+  try {
+    const thumbPath = await ensureScenarioPortraitThumbnailFile(
+      req.params.slug,
+      req.params.filename,
+    );
+    if (!thumbPath) {
+      return res.status(404).json({ ok: false, error: 'Portrait thumbnail source not found' });
+    }
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.sendFile(thumbPath);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 thumbnailsRouter.get('/:type/:filename', async (req, res) => {
   try {
     const type = req.params.type === 'persona' ? 'persona' : 'avatar';
-    const thumbPath = await ensureThumbnailFile(type, req.params.filename);
+    const isChatSize = req.query.size === 'chat';
+    const thumbPath = await ensureThumbnailFile(type, req.params.filename, {
+      chat: isChatSize,
+    });
     if (!thumbPath) {
       return res.status(404).json({ ok: false, error: 'Thumbnail source not found' });
     }

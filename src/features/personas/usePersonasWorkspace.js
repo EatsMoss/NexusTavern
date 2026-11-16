@@ -7,6 +7,7 @@ import {
   duplicatePersona,
   deletePersona,
   isDemoCardId,
+  toChatPortraitUrl,
 } from '@core/cards/cardsApi.js';
 import {
   fetchCharacterChats,
@@ -531,8 +532,9 @@ export function usePersonasWorkspace({
     [personas, activePersonaAvatar],
   );
 
-  const activePersonaAvatarUrl =
-    activePersonaObj?.thumbnailUrl || activePersonaObj?.avatarUrl || null;
+  const activePersonaAvatarUrl = toChatPortraitUrl(
+    activePersonaObj?.thumbnailUrl || activePersonaObj?.avatarUrl || null,
+  );
 
   return {
     personaSheetRef,

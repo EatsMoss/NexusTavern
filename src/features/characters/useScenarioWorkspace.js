@@ -32,10 +32,8 @@ import {
   importEmbeddedCardLore,
   isDemoCardId,
 } from '@core/cards/cardsApi.js';
-import {
-  convertImageFileToPngBase64,
-  readFileAsBase64,
-} from '@core/utils/imageCodec.js';
+import { readFileAsBase64 } from '@core/utils/imageCodec.js';
+import { useImageCropQueue } from '@ui/index.js';
 import { serializeCardEditableSnapshot } from './CharacterSheet/CharacterSheet.jsx';
 import {
   resolveIntroEditorTargetData,
@@ -318,14 +316,23 @@ export function useScenarioWorkspace({
     [activeCardFull?.avatar],
   );
 
+  const {
+    requestCropFile: requestScenarioCropFile,
+    requestCropFiles: requestScenarioCropFiles,
+    cropModalProps: portraitCropModalProps,
+  } = useImageCropQueue({ defaultTitle: 'Crop Portrait' });
+
   const handlePickMainPortraitFile = useCallback(
     async (file) => {
       if (!activeCardFull?.avatar || !file || busyPortrait) return;
+      const cropped = await requestScenarioCropFile(file, {
+        title: 'Crop Character Portrait',
+      });
+      if (!cropped?.dataUrl) return;
       setBusyPortrait(true);
       try {
-        const pngBase64 = await convertImageFileToPngBase64(file);
         const label = file.name.replace(/\.[^.]+$/, '') || 'Portrait';
-        const updated = await replaceCharacterCardAvatar(activeCardFull.avatar, pngBase64);
+        const updated = await replaceCharacterCardAvatar(activeCardFull.avatar, cropped.dataUrl);
         if (updated) {
           commitLoadedActiveCard(updated);
           setCardSaveStatus(`Main portrait updated (${label})`);
@@ -338,20 +345,30 @@ export function useScenarioWorkspace({
         setBusyPortrait(false);
       }
     },
-    [activeCardFull?.avatar, busyPortrait, commitLoadedActiveCard, loadCardsAndPersonas],
+    [
+      activeCardFull?.avatar,
+      busyPortrait,
+      requestScenarioCropFile,
+      commitLoadedActiveCard,
+      loadCardsAndPersonas,
+    ],
   );
 
   const handleUploadGalleryPortraits = useCallback(
     async (files) => {
       if (!activeCardFull?.avatar || !files?.length || busyPortrait) return;
+      const croppedItems = await requestScenarioCropFiles(files, {
+        title: files.length > 1 ? 'Crop Alternate Portraits' : 'Crop Alternate Portrait',
+      });
+      if (!croppedItems.length) return;
       setBusyPortrait(true);
       try {
         let latestMeta = null;
-        for (const file of files) {
-          const pngBase64 = await convertImageFileToPngBase64(file);
-          const label = file.name.replace(/\.[^.]+$/, '') || 'Portrait';
+        for (const item of croppedItems) {
+          const srcName = item.file?.name || 'Portrait.png';
+          const label = srcName.replace(/\.[^.]+$/, '') || 'Portrait';
           const res = await uploadScenarioGalleryPortrait(activeCardFull.avatar, {
-            imageBase64: pngBase64,
+            imageBase64: item.dataUrl,
             fileName: `${label}.png`,
             label,
           });
@@ -362,7 +379,7 @@ export function useScenarioWorkspace({
           if (cleanCardObjRef.current?.avatar === activeCardFull.avatar) {
             cleanCardObjRef.current = { ...cleanCardObjRef.current, scenarioMeta: latestMeta };
           }
-          setCardSaveStatus(`Added ${files.length} portrait(s) to gallery`);
+          setCardSaveStatus(`Added ${croppedItems.length} portrait(s) to gallery`);
           setTimeout(() => setCardSaveStatus(''), 2500);
         }
       } catch (err) {
@@ -371,7 +388,7 @@ export function useScenarioWorkspace({
         setBusyPortrait(false);
       }
     },
-    [activeCardFull?.avatar, busyPortrait],
+    [activeCardFull?.avatar, busyPortrait, requestScenarioCropFiles],
   );
 
   const handleSelectGalleryPortrait = useCallback(
@@ -398,13 +415,27 @@ export function useScenarioWorkspace({
   const handleDeleteGalleryPortrait = useCallback(
     async (item) => {
       if (!activeCardFull?.avatar || !item?.id || busyPortrait) return;
+      const galleryLen = activeCardFull?.scenarioMeta?.avatarGallery?.length || 0;
+      if (galleryLen <= 1) {
+        setCardSaveStatus('Cannot remove the only remaining portrait');
+        setTimeout(() => setCardSaveStatus(''), 2400);
+        return;
+      }
       setBusyPortrait(true);
       try {
-        const meta = await removeScenarioGalleryPortrait(activeCardFull.avatar, item.id);
-        if (meta) {
-          setActiveCardFull((prev) => (prev ? { ...prev, scenarioMeta: meta } : prev));
+        const res = await removeScenarioGalleryPortrait(activeCardFull.avatar, item.id);
+        if (res?.card) {
+          commitLoadedActiveCard(res.card);
+          await loadCardsAndPersonas();
+        } else if (res?.scenarioMeta) {
+          setActiveCardFull((prev) =>
+            prev ? { ...prev, scenarioMeta: res.scenarioMeta } : prev,
+          );
           if (cleanCardObjRef.current?.avatar === activeCardFull.avatar) {
-            cleanCardObjRef.current = { ...cleanCardObjRef.current, scenarioMeta: meta };
+            cleanCardObjRef.current = {
+              ...cleanCardObjRef.current,
+              scenarioMeta: res.scenarioMeta,
+            };
           }
         }
       } catch (err) {
@@ -413,7 +444,13 @@ export function useScenarioWorkspace({
         setBusyPortrait(false);
       }
     },
-    [activeCardFull?.avatar, busyPortrait],
+    [
+      activeCardFull?.avatar,
+      activeCardFull?.scenarioMeta?.avatarGallery?.length,
+      busyPortrait,
+      commitLoadedActiveCard,
+      loadCardsAndPersonas,
+    ],
   );
 
   const handlePickReplaceCardFile = useCallback(
@@ -552,12 +589,15 @@ export function useScenarioWorkspace({
   const handleUploadIntroPortrait = useCallback(
     async (kind, introIdx, file, { applyImmediately = true } = {}) => {
       if (!activeCardFull?.avatar || !file || busyPortrait) return null;
+      const cropped = await requestScenarioCropFile(file, {
+        title: `Crop Intro #${introIdx + 1} Portrait`,
+      });
+      if (!cropped?.dataUrl) return null;
       setBusyPortrait(true);
       try {
-        const pngBase64 = await convertImageFileToPngBase64(file);
         const label = file.name.replace(/\.[^.]+$/, '') || `Intro #${introIdx + 1}`;
         const res = await uploadScenarioGalleryPortrait(activeCardFull.avatar, {
-          imageBase64: pngBase64,
+          imageBase64: cropped.dataUrl,
           fileName: `${label}.png`,
           label,
         });
@@ -605,6 +645,7 @@ export function useScenarioWorkspace({
       activeCardFull?.alternate_greetings,
       activeCardFull?.group_only_greetings,
       busyPortrait,
+      requestScenarioCropFile,
     ],
   );
 
@@ -2220,6 +2261,7 @@ export function useScenarioWorkspace({
     handleSelectGalleryPortrait,
     handleDeleteGalleryPortrait,
     handleUploadIntroPortrait,
+    portraitCropModalProps,
     handlePickReplaceCardFile,
     handleConvertActiveCardToPersona,
     handleRefreshChatPortraits,

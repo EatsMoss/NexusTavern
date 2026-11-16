@@ -305,6 +305,14 @@
   box-sizing: border-box;
 }
 
+.bb-md-editor-wrap--fill .bb-md-editor__surface {
+  flex: 1 1 0%;
+  min-height: 0;
+  max-height: none;
+  height: 100%;
+  resize: none;
+}
+
 .bb-md-editor__textarea-scroll.bb-scroll-indicator--compact {
   bottom: 12px;
 }

@@ -96,6 +96,8 @@ export {
 export { MarkdownEditor } from './organisms/MarkdownEditor/MarkdownEditor.jsx';
 export { PinnedLayout } from './organisms/PinnedLayout/PinnedLayout.jsx';
 export { Modal } from './organisms/Modal/Modal.jsx';
+export { ImageCropModal } from './organisms/ImageCropModal/ImageCropModal.jsx';
+export { useImageCropQueue } from './organisms/ImageCropModal/useImageCropQueue.js';
 export { UnsavedChangesModal } from './organisms/UnsavedChangesModal/UnsavedChangesModal.jsx';
 export {
   TopBar,

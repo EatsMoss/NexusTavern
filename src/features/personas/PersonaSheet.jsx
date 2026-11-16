@@ -15,8 +15,9 @@ import {
   Icon,
   SafeImage,
   OverlayScrollArea,
+  ImageCropModal,
+  useImageCropQueue,
 } from '@ui/index.js';
-import { convertImageFileToPngBase64 } from '@core/utils/imageCodec.js';
 import './PersonaSheet.css';
 
 function estimatePersonaTokens(text = '') {
@@ -274,13 +275,18 @@ export const PersonaSheet = forwardRef(function PersonaSheet(
     });
   };
 
+  const { requestCropFile: requestPersonaCrop, cropModalProps: personaCropModalProps } =
+    useImageCropQueue({ defaultTitle: 'Crop Persona Portrait' });
+
   const handleAvatarFileChosen = async (file) => {
     if (!file || !file.type?.startsWith('image/')) return;
     try {
-      const dataUrl = await convertImageFileToPngBase64(file);
-      if (!dataUrl) return;
-      setAvatarPreviewUrl(dataUrl);
-      setPendingAvatarBase64(dataUrl);
+      const cropped = await requestPersonaCrop(file, {
+        title: 'Crop Persona Portrait',
+      });
+      if (!cropped?.dataUrl) return;
+      setAvatarPreviewUrl(cropped.dataUrl);
+      setPendingAvatarBase64(cropped.dataUrl);
     } catch (err) {
       setFeedback({ type: 'error', text: err.message || 'Could not process image' });
     }
@@ -891,6 +897,7 @@ export const PersonaSheet = forwardRef(function PersonaSheet(
           </Button>
         </div>
       </footer>
+      <ImageCropModal {...personaCropModalProps} />
     </div>
   );
 });

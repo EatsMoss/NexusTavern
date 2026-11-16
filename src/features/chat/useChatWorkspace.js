@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { getAuthorizedAssetUrl } from '@core/api/apiClient.js';
-import { fetchCharacterCard, isDemoCardId } from '@core/cards/cardsApi.js';
+import {
+  fetchCharacterCard,
+  isDemoCardId,
+  toChatPortraitUrl,
+} from '@core/cards/cardsApi.js';
 import {
   fetchCharacterChats,
   fetchChatWindow,
@@ -1969,7 +1973,7 @@ export function useChatWorkspace({
   const matchedCommittedCardFull =
     activeCardFull && activeCardFull.avatar === committedChatCardId ? activeCardFull : null;
 
-  const activeScenarioAvatarUrl =
+  const rawActiveScenarioAvatarUrl =
     (committedChatCardId === selectedCardId ? activeChatPortraitUrl : null) ||
     (messages.length === 1 &&
       messages[0]?.index === 0 &&
@@ -1977,8 +1981,9 @@ export function useChatWorkspace({
     activeCharacter.thumbnailUrl ||
     activeCharacter.avatarUrl ||
     null;
+  const activeScenarioAvatarUrl = toChatPortraitUrl(rawActiveScenarioAvatarUrl);
 
-  const chatScenarioAvatarUrl = isSwitchingScenario
+  const rawChatScenarioAvatarUrl = isSwitchingScenario
     ? activeCharacter.thumbnailUrl || activeCharacter.avatarUrl || null
     : activeChatPortraitUrl ||
       (messages.length === 1 &&
@@ -1988,6 +1993,7 @@ export function useChatWorkspace({
       chatDisplayCharacter.thumbnailUrl ||
       chatDisplayCharacter.avatarUrl ||
       null;
+  const chatScenarioAvatarUrl = toChatPortraitUrl(rawChatScenarioAvatarUrl);
 
   return {
     committedChatCardId,

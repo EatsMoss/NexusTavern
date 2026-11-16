@@ -257,12 +257,20 @@
   flex-direction: row;
   align-items: stretch;
   gap: 12px;
-  min-height: 144px;
+  min-height: 164px;
+  padding: 10px 12px;
+  border-radius: var(--bb-control-radius, 8px);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  background-color: var(--bb-sheet-bg, var(--bb-page-card-bg, var(--md-sys-color-surface-container)));
+  box-shadow: var(--md-sys-elevation-1);
+  box-sizing: border-box;
 }
 
 .bb-skeleton-sheet--expanded .bb-skeleton-sheet__header {
-  min-height: 162px;
+  min-height: 186px;
+  padding: 12px 14px;
   gap: 16px;
+  background-color: var(--bb-sheet-well-bg, var(--md-sys-color-surface-container-low));
 }
 
 .bb-skeleton-sheet__portrait {

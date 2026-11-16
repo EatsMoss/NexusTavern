@@ -207,6 +207,10 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  image-rendering: auto;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 /* --- Main Content Column --- */
@@ -349,7 +353,12 @@
 
 .bb-chat-msg-card__telemetry:hover .bb-chat-msg-card__pill--timer,
 .bb-chat-msg-card__telemetry:focus-visible .bb-chat-msg-card__pill--timer {
-  color: var(--md-sys-color-tertiary);
+  color: var(--bb-accent-bright, var(--md-sys-color-tertiary));
+  border-color: color-mix(
+    in srgb,
+    var(--bb-accent-border, var(--md-sys-color-primary)) 55%,
+    var(--bb-page-border-mid, transparent)
+  );
 }
 
 .bb-chat-msg-card__telemetry-dot-btn {
@@ -411,7 +420,17 @@
 }
 
 .bb-chat-msg-card__pill--timer {
-  color: var(--md-sys-color-tertiary);
+  color: var(--md-sys-color-tertiary, var(--bb-ink-accent));
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-primary) 26%,
+    var(--bb-page-border-soft, var(--md-sys-color-outline-variant))
+  );
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-primary-container) 22%,
+    var(--bb-page-input-bg, var(--md-sys-color-surface-container-low))
+  );
 }
 
 .bb-chat-msg-card__actions {

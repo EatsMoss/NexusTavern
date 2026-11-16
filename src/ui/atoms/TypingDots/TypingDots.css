@@ -7,7 +7,7 @@
   --bb-typing-dot-size: 6px;
   --bb-typing-dot-gap: 5px;
   --bb-typing-dot-lift: -3px;
-  --bb-typing-dot-color: var(--md-sys-color-primary);
+  --bb-typing-dot-color: var(--bb-accent-color, var(--md-sys-color-primary));
   display: inline-flex;
   align-items: center;
   gap: 8px;

@@ -53,6 +53,12 @@ test('customizationCore — Indigo Slate default, automatic palette engine & RP 
     });
     assert.equal(lightPal.themeMode, 'light');
     assert.ok(lightPal.chatTextPalette.apostrophe);
+    assert.ok(darkPal.vars['--md-sys-color-tertiary']);
+    assert.ok(lightPal.vars['--md-sys-color-tertiary']);
+    assert.notEqual(
+      darkPal.vars['--md-sys-color-tertiary'],
+      lightPal.vars['--md-sys-color-tertiary'],
+    );
   });
 
   await t.test('decorates single-quoted RP apostrophes without underline while preserving English contractions', () => {

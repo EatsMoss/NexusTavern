@@ -7,9 +7,74 @@ export function isDemoCardId(id) {
 function appendCacheVersion(url, lastModified) {
   if (!url) return url;
   const ts = lastModified ? new Date(lastModified).getTime() : 0;
-  if (!ts) return url;
   const sep = url.includes('?') ? '&' : '?';
-  return `${url}${sep}v=${ts}`;
+  return ts ? `${url}${sep}v=${ts}&tv=3` : `${url}${sep}tv=3`;
+}
+
+/**
+ * Rewrites a full-resolution or gallery thumbnail URL into its dedicated
+ * smooth 128px chat portrait thumbnail URL (`?size=chat&tv=3` or `/api/thumbnails/portrait/...`).
+ */
+export function toChatPortraitUrl(inputUrl) {
+  if (!inputUrl || typeof inputUrl !== 'string') return inputUrl || null;
+  if (inputUrl.startsWith('data:') || inputUrl.startsWith('blob:')) {
+    return inputUrl;
+  }
+
+  const qIdx = inputUrl.indexOf('?');
+  const pathPart = qIdx !== -1 ? inputUrl.slice(0, qIdx) : inputUrl;
+  const queryStr = qIdx !== -1 ? inputUrl.slice(qIdx + 1) : '';
+  const params = new URLSearchParams(queryStr);
+
+  // 1. Existing /api/thumbnails/avatar/:file or /api/thumbnails/persona/:file
+  if (
+    pathPart.startsWith('/api/thumbnails/avatar/') ||
+    pathPart.startsWith('/api/thumbnails/persona/')
+  ) {
+    params.set('size', 'chat');
+    params.set('tv', '3');
+    return `${pathPart}?${params.toString()}`;
+  }
+
+  // 2. Already a custom portrait thumbnail
+  if (pathPart.startsWith('/api/thumbnails/portrait/')) {
+    params.set('tv', '3');
+    return `${pathPart}?${params.toString()}`;
+  }
+
+  // 3. Custom scenario/intro portrait `/user-data/.nexustavern/portraits/:slug/:file`
+  const portraitPrefix = '/user-data/.nexustavern/portraits/';
+  if (pathPart.startsWith(portraitPrefix)) {
+    const rest = pathPart.slice(portraitPrefix.length);
+    const slashIdx = rest.indexOf('/');
+    if (slashIdx > 0) {
+      const slug = rest.slice(0, slashIdx);
+      const file = rest.slice(slashIdx + 1);
+      params.set('tv', '3');
+      const nextUrl = `/api/thumbnails/portrait/${slug}/${file}?${params.toString()}`;
+      return getAuthorizedAssetUrl(nextUrl);
+    }
+  }
+
+  // 4. Full character PNG `/user-data/characters/:file`
+  const charPrefix = '/user-data/characters/';
+  if (pathPart.startsWith(charPrefix)) {
+    const file = pathPart.slice(charPrefix.length);
+    params.set('size', 'chat');
+    params.set('tv', '3');
+    return getAuthorizedAssetUrl(`/api/thumbnails/avatar/${file}?${params.toString()}`);
+  }
+
+  // 5. Full persona avatar `/user-data/User%20Avatars/:file`
+  const personaPrefix = '/user-data/User%20Avatars/';
+  if (pathPart.startsWith(personaPrefix)) {
+    const file = pathPart.slice(personaPrefix.length);
+    params.set('size', 'chat');
+    params.set('tv', '3');
+    return getAuthorizedAssetUrl(`/api/thumbnails/persona/${file}?${params.toString()}`);
+  }
+
+  return inputUrl;
 }
 
 /**
@@ -557,7 +622,10 @@ export async function removeScenarioGalleryPortrait(avatarFilename, portraitId) 
     `/api/characters/${encodeURIComponent(avatarFilename)}/portraits/${encodeURIComponent(portraitId)}`,
     { method: 'DELETE' },
   );
-  return normalizeScenarioMetaUrls(res?.scenarioMeta);
+  return {
+    scenarioMeta: normalizeScenarioMetaUrls(res?.scenarioMeta),
+    card: res?.card ? normalizeFullCard(res.card) : null,
+  };
 }
 
 /**

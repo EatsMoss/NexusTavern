@@ -5,6 +5,7 @@ import {
   Input,
   Switch,
   Modal,
+  ImageCropModal,
   UnsavedChangesModal,
   SplashScreen,
   ProgressIndicator,
@@ -583,6 +584,8 @@ export function AppShellOverlays({
         onDiscard={onDiscardWorkspaceGuard}
         onSave={onSaveWorkspaceGuard}
       />
+
+      <ImageCropModal {...(scenario.portraitCropModalProps || {})} />
 
       <SplashScreen
         open={bootSplashOpen}

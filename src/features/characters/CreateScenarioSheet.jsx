@@ -17,6 +17,8 @@ import {
   Icon,
   SafeImage,
   OverlayScrollArea,
+  ImageCropModal,
+  useImageCropQueue,
 } from '@ui/index.js';
 import {
   convertImageFileToPngBase64,
@@ -72,13 +74,18 @@ export const CreateScenarioSheet = forwardRef(function CreateScenarioSheet(
     return combined ? Math.ceil(combined.length / 3.8) : 0;
   }, [name, description, firstMes]);
 
+  const { requestCropFile: requestCreateCrop, cropModalProps: createCropModalProps } =
+    useImageCropQueue({ defaultTitle: 'Crop Scenario Portrait' });
+
   const handlePickPortrait = async (file) => {
     if (!file || !file.type.startsWith('image/')) return;
     try {
-      const pngDataUrl = await convertImageFileToPngBase64(file);
-      if (pngDataUrl) {
-        setAvatarPreviewUrl(pngDataUrl);
-        setAvatarPngBase64(pngDataUrl);
+      const cropped = await requestCreateCrop(file, {
+        title: 'Crop Scenario Portrait',
+      });
+      if (cropped?.dataUrl) {
+        setAvatarPreviewUrl(cropped.dataUrl);
+        setAvatarPngBase64(cropped.dataUrl);
       }
     } catch {
       // ignore invalid image
@@ -549,6 +556,7 @@ export const CreateScenarioSheet = forwardRef(function CreateScenarioSheet(
           </Button>
         </div>
       </footer>
+      <ImageCropModal {...createCropModalProps} />
     </div>
   );
 });

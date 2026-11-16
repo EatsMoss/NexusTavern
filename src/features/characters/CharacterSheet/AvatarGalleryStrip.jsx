@@ -16,7 +16,8 @@ export function AvatarGalleryStrip({
   const [collapsed, setCollapsed] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  const hasAlternates = Array.isArray(gallery) && gallery.length > 1;
+  const hasPortraits = Array.isArray(gallery) && gallery.length > 0;
+  const canDeletePortraits = Array.isArray(gallery) && gallery.length > 1;
 
   const handleFiles = (fileList) => {
     const files = Array.from(fileList || []).filter((f) => f.type.startsWith('image/'));
@@ -56,7 +57,7 @@ export function AvatarGalleryStrip({
     />
   );
 
-  if (!hasAlternates) {
+  if (!hasPortraits) {
     return (
       <div
         className={`bb-cs-gallery-slim ${dragOver ? 'is-drag-over' : ''}`}
@@ -148,20 +149,23 @@ export function AvatarGalleryStrip({
                   )}
                 </button>
 
-                {!item.isOriginal && (
-                  <button
-                    type="button"
-                    className="bb-cs-gallery__del-btn"
-                    disabled={busy}
-                    title="Remove portrait from gallery"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeletePortrait?.(item);
-                    }}
-                  >
-                    <Icon name="close" size={11} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className={`bb-cs-gallery__del-btn ${!canDeletePortraits ? 'is-disabled' : ''}`.trim()}
+                  disabled={busy || !canDeletePortraits}
+                  title={
+                    canDeletePortraits
+                      ? 'Remove portrait from gallery'
+                      : 'Cannot remove the only remaining portrait'
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!canDeletePortraits) return;
+                    onDeletePortrait?.(item);
+                  }}
+                >
+                  <Icon name="close" size={11} />
+                </button>
               </div>
             );
           })}

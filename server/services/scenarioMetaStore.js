@@ -199,11 +199,16 @@ export async function addScenarioGalleryPortrait(
 
 /**
  * Removes a portrait from the scenario's portrait gallery and deletes its file on disk.
+ * Refuses to delete if it is the only remaining portrait in the gallery.
  */
 export async function removeScenarioGalleryPortrait(avatarFilename, portraitId) {
   const meta = readScenarioMeta(avatarFilename);
   const target = meta.avatarGallery.find((item) => item.id === portraitId);
-  if (!target) return meta;
+  if (!target) return { scenarioMeta: meta, switchedActiveToId: null };
+
+  if (meta.avatarGallery.length <= 1) {
+    throw new Error('Cannot remove the only remaining portrait.');
+  }
 
   const slug = toPortraitSlug(avatarFilename);
   if (target.fileName) {
@@ -224,17 +229,22 @@ export async function removeScenarioGalleryPortrait(avatarFilename, portraitId) 
   const nextGroupIntrosMeta = (meta.groupIntrosMeta || []).map((intro) =>
     intro.portraitUrl === target.url ? { ...intro, portraitUrl: null } : intro,
   );
-  const nextActiveId =
-    meta.activePortraitId === portraitId
-      ? nextGallery[0]?.id || null
-      : meta.activePortraitId;
+  const wasActive =
+    meta.activePortraitId === portraitId ||
+    (!meta.activePortraitId && meta.avatarGallery[0]?.id === portraitId);
+  const nextActiveId = wasActive ? nextGallery[0]?.id || null : meta.activePortraitId;
 
-  return saveScenarioMeta(avatarFilename, {
+  const updatedMeta = await saveScenarioMeta(avatarFilename, {
     avatarGallery: nextGallery,
     introsMeta: nextIntrosMeta,
     groupIntrosMeta: nextGroupIntrosMeta,
     activePortraitId: nextActiveId,
   });
+
+  return {
+    scenarioMeta: updatedMeta,
+    switchedActiveToId: wasActive ? nextActiveId : null,
+  };
 }
 
 /**

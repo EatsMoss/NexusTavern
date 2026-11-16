@@ -41,10 +41,7 @@
     var(--bb-btn-flat-bg, var(--md-sys-color-surface-container-lowest)) 46%,
     transparent
   );
-  box-shadow:
-    0 4px 14px rgba(82, 98, 161, 0.11),
-    0 1px 3px rgba(82, 98, 161, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  box-shadow: var(--md-sys-elevation-1);
 }
 
 [data-gpu-mode='low'] .bb-recap-box {
@@ -170,15 +167,15 @@
 }
 
 .bb-recap-box__chip--compressed {
-  border-color: rgba(129, 178, 154, 0.48);
-  background: rgba(129, 178, 154, 0.16);
-  color: #a8d5ba;
+  border-color: color-mix(in srgb, var(--md-sys-color-primary) 46%, transparent);
+  background: color-mix(in srgb, var(--md-sys-color-primary-container) 56%, transparent);
+  color: var(--md-sys-color-tertiary, var(--md-sys-color-on-primary-container));
 }
 
 [data-theme='light'] .bb-recap-box__chip--compressed {
-  border-color: rgba(45, 118, 86, 0.42);
-  background: rgba(45, 118, 86, 0.12);
-  color: #216648;
+  border-color: color-mix(in srgb, var(--md-sys-color-primary) 42%, transparent);
+  background: color-mix(in srgb, var(--md-sys-color-primary-container) 72%, transparent);
+  color: var(--md-sys-color-tertiary, var(--md-sys-color-primary));
 }
 
 .bb-recap-box__help {

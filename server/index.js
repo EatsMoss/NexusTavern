@@ -172,10 +172,11 @@ app.use('/user-data', (req, res, next) => {
   return next();
 });
 
-// Static access to user media assets (avatars, characters, backgrounds, thumbnails)
+// Static access to user media assets (avatars, characters, backgrounds, thumbnails, .nexustavern/portraits & fonts)
 app.use(
   '/user-data',
   express.static(DEFAULT_USER_DIR, {
+    dotfiles: 'allow',
     maxAge: '1h',
     fallthrough: true,
   }),

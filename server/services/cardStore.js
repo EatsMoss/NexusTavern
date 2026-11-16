@@ -10,7 +10,7 @@ import {
   writeCardToPngBuffer,
   serializeCardPayload,
 } from './pngCardCodec.js';
-import { ensureThumbnailFile } from './thumbnails.js';
+import { ensureThumbnailFile, invalidateThumbnailCache } from './thumbnails.js';
 import {
   readScenarioMeta,
   saveScenarioMeta,
@@ -984,11 +984,9 @@ export async function replaceCharacterCardAvatar(
         writeV3: current.spec === 'chara_card_v3' || current.hasCcv3Chunk,
       });
       await writeFileAtomic(fullPath, updatedPng);
-      const thumbPath = path.join(DEFAULT_USER_DIR, 'thumbnails', 'avatar', safeName);
-      if (fs.existsSync(thumbPath)) {
-        fs.rmSync(thumbPath, { force: true });
-      }
+      invalidateThumbnailCache('avatar', safeName);
       await ensureThumbnailFile('avatar', safeName);
+      await ensureThumbnailFile('avatar', safeName, { chat: true });
     }
 
     if (addToGallery) {
@@ -1034,11 +1032,9 @@ export async function applyGalleryPortraitAsMainAvatar(avatarFilename, portraitI
         writeV3: current.spec === 'chara_card_v3' || current.hasCcv3Chunk,
       });
       await writeFileAtomic(fullPath, updatedPng);
-      const thumbPath = path.join(DEFAULT_USER_DIR, 'thumbnails', 'avatar', safeName);
-      if (fs.existsSync(thumbPath)) {
-        fs.rmSync(thumbPath, { force: true });
-      }
+      invalidateThumbnailCache('avatar', safeName);
       await ensureThumbnailFile('avatar', safeName);
+      await ensureThumbnailFile('avatar', safeName, { chat: true });
     }
 
     await saveScenarioMeta(safeName, { activePortraitId: stored.entry.id });
@@ -1422,15 +1418,7 @@ function buildUniquePersonaAvatarFilename(rawName = 'persona', ext = '.png') {
 }
 
 function removePersonaThumbnailIfExists(avatarFilename) {
-  const thumbPath = path.join(
-    DEFAULT_USER_DIR,
-    'thumbnails',
-    'persona',
-    path.basename(avatarFilename),
-  );
-  if (fs.existsSync(thumbPath)) {
-    fs.rmSync(thumbPath, { force: true });
-  }
+  invalidateThumbnailCache('persona', avatarFilename);
 }
 
 export async function createPersona({

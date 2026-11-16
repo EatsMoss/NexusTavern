@@ -492,7 +492,7 @@ export function toCompactClientMessage(rawMsg, messageIndex) {
     if (forceFile) {
       const existsOnDisk = fs.existsSync(path.join(USER_AVATARS_DIR, forceFile));
       if (existsOnDisk) {
-        userAvatarUrl = `/api/thumbnails/persona/${encodeURIComponent(forceFile)}`;
+        userAvatarUrl = `/api/thumbnails/persona/${encodeURIComponent(forceFile)}?size=chat&tv=3`;
       } else {
         userAvatarMissing = true;
       }

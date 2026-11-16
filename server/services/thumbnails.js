@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { safeWriteFileAtomic as writeFileAtomic } from '../utils/safeWriteFile.js';
-import { DEFAULT_USER_DIR } from '../utils/paths.js';
+import { DEFAULT_USER_DIR, NEXUSTAVERN_PORTRAITS_DIR } from '../utils/paths.js';
 import {
   isPngBuffer,
   extractPngChunks,
@@ -13,15 +13,50 @@ import {
 export const THUMBNAILS_ROOT_DIR = path.join(DEFAULT_USER_DIR, 'thumbnails');
 export const AVATAR_THUMBNAIL_DIR = path.join(THUMBNAILS_ROOT_DIR, 'avatar');
 export const PERSONA_THUMBNAIL_DIR = path.join(THUMBNAILS_ROOT_DIR, 'persona');
+export const AVATAR_CHAT_THUMBNAIL_DIR = path.join(THUMBNAILS_ROOT_DIR, 'avatar-chat');
+export const PERSONA_CHAT_THUMBNAIL_DIR = path.join(THUMBNAILS_ROOT_DIR, 'persona-chat');
+export const PORTRAIT_CHAT_THUMBNAIL_DIR = path.join(THUMBNAILS_ROOT_DIR, 'portrait-chat');
 
-const TARGET_THUMB_WIDTH = 160;
+export const TARGET_THUMB_WIDTH = 160;
+export const CHAT_THUMB_WIDTH = 128;
+const THUMB_ENGINE_VERSION = 'v3-area-aa';
+const VERSION_MARKER_PATH = path.join(THUMBNAILS_ROOT_DIR, '.thumb-engine-version');
+
+let engineVersionVerified = false;
 
 export function ensureThumbnailDirs() {
-  if (!fs.existsSync(AVATAR_THUMBNAIL_DIR)) {
-    fs.mkdirSync(AVATAR_THUMBNAIL_DIR, { recursive: true });
+  const dirs = [
+    AVATAR_THUMBNAIL_DIR,
+    PERSONA_THUMBNAIL_DIR,
+    AVATAR_CHAT_THUMBNAIL_DIR,
+    PERSONA_CHAT_THUMBNAIL_DIR,
+    PORTRAIT_CHAT_THUMBNAIL_DIR,
+  ];
+
+  if (!engineVersionVerified) {
+    engineVersionVerified = true;
+    try {
+      fs.mkdirSync(THUMBNAILS_ROOT_DIR, { recursive: true });
+      const currentVer = fs.existsSync(VERSION_MARKER_PATH)
+        ? fs.readFileSync(VERSION_MARKER_PATH, 'utf8').trim()
+        : '';
+      if (currentVer !== THUMB_ENGINE_VERSION) {
+        for (const dir of dirs) {
+          if (fs.existsSync(dir)) {
+            fs.rmSync(dir, { recursive: true, force: true });
+          }
+        }
+        fs.writeFileSync(VERSION_MARKER_PATH, THUMB_ENGINE_VERSION, 'utf8');
+      }
+    } catch {
+      // ignore fs permission errors during version check
+    }
   }
-  if (!fs.existsSync(PERSONA_THUMBNAIL_DIR)) {
-    fs.mkdirSync(PERSONA_THUMBNAIL_DIR, { recursive: true });
+
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
   }
 }
 
@@ -152,27 +187,67 @@ export function generatePngThumbnailBuffer(pngBuffer, targetWidth = TARGET_THUMB
 
     const outW = targetWidth;
     const outH = Math.max(1, Math.round((height * outW) / width));
-    const outBpp = 3; // Compact 24-bit RGB for portrait thumbnails
+    const outBpp = 4; // 32-bit RGBA so alpha edges stay clean in both Dark and Light themes
     const outStride = outW * outBpp;
     const outScanlines = Buffer.allocUnsafe(outH * (1 + outStride));
     const rawRow = Buffer.allocUnsafe(outStride);
     const scaleX = width / outW;
     const scaleY = height / outH;
 
+    // Exact 2D Subpixel Area-Averaging (premultiplied-alpha box supersampling)
     for (let y = 0; y < outH; y += 1) {
       const rowOffset = y * (1 + outStride);
-      outScanlines[rowOffset] = 1; // PNG Filter 1 (Sub) for 3x better zlib compression
-      const sy = Math.min(height - 1, Math.floor((y + 0.5) * scaleY));
+      outScanlines[rowOffset] = 1; // PNG Filter 1 (Sub)
+      const srcY0 = y * scaleY;
+      const srcY1 = Math.min(height, (y + 1) * scaleY);
+      const iyStart = Math.floor(srcY0);
+      const iyEnd = Math.min(height - 1, Math.max(iyStart, Math.ceil(srcY1) - 1));
 
       for (let x = 0; x < outW; x += 1) {
-        const sx = Math.min(width - 1, Math.floor((x + 0.5) * scaleX));
-        const sIdx = (sy * width + sx) * 4;
+        const srcX0 = x * scaleX;
+        const srcX1 = Math.min(width, (x + 1) * scaleX);
+        const ixStart = Math.floor(srcX0);
+        const ixEnd = Math.min(width - 1, Math.max(ixStart, Math.ceil(srcX1) - 1));
+
+        let sumPremulR = 0;
+        let sumPremulG = 0;
+        let sumPremulB = 0;
+        let sumAlpha = 0;
+        let totalWeight = 0;
+
+        for (let iy = iyStart; iy <= iyEnd; iy += 1) {
+          const wy = Math.min(iy + 1, srcY1) - Math.max(iy, srcY0);
+          if (wy <= 0) continue;
+          const rowBase = iy * width;
+
+          for (let ix = ixStart; ix <= ixEnd; ix += 1) {
+            const wx = Math.min(ix + 1, srcX1) - Math.max(ix, srcX0);
+            if (wx <= 0) continue;
+            const w = wx * wy;
+            const sIdx = (rowBase + ix) * 4;
+            const aNorm = srcRgba[sIdx + 3] / 255;
+
+            sumPremulR += srcRgba[sIdx] * aNorm * w;
+            sumPremulG += srcRgba[sIdx + 1] * aNorm * w;
+            sumPremulB += srcRgba[sIdx + 2] * aNorm * w;
+            sumAlpha += aNorm * w;
+            totalWeight += w;
+          }
+        }
+
         const rIdx = x * outBpp;
-        const alpha = srcRgba[sIdx + 3] / 255;
-        // Composite over dark surface (#141210) if semi-transparent
-        rawRow[rIdx] = Math.round(srcRgba[sIdx] * alpha + 20 * (1 - alpha));
-        rawRow[rIdx + 1] = Math.round(srcRgba[sIdx + 1] * alpha + 18 * (1 - alpha));
-        rawRow[rIdx + 2] = Math.round(srcRgba[sIdx + 2] * alpha + 16 * (1 - alpha));
+        if (totalWeight > 0 && sumAlpha > 1e-6) {
+          const outAlphaNorm = Math.min(1, sumAlpha / totalWeight);
+          rawRow[rIdx] = Math.min(255, Math.max(0, Math.round(sumPremulR / sumAlpha)));
+          rawRow[rIdx + 1] = Math.min(255, Math.max(0, Math.round(sumPremulG / sumAlpha)));
+          rawRow[rIdx + 2] = Math.min(255, Math.max(0, Math.round(sumPremulB / sumAlpha)));
+          rawRow[rIdx + 3] = Math.min(255, Math.max(0, Math.round(outAlphaNorm * 255)));
+        } else {
+          rawRow[rIdx] = 0;
+          rawRow[rIdx + 1] = 0;
+          rawRow[rIdx + 2] = 0;
+          rawRow[rIdx + 3] = 0;
+        }
       }
 
       for (let i = 0; i < outStride; i += 1) {
@@ -185,7 +260,7 @@ export function generatePngThumbnailBuffer(pngBuffer, targetWidth = TARGET_THUMB
     newIhdr.writeUInt32BE(outW, 0);
     newIhdr.writeUInt32BE(outH, 4);
     newIhdr[8] = 8;
-    newIhdr[9] = 2; // RGB colorType
+    newIhdr[9] = 6; // RGBA colorType
 
     const compressedIdat = zlib.deflateSync(outScanlines, { level: 9 });
     return encodePngChunks([
@@ -198,11 +273,32 @@ export function generatePngThumbnailBuffer(pngBuffer, targetWidth = TARGET_THUMB
   }
 }
 
+export function invalidateThumbnailCache(type, filename) {
+  const safeName = path.basename(String(filename || ''));
+  if (!safeName) return;
+  const targets =
+    type === 'persona'
+      ? [
+          path.join(PERSONA_THUMBNAIL_DIR, safeName),
+          path.join(PERSONA_CHAT_THUMBNAIL_DIR, safeName),
+        ]
+      : [
+          path.join(AVATAR_THUMBNAIL_DIR, safeName),
+          path.join(AVATAR_CHAT_THUMBNAIL_DIR, safeName),
+        ];
+  for (const p of targets) {
+    if (fs.existsSync(p)) {
+      fs.rmSync(p, { force: true });
+    }
+  }
+}
+
 /**
  * Ensures a cached thumbnail exists for a character avatar (`type = 'avatar'`)
  * or user persona (`type = 'persona'`) and returns its file path on disk.
+ * When `chat = true`, generates a dedicated softer 128px chat portrait.
  */
-export async function ensureThumbnailFile(type, filename) {
+export async function ensureThumbnailFile(type, filename, { chat = false } = {}) {
   ensureThumbnailDirs();
   const safeName = path.basename(filename);
   const srcDir =
@@ -210,7 +306,13 @@ export async function ensureThumbnailFile(type, filename) {
       ? path.join(DEFAULT_USER_DIR, 'User Avatars')
       : path.join(DEFAULT_USER_DIR, 'characters');
   const thumbDir =
-    type === 'persona' ? PERSONA_THUMBNAIL_DIR : AVATAR_THUMBNAIL_DIR;
+    type === 'persona'
+      ? chat
+        ? PERSONA_CHAT_THUMBNAIL_DIR
+        : PERSONA_THUMBNAIL_DIR
+      : chat
+        ? AVATAR_CHAT_THUMBNAIL_DIR
+        : AVATAR_THUMBNAIL_DIR;
 
   const srcPath = path.join(srcDir, safeName);
   if (!fs.existsSync(srcPath)) {
@@ -229,9 +331,50 @@ export async function ensureThumbnailFile(type, filename) {
 
   const ext = path.extname(safeName).toLowerCase();
   const srcBuf = fs.readFileSync(srcPath);
+  const targetWidth = chat ? CHAT_THUMB_WIDTH : TARGET_THUMB_WIDTH;
 
   if (ext === '.png' && isPngBuffer(srcBuf)) {
-    const thumbBuf = generatePngThumbnailBuffer(srcBuf, TARGET_THUMB_WIDTH);
+    const thumbBuf = generatePngThumbnailBuffer(srcBuf, targetWidth);
+    await writeFileAtomic(thumbPath, thumbBuf);
+    return thumbPath;
+  }
+
+  await writeFileAtomic(thumbPath, srcBuf);
+  return thumbPath;
+}
+
+/**
+ * Ensures a smooth chat-sized thumbnail for a custom scenario/intro portrait
+ * stored under `.nexustavern/portraits/<slug>/<filename>`.
+ */
+export async function ensureScenarioPortraitThumbnailFile(slug, filename) {
+  ensureThumbnailDirs();
+  const safeSlug = path.basename(String(slug || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeFile = path.basename(String(filename || ''));
+  if (!safeSlug || !safeFile) return null;
+
+  const srcPath = path.join(NEXUSTAVERN_PORTRAITS_DIR, safeSlug, safeFile);
+  if (!fs.existsSync(srcPath)) {
+    return null;
+  }
+
+  const destDir = path.join(PORTRAIT_CHAT_THUMBNAIL_DIR, safeSlug);
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true });
+  }
+  const thumbPath = path.join(destDir, safeFile);
+  const srcStat = fs.statSync(srcPath);
+
+  if (fs.existsSync(thumbPath)) {
+    const thumbStat = fs.statSync(thumbPath);
+    if (thumbStat.mtimeMs >= srcStat.mtimeMs && thumbStat.size > 0) {
+      return thumbPath;
+    }
+  }
+
+  const srcBuf = fs.readFileSync(srcPath);
+  if (safeFile.toLowerCase().endsWith('.png') && isPngBuffer(srcBuf)) {
+    const thumbBuf = generatePngThumbnailBuffer(srcBuf, CHAT_THUMB_WIDTH);
     await writeFileAtomic(thumbPath, thumbBuf);
     return thumbPath;
   }

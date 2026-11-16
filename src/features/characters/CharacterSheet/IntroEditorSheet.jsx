@@ -177,10 +177,10 @@ export const IntroEditorSheet = forwardRef(function IntroEditorSheet(
 
   if (!target || !draft) {
     return (
-      <div className="bb-pm-sheet__empty">
+      <div className="bb-intro-sheet__empty">
         <Icon name="bookOpen" size={28} />
-        <div className="bb-pm-sheet__empty-title">No Greeting Selected</div>
-        <div className="bb-pm-sheet__empty-sub">
+        <div className="bb-intro-sheet__empty-title">No Greeting Selected</div>
+        <div className="bb-intro-sheet__empty-sub">
           Choose any greeting from the Intros tab in the Right Tome to edit it here.
         </div>
       </div>
@@ -325,16 +325,16 @@ export const IntroEditorSheet = forwardRef(function IntroEditorSheet(
             }
           />
           <div className="bb-intro-sheet__meta-row">
-            <div className="bb-pm-sheet__telemetry">
-              <span className="bb-pm-sheet__pill">{badgeLabel}</span>
+            <div className="bb-intro-sheet__telemetry">
+              <span className="bb-intro-sheet__pill">{badgeLabel}</span>
               {scenarioName && (
                 <>
-                  <span className="bb-pm-sheet__telemetry-dot">·</span>
-                  <span className="bb-pm-sheet__telemetry-item">{scenarioName}</span>
+                  <span className="bb-intro-sheet__telemetry-dot">·</span>
+                  <span className="bb-intro-sheet__telemetry-item">{scenarioName}</span>
                 </>
               )}
-              <span className="bb-pm-sheet__telemetry-dot">·</span>
-              <span className="bb-pm-sheet__telemetry-item">
+              <span className="bb-intro-sheet__telemetry-dot">·</span>
+              <span className="bb-intro-sheet__telemetry-item">
                 ~<strong>{tokens.toLocaleString()}</strong> tok
               </span>
             </div>
@@ -382,6 +382,7 @@ export const IntroEditorSheet = forwardRef(function IntroEditorSheet(
 
       {galleryOpen && (
         <OverlayScrollArea
+          className="bb-intro-sheet__gallery-wrap"
           viewportClassName="bb-intro-modal__gallery-tray"
           variant="compact"
         >
@@ -422,8 +423,8 @@ export const IntroEditorSheet = forwardRef(function IntroEditorSheet(
         </OverlayScrollArea>
       )}
 
-      <div className="bb-pm-sheet__stage">
-        <div className="bb-pm-sheet__editor-fill">
+      <div className="bb-intro-sheet__stage">
+        <div className="bb-intro-sheet__editor-fill">
           <MarkdownEditor
             label={`${badgeLabel} Content`}
             headerActions={
@@ -441,16 +442,16 @@ export const IntroEditorSheet = forwardRef(function IntroEditorSheet(
 
       {isDirty && (
         <div
-          className="bb-pm-sheet__dirty-bar"
+          className="bb-intro-sheet__dirty-bar"
           role="region"
           aria-label="Unsaved greeting changes"
         >
-          <div className="bb-pm-sheet__dirty-info">
-            <span className="bb-pm-sheet__dirty-dot" aria-hidden="true" />
+          <div className="bb-intro-sheet__dirty-info">
+            <span className="bb-intro-sheet__dirty-dot" aria-hidden="true" />
             <span>Unsaved changes</span>
-            <kbd className="bb-pm-sheet__dirty-kbd">Ctrl+S</kbd>
+            <kbd className="bb-intro-sheet__dirty-kbd">Ctrl+S</kbd>
           </div>
-          <div className="bb-pm-sheet__dirty-actions">
+          <div className="bb-intro-sheet__dirty-actions">
             <Button variant="b2" size="sm" icon="undo" onClick={handleDiscard}>
               Discard
             </Button>
