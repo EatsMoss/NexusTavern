@@ -67,15 +67,28 @@ stImportRouter.delete('/state', ensureHostOnly, async (_req, res) => {
  * Opens native OS directory picker on the host PC.
  */
 stImportRouter.post('/browse', ensureHostOnly, async (req, res) => {
+  const abortController = new AbortController();
+  res.on('close', () => {
+    if (!res.writableEnded) {
+      abortController.abort();
+    }
+  });
+
   try {
     const initialPath = String(req.body?.initialPath || '');
-    const result = await browseStDirectoryDialog(initialPath);
-    res.json({
-      ok: true,
-      ...result,
+    const result = await browseStDirectoryDialog(initialPath, {
+      signal: abortController.signal,
     });
+    if (!res.writableEnded) {
+      res.json({
+        ok: true,
+        ...result,
+      });
+    }
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    if (!res.writableEnded) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
   }
 });
 

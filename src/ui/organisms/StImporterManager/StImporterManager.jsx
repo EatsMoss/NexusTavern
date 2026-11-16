@@ -123,7 +123,7 @@ export function StImporterManager({
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const isRunning = Boolean(job?.running);
-  const busy = browsing || scanning || isRunning;
+  const busy = scanning || isRunning;
 
   const counts = scanSummary?.counts || null;
   const profiles = Array.isArray(scanSummary?.profiles) ? scanSummary.profiles : EMPTY_ARRAY;
@@ -301,16 +301,20 @@ export function StImporterManager({
 
                   {canBrowseNative && (
                     <Button
-                      variant="b1"
+                      variant={browsing ? 'b4' : 'b1'}
                       emphasis="outlined"
                       size="sm"
                       pill
                       icon={browsing ? <ProgressIndicator size="xs" /> : 'folder'}
                       disabled={busy}
-                      title="Browse folder on this PC"
+                      title={
+                        browsing
+                          ? 'Cancel folder picker (or check your taskbar if dialog opened in background)'
+                          : 'Browse folder on this PC'
+                      }
                       onClick={() => onBrowseDirectory?.()}
                     >
-                      Browse
+                      {browsing ? 'Cancel' : 'Browse'}
                     </Button>
                   )}
 

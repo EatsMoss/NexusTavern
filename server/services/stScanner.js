@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { safeWriteFileAtomic as writeFileAtomic } from '../utils/safeWriteFile.js';
 import {
   DEFAULT_USER_DIR,
@@ -248,75 +248,188 @@ export async function writeImporterPersistedState(patch = {}) {
   return next;
 }
 
-export function browseStDirectoryDialog(initialPath = '') {
+let activeBrowseProcess = null;
+
+function resolveWindowsPowerShellExe() {
+  const sysRoot = process.env.SystemRoot || 'C:\\Windows';
+  const fullPath = path.join(
+    sysRoot,
+    'System32',
+    'WindowsPowerShell',
+    'v1.0',
+    'powershell.exe',
+  );
+  return fs.existsSync(fullPath) ? fullPath : 'powershell.exe';
+}
+
+function killActiveBrowseProcess() {
+  const proc = activeBrowseProcess;
+  if (!proc) return;
+  activeBrowseProcess = null;
+  try {
+    proc.kill();
+  } catch {
+    // ignore already-exited child process
+  }
+}
+
+function browseWindowsFolderDialog(validStart, signal) {
+  const psExe = resolveWindowsPowerShellExe();
+  const psScript = [
+    '$ErrorActionPreference = "Stop"',
+    'Add-Type -AssemblyName System.Windows.Forms',
+    'Add-Type -AssemblyName Microsoft.VisualBasic',
+    '[System.Windows.Forms.Application]::EnableVisualStyles()',
+    '$dummy = New-Object System.Windows.Forms.Form; $dummy.Opacity = 0; $dummy.ShowInTaskbar = $false; $dummy.Width = 1; $dummy.Height = 1; $dummy.Show(); $dummy.Close(); $dummy.Dispose()',
+    '$owner = New-Object System.Windows.Forms.Form',
+    '$owner.Text = "Select SillyTavern Root Directory"',
+    '$owner.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen',
+    '$owner.Width = 1; $owner.Height = 1',
+    '$owner.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedToolWindow',
+    '$owner.Opacity = 0.01',
+    '$owner.ShowInTaskbar = $true',
+    '$owner.TopMost = $true',
+    '$owner.Show()',
+    '$owner.TopMost = $false; $owner.TopMost = $true',
+    '$owner.BringToFront(); $owner.Activate()',
+    'try { [Microsoft.VisualBasic.Interaction]::AppActivate($PID) | Out-Null } catch {}',
+    '$dlg = New-Object System.Windows.Forms.FolderBrowserDialog',
+    '$dlg.Description = "Select SillyTavern Root Directory"',
+    '$dlg.ShowNewFolderButton = $false',
+    'if ($dlg.PSObject.Properties["AutoUpgradeEnabled"]) { $dlg.AutoUpgradeEnabled = $true }',
+    'if ($env:BB_ST_INIT_DIR -and (Test-Path -LiteralPath $env:BB_ST_INIT_DIR)) { $dlg.SelectedPath = $env:BB_ST_INIT_DIR }',
+    '$res = $dlg.ShowDialog($owner)',
+    '$owner.Close(); $owner.Dispose()',
+    'if ($res -eq [System.Windows.Forms.DialogResult]::OK -and $dlg.SelectedPath) {',
+    '  $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($dlg.SelectedPath))',
+    '  Write-Output ("BB_PATH_B64:" + $b64)',
+    '}',
+  ].join('; ');
+
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      resolve({ canceled: true, path: '' });
+      return;
+    }
+
+    let settled = false;
+    let stdout = '';
+    let stderr = '';
+
+    const child = spawn(psExe, ['-NoProfile', '-STA', '-Command', psScript], {
+      env: { ...process.env, BB_ST_INIT_DIR: validStart },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    activeBrowseProcess = child;
+
+    const finish = (fn) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener('abort', onAbort);
+      if (activeBrowseProcess === child) activeBrowseProcess = null;
+      fn();
+    };
+
+    const onAbort = () => {
+      try { child.kill(); } catch { /* ignore */ }
+      finish(() => resolve({ canceled: true, path: '' }));
+    };
+
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
+
+    const timer = setTimeout(() => {
+      try { child.kill(); } catch { /* ignore */ }
+      finish(() => resolve({ canceled: true, path: '' }));
+    }, 120000);
+
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+    child.on('error', (err) => {
+      finish(() => reject(new Error(`Failed to open system folder picker: ${err.message}`)));
+    });
+    child.on('close', (code) => {
+      finish(() => {
+        const match = stdout.match(/BB_PATH_B64:([A-Za-z0-9+/=]+)/);
+        if (match && match[1]) {
+          const decoded = Buffer.from(match[1], 'base64').toString('utf8').trim();
+          resolve({ canceled: !decoded, path: decoded || '' });
+          return;
+        }
+        if (code !== 0 && stderr.trim()) {
+          reject(new Error(`Failed to open system folder picker: ${stderr.trim()}`));
+          return;
+        }
+        resolve({ canceled: true, path: '' });
+      });
+    });
+  });
+}
+
+export function browseStDirectoryDialog(initialPath = '', { signal } = {}) {
   const cleanStart = cleanInputPath(initialPath);
   const validStart =
     cleanStart && fs.existsSync(cleanStart) ? path.resolve(cleanStart) : '';
 
-  if (process.platform === 'win32') {
-    const psScript = [
-      '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8',
-      'Add-Type -AssemblyName System.Windows.Forms',
-      '$owner = New-Object System.Windows.Forms.Form',
-      '$owner.TopMost = $true',
-      '$owner.ShowInTaskbar = $false',
-      '$owner.Width = 0; $owner.Height = 0',
-      '$owner.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None',
-      '$owner.Opacity = 0',
-      '$dlg = New-Object System.Windows.Forms.FolderBrowserDialog',
-      '$dlg.Description = "Select SillyTavern Root Directory"',
-      '$dlg.ShowNewFolderButton = $false',
-      'if ($dlg.PSObject.Properties["AutoUpgradeEnabled"]) { $dlg.AutoUpgradeEnabled = $true }',
-      'if ($env:BB_ST_INIT_DIR -and (Test-Path -LiteralPath $env:BB_ST_INIT_DIR)) { $dlg.SelectedPath = $env:BB_ST_INIT_DIR }',
-      '$res = $dlg.ShowDialog($owner)',
-      '$owner.Dispose()',
-      'if ($res -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $dlg.SelectedPath }',
-    ].join('; ');
+  killActiveBrowseProcess();
 
-    return new Promise((resolve, reject) => {
-      execFile(
-        'powershell.exe',
-        ['-NoProfile', '-NonInteractive', '-STA', '-Command', psScript],
-        {
-          env: { ...process.env, BB_ST_INIT_DIR: validStart },
-          windowsHide: true,
-          timeout: 120000,
-        },
-        (err, stdout) => {
-          if (err) {
-            reject(new Error(`Failed to open system folder picker: ${err.message}`));
-            return;
-          }
-          const picked = String(stdout || '').trim();
-          resolve({ canceled: !picked, path: picked || '' });
-        },
-      );
-    });
+  if (process.platform === 'win32') {
+    return browseWindowsFolderDialog(validStart, signal);
   }
 
   if (process.platform === 'darwin') {
     const appleScript =
       'POSIX path of (choose folder with prompt "Select SillyTavern Root Directory")';
     return new Promise((resolve) => {
-      execFile('osascript', ['-e', appleScript], { timeout: 120000 }, (err, stdout) => {
-        if (err) return resolve({ canceled: true, path: '' });
-        const picked = String(stdout || '').trim();
-        return resolve({ canceled: !picked, path: picked });
-      });
+      const child = execFile(
+        'osascript',
+        ['-e', appleScript],
+        { timeout: 120000 },
+        (err, stdout) => {
+          if (activeBrowseProcess === child) activeBrowseProcess = null;
+          if (err) return resolve({ canceled: true, path: '' });
+          const picked = String(stdout || '').trim();
+          return resolve({ canceled: !picked, path: picked });
+        },
+      );
+      activeBrowseProcess = child;
+      if (signal) {
+        signal.addEventListener(
+          'abort',
+          () => {
+            try { child.kill(); } catch { /* ignore */ }
+            resolve({ canceled: true, path: '' });
+          },
+          { once: true },
+        );
+      }
     });
   }
 
   return new Promise((resolve) => {
-    execFile(
+    const child = execFile(
       'zenity',
       ['--file-selection', '--directory', '--title=Select SillyTavern Root Directory'],
       { timeout: 120000 },
       (err, stdout) => {
+        if (activeBrowseProcess === child) activeBrowseProcess = null;
         if (err) return resolve({ canceled: true, path: '' });
         const picked = String(stdout || '').trim();
         return resolve({ canceled: !picked, path: picked });
       },
     );
+    activeBrowseProcess = child;
+    if (signal) {
+      signal.addEventListener(
+        'abort',
+        () => {
+          try { child.kill(); } catch { /* ignore */ }
+          resolve({ canceled: true, path: '' });
+        },
+        { once: true },
+      );
+    }
   });
 }
 

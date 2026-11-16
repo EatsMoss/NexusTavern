@@ -10,10 +10,11 @@ export async function clearStImporterState() {
   });
 }
 
-export async function browseStDirectory(initialPath = '') {
+export async function browseStDirectory(initialPath = '', { signal } = {}) {
   return apiFetchJson('/api/st-import/browse', {
     method: 'POST',
     body: { initialPath },
+    signal,
   });
 }
 

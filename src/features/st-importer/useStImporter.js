@@ -34,6 +34,7 @@ export function useStImporter({ onImportCompleted, onNotify } = {}) {
   const [lastReport, setLastReport] = useState(null);
 
   const pollTimerRef = useRef(null);
+  const browseAbortRef = useRef(null);
   const handledJobIdRef = useRef('');
   const callbacksRef = useRef({ onImportCompleted, onNotify });
   callbacksRef.current = { onImportCompleted, onNotify };
@@ -114,6 +115,10 @@ export function useStImporter({ onImportCompleted, onNotify } = {}) {
     return () => {
       cancelled = true;
       stopPolling();
+      if (browseAbortRef.current) {
+        browseAbortRef.current.abort();
+        browseAbortRef.current = null;
+      }
     };
   }, [startPollingJob, stopPolling]);
 
@@ -135,6 +140,12 @@ export function useStImporter({ onImportCompleted, onNotify } = {}) {
     async (targetPath = rootPath, targetProfile = selectedProfile) => {
       const cleanPath = String(targetPath || '').trim();
       if (!cleanPath) return null;
+
+      if (browseAbortRef.current) {
+        browseAbortRef.current.abort();
+        browseAbortRef.current = null;
+        setBrowsing(false);
+      }
 
       setScanning(true);
       setScanError('');
@@ -165,18 +176,34 @@ export function useStImporter({ onImportCompleted, onNotify } = {}) {
   );
 
   const handleBrowseDirectory = useCallback(async () => {
+    if (browseAbortRef.current) {
+      browseAbortRef.current.abort();
+      browseAbortRef.current = null;
+      setBrowsing(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    browseAbortRef.current = controller;
     setBrowsing(true);
     setScanError('');
     try {
-      const res = await browseStDirectory(rootPath);
+      const res = await browseStDirectory(rootPath, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (!res?.canceled && res?.path) {
         setRootPath(res.path);
         await handleScanDirectory(res.path, selectedProfile);
       }
     } catch (err) {
+      if (err?.name === 'AbortError' || controller.signal.aborted) {
+        return;
+      }
       setScanError(err?.message || 'Unable to open folder browser');
     } finally {
-      setBrowsing(false);
+      if (browseAbortRef.current === controller) {
+        browseAbortRef.current = null;
+        setBrowsing(false);
+      }
     }
   }, [rootPath, selectedProfile, handleScanDirectory]);
 
