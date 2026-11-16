@@ -23,23 +23,30 @@
 
 ### Quick Start
 
-Requires **[Node.js LTS](https://nodejs.org/)** (v20 or newer).
+Requires **[Node.js LTS](https://nodejs.org/)** (v20 or newer). **Git is not required.**
 
-**Windows (One-Click Launch):**
-Double-click **`start.bat`** — on first launch it automatically installs dependencies, builds the frontend, starts the standalone server, and opens `http://localhost:8088` in your browser (subsequent launches start instantly, and `git pull` updates rebuild automatically).
+**One-Line Install & Launch — Windows (PowerShell, no Git needed):**
+```powershell
+curl.exe -fsSL https://github.com/EatsMoss/NexusTavern/archive/refs/heads/main.tar.gz -o nt.tgz; mkdir NexusTavern -Force | Out-Null; tar.exe -xzf nt.tgz --strip-components=1 -C NexusTavern; Remove-Item nt.tgz; cd NexusTavern; .\start.bat
+```
 
-**Manual / Cross-Platform (Windows, Linux, macOS):**
+**One-Line Install & Launch — Windows (CMD, no Git needed):**
+```bat
+curl.exe -fsSL https://github.com/EatsMoss/NexusTavern/archive/refs/heads/main.tar.gz -o nt.tgz && (if not exist NexusTavern mkdir NexusTavern) && tar.exe -xzf nt.tgz --strip-components=1 -C NexusTavern && del nt.tgz && cd NexusTavern && start.bat
+```
 
+**One-Line Install & Launch — Linux / macOS (no Git needed):**
 ```bash
-# Install dependencies
-npm install
+mkdir -p NexusTavern && curl -fsSL https://github.com/EatsMoss/NexusTavern/archive/refs/heads/main.tar.gz | tar -xz --strip-components=1 -C NexusTavern && cd NexusTavern && npm install && npm run build && npm start
+```
 
-# Build production bundle & start standalone server
-npm run build
-npm start
+> **Next launches on Windows:** simply double-click **`start.bat`** inside the `NexusTavern` folder — subsequent launches start instantly and open `http://localhost:8088` in your browser.
 
-# Or run in development mode (Server + Vite HMR)
-npm run dev
+**Alternative (with Git, supports `git pull` updates):**
+```bash
+git clone https://github.com/EatsMoss/NexusTavern.git && cd NexusTavern
+# Windows: run start.bat
+# Linux / macOS: npm install && npm run build && npm start
 ```
 
 ### Quality Checks
@@ -66,23 +73,30 @@ npm test       # Fast Node.js unit test suite
 
 ### Быстрый запуск
 
-Требуется установленный **[Node.js LTS](https://nodejs.org/)** (версии 20 или новее).
+Требуется только **[Node.js LTS](https://nodejs.org/)** (версии 20 или новее). **Установленный Git не нужен.**
 
-**Windows (запуск в один клик):**
-Запустите **`start.bat`** — при первом запуске скрипт сам установит зависимости, соберёт фронтенд, поднимет локальный сервер и откроет `http://localhost:8088` в браузере (при последующих запусках сервер стартует мгновенно, а после обновления через `git pull` фронтенд пересобирается автоматически).
+**Установка и запуск одной командой — Windows (PowerShell, без Git):**
+```powershell
+curl.exe -fsSL https://github.com/EatsMoss/NexusTavern/archive/refs/heads/main.tar.gz -o nt.tgz; mkdir NexusTavern -Force | Out-Null; tar.exe -xzf nt.tgz --strip-components=1 -C NexusTavern; Remove-Item nt.tgz; cd NexusTavern; .\start.bat
+```
 
-**Вручную / Кроссплатформенно (Windows, Linux, macOS):**
+**Установка и запуск одной командой — Windows (CMD / командная строка, без Git):**
+```bat
+curl.exe -fsSL https://github.com/EatsMoss/NexusTavern/archive/refs/heads/main.tar.gz -o nt.tgz && (if not exist NexusTavern mkdir NexusTavern) && tar.exe -xzf nt.tgz --strip-components=1 -C NexusTavern && del nt.tgz && cd NexusTavern && start.bat
+```
 
+**Установка и запуск одной командой — Linux / macOS (без Git):**
 ```bash
-# Установка зависимостей
-npm install
+mkdir -p NexusTavern && curl -fsSL https://github.com/EatsMoss/NexusTavern/archive/refs/heads/main.tar.gz | tar -xz --strip-components=1 -C NexusTavern && cd NexusTavern && npm install && npm run build && npm start
+```
 
-# Продакшен-сборка и запуск локального сервера
-npm run build
-npm start
+> **Последующие запуски на Windows:** просто открывайте **`start.bat`** в созданной папке `NexusTavern` — сервер будет стартовать мгновенно и открывать `http://localhost:8088` в браузере.
 
-# Или режим разработки (Сервер + клиент Vite HMR)
-npm run dev
+**Альтернативный вариант (через Git, с поддержкой обновлений через `git pull`):**
+```bash
+git clone https://github.com/EatsMoss/NexusTavern.git && cd NexusTavern
+# Windows: запустите start.bat
+# Linux / macOS: npm install && npm run build && npm start
 ```
 
 > Подробное описание архитектуры, структуры директорий и стандартов разработки находится в **[PROJECT.md](./PROJECT.md)**.
