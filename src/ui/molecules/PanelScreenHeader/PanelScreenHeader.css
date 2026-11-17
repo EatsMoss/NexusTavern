@@ -1,0 +1,80 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — PANEL SCREEN HEADER MOLECULE (M3 SUB-VIEW TOP BAR)
+   ========================================================================== */
+
+.bb-panel-screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 2px 0 8px;
+  border-bottom: 1px solid var(--bb-page-border, var(--md-sys-color-outline-variant));
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.bb-panel-screen-header__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.bb-panel-screen-header__back {
+  flex-shrink: 0;
+}
+
+.bb-panel-screen-header__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.bb-panel-screen-header__title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bb-panel-screen-header__icon {
+  color: var(--bb-ink-accent, var(--md-sys-color-primary));
+  flex-shrink: 0;
+}
+
+.bb-panel-screen-header__title {
+  margin: 0;
+  font-family: var(--bb-font-heading);
+  font-size: var(--bb-title-size, 16px);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-panel-screen-header__badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.bb-panel-screen-header__subtitle {
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size, 11px);
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-panel-screen-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}

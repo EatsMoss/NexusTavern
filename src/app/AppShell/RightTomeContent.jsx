@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { FolderCard, ProgressIndicator } from '@ui/index.js';
+import React, { lazy, Suspense, useState, useMemo } from 'react';
+import { FolderCard, ModuleNavCard, ProgressIndicator } from '@ui/index.js';
 import { CharacterSheet } from '@features/characters/CharacterSheet/CharacterSheet.jsx';
 
 const LazyAdvancedDefinitionsPanel = lazy(() =>
@@ -30,7 +30,7 @@ const LazyRegexTomePanel = lazy(() =>
 );
 
 /**
- * Right Tome tab router (`selected` | `aiconfig` | `media` | `extensions`).
+ * Right Tome tab router (`selected` | `aiconfig` | `extensions`).
  */
 export function RightTomeContent({
   rightTab,
@@ -51,6 +51,7 @@ export function RightTomeContent({
   regexWorkspace,
   onNotifyToast,
 }) {
+  const [activeExtensionId, setActiveExtensionId] = useState(null);
   const {
     matchedActiveCardFull,
     isActiveCardDirty,
@@ -111,6 +112,25 @@ export function RightTomeContent({
       ? String(chat.messages[chat.messages.length - 1]?.text || '')
       : '';
   const activeCat = mainApi === 'openai' ? 'openai' : 'textgen';
+
+  const activeRegexCount = useMemo(() => {
+    if (!regexWorkspace?.masterEnabled) return 0;
+    const g = (regexWorkspace.globalScripts || []).filter((s) => !s.disabled).length;
+    const p = (regexWorkspace.presetScripts || []).filter((s) => !s.disabled).length;
+    const c = hasActiveScenario
+      ? (regexWorkspace.cardScripts || []).filter((s) => !s.disabled).length
+      : 0;
+    return g + p + c;
+  }, [
+    regexWorkspace?.masterEnabled,
+    regexWorkspace?.globalScripts,
+    regexWorkspace?.presetScripts,
+    regexWorkspace?.cardScripts,
+    hasActiveScenario,
+  ]);
+
+  const recapEnabled = Boolean(messageRecap?.config?.enabled);
+  const savedNum = Math.max(0, Math.round(Number(savedChatTokens) || 0));
 
   return (
     <>
@@ -243,22 +263,21 @@ export function RightTomeContent({
             />
           }
         >
-          <div className="bb-rc-plugins-stack">
+          {activeExtensionId === 'st-importer' ? (
             <LazyStImporterTomePanel
-              collapsible
-              defaultOpen={false}
+              onBack={() => setActiveExtensionId(null)}
               importer={stImporter}
             />
+          ) : activeExtensionId === 'recap' ? (
             <LazyRecapTomePanel
-              collapsible
-              defaultOpen={false}
+              onBack={() => setActiveExtensionId(null)}
               recap={messageRecap}
               tokenContext={promptTokenContext}
               savedChatTokens={savedChatTokens}
             />
+          ) : activeExtensionId === 'refusal' ? (
             <LazyRefusalCatcherManager
-              collapsible
-              defaultOpen={false}
+              onBack={() => setActiveExtensionId(null)}
               enabled={refusalCatcher.enabled}
               delayMs={refusalCatcher.delayMs}
               bannedPhrases={refusalCatcher.bannedPhrases}
@@ -283,9 +302,9 @@ export function RightTomeContent({
               onDeleteCustomFamily={onDeleteHubCustomFamily}
               onOpenAddConnection={onOpenAddConnection}
             />
+          ) : activeExtensionId === 'regex' ? (
             <LazyRegexTomePanel
-              collapsible
-              defaultOpen={false}
+              onBack={() => setActiveExtensionId(null)}
               workspace={regexWorkspace}
               hasActiveScenario={hasActiveScenario}
               activeCharacterName={activeCharacter?.name || ''}
@@ -294,7 +313,87 @@ export function RightTomeContent({
               latestMessageText={latestMessageText}
               onNotify={onNotifyToast}
             />
-          </div>
+          ) : (
+            <div className="bb-rc-plugins-stack">
+              <ModuleNavCard
+                icon="regex"
+                title="Regex Studio"
+                badge={
+                  regexWorkspace?.masterEnabled
+                    ? `${activeRegexCount} active`
+                    : 'Paused'
+                }
+                badgeTone={regexWorkspace?.masterEnabled ? 'active' : 'neutral'}
+                subtitle="Global, scenario & preset regex rules with live debugger"
+                toggleChecked={Boolean(regexWorkspace?.masterEnabled)}
+                onToggleChange={regexWorkspace?.handleToggleMaster}
+                onClick={() => setActiveExtensionId('regex')}
+              />
+
+              <ModuleNavCard
+                icon="scissors"
+                title="Message Recap"
+                badge={
+                  recapEnabled && savedNum > 0
+                    ? `-${savedNum >= 1000 ? `${(savedNum / 1000).toFixed(1)}k` : savedNum} tok`
+                    : recapEnabled
+                      ? 'On'
+                      : 'Off'
+                }
+                badgeTone={
+                  recapEnabled && savedNum > 0
+                    ? 'saved'
+                    : recapEnabled
+                      ? 'active'
+                      : 'neutral'
+                }
+                subtitle={
+                  recapEnabled
+                    ? messageRecap?.config?.stripEnabled
+                      ? `Compressing older history at Depth ≥ ${messageRecap.config.keepFullDepth ?? 4}`
+                      : 'Recap prompts active (history stripping off)'
+                    : 'Automatic context compression for long roleplay chats'
+                }
+                toggleChecked={recapEnabled}
+                onToggleChange={(val) =>
+                  messageRecap?.handlePatchConfig?.({ enabled: val }, { immediate: true })
+                }
+                onClick={() => setActiveExtensionId('recap')}
+              />
+
+              <ModuleNavCard
+                icon="shieldAlert"
+                title="Refusal Catcher"
+                badge={
+                  refusalCatcher?.enabled
+                    ? `${refusalCatcher.bannedPhrases?.length || 0} phrases`
+                    : 'Off'
+                }
+                badgeTone={refusalCatcher?.enabled ? 'active' : 'neutral'}
+                subtitle={
+                  refusalCatcher?.enabled && refusalCatcher?.fallbackEnabled
+                    ? 'Intercepts refusals & auto-routes to fallback model'
+                    : 'Detects canned AI refusals and retries or redirects'
+                }
+                toggleChecked={Boolean(refusalCatcher?.enabled)}
+                onToggleChange={refusalCatcher?.handleToggleEnabled}
+                onClick={() => setActiveExtensionId('refusal')}
+              />
+
+              <ModuleNavCard
+                icon="download"
+                title="SillyTavern Importer"
+                badge={
+                  stImporter?.job?.running
+                    ? `${Math.round(stImporter.job.percent || 0)}%`
+                    : null
+                }
+                badgeTone="active"
+                subtitle="One-click import of cards, chats, personas, backgrounds & regex"
+                onClick={() => setActiveExtensionId('st-importer')}
+              />
+            </div>
+          )}
         </Suspense>
       )}
     </>

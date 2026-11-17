@@ -19,7 +19,14 @@
   flex: 0 0 auto;
 }
 
-/* 1. HEADER CARD: 96x144 (2:3) Portrait + Streamlined M3 Control Panel */
+.bb-tome__body .bb-cs-header {
+  padding: 6px 2px 12px;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--bb-page-border, var(--md-sys-color-outline-variant));
+  background: transparent;
+  box-shadow: none;
+}
 .bb-cs-header {
   display: flex;
   flex-direction: row;

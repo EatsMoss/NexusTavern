@@ -13,6 +13,19 @@
   overflow: hidden;
 }
 
+.bb-mr-sheet.is-subscreen {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  gap: 10px;
+}
+
+.bb-mr-sheet.is-subscreen > .bb-mr-sheet__body {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .bb-mr-sheet.is-disabled .bb-mr-sheet__body {
   opacity: 0.64;
 }

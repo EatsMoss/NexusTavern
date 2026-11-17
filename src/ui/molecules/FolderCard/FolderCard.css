@@ -103,3 +103,43 @@
   gap: 10px;
 }
 
+/* Flat M3 section mode — eliminates nested card-inside-tome double borders */
+.bb-m3-folder--flat,
+.bb-tome__body .bb-m3-folder,
+.bb-settings-tome__scroll .bb-m3-folder,
+.bb-adv-modal__stack .bb-m3-folder,
+.bb-cs-body .bb-m3-folder {
+  padding: 6px 2px 14px;
+  border-radius: 0;
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid var(--bb-page-border, var(--md-sys-color-outline-variant));
+  box-shadow: none;
+}
+
+[data-theme='light'] .bb-m3-folder--flat,
+[data-theme='light'] .bb-tome__body .bb-m3-folder,
+[data-theme='light'] .bb-settings-tome__scroll .bb-m3-folder,
+[data-theme='light'] .bb-adv-modal__stack .bb-m3-folder,
+[data-theme='light'] .bb-cs-body .bb-m3-folder {
+  box-shadow: none;
+}
+
+.bb-m3-folder--flat:last-child,
+.bb-tome__body .bb-m3-folder:last-child,
+.bb-settings-tome__scroll .bb-m3-folder:last-child,
+.bb-adv-modal__stack .bb-m3-folder:last-child,
+.bb-cs-body .bb-m3-folder:last-child {
+  border-bottom-color: transparent;
+}
+
+.bb-m3-folder--flat > .bb-m3-folder__header,
+.bb-tome__body .bb-m3-folder > .bb-m3-folder__header,
+.bb-settings-tome__scroll .bb-m3-folder > .bb-m3-folder__header,
+.bb-adv-modal__stack .bb-m3-folder > .bb-m3-folder__header,
+.bb-cs-body .bb-m3-folder > .bb-m3-folder__header {
+  padding-bottom: 4px;
+  border-bottom: none;
+}
+
+

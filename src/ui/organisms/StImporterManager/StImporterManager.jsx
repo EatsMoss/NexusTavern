@@ -5,6 +5,7 @@ import { Checkbox } from '../../atoms/Checkbox/Checkbox.jsx';
 import { ProgressIndicator } from '../../atoms/ProgressIndicator/ProgressIndicator.jsx';
 import { Dropdown } from '../../molecules/Dropdown/Dropdown.jsx';
 import { KebabMenu } from '../../molecules/KebabMenu/KebabMenu.jsx';
+import { PanelScreenHeader } from '../../molecules/PanelScreenHeader/PanelScreenHeader.jsx';
 import './StImporterManager.css';
 
 const EMPTY_ARRAY = Object.freeze([]);
@@ -117,6 +118,8 @@ export function StImporterManager({
   onCancelImport,
   lastReport = null,
   onDismissReport,
+  onBack = null,
+  backLabel = 'Back to Plugins',
   collapsible = false,
   defaultOpen = true,
   className = '',
@@ -209,6 +212,7 @@ export function StImporterManager({
     <section
       className={[
         'bb-sti-sheet',
+        onBack ? 'is-subscreen' : '',
         collapsible ? 'bb-sti-sheet--collapsible' : '',
         !showBody ? 'is-collapsed' : '',
         className,
@@ -216,6 +220,26 @@ export function StImporterManager({
         .filter(Boolean)
         .join(' ')}
     >
+      {onBack ? (
+        <PanelScreenHeader
+          title="SillyTavern Importer"
+          icon="download"
+          backLabel={backLabel}
+          onBack={onBack}
+          badge={
+            <span
+              className={`bb-sti-sheet__badge ${
+                isRunning || totalDiscoveredItems !== null
+                  ? 'bb-sti-sheet__badge--active'
+                  : ''
+              }`.trim()}
+            >
+              {headerBadgeText}
+            </span>
+          }
+          actions={<KebabMenu items={menuItems} size="sm" title="SillyTavern Importer options" />}
+        />
+      ) : (
       <div className="bb-sti-sheet__header" onClick={handleHeaderClick}>
         <div className="bb-sti-sheet__title-group">
           <Icon name="download" size={17} className="bb-sti-sheet__title-icon" />
@@ -254,6 +278,7 @@ export function StImporterManager({
           )}
         </div>
       </div>
+      )}
 
       {showBody && (
         <div className="bb-sti-sheet__body">

@@ -7,6 +7,7 @@ import {
 } from './splitGeometry.js';
 
 const RATIO_KEY = 'nexustavern_char_split_ratio';
+const GALLERY_MARGINS_H = 24;
 
 function readStoredSplitRatio(fallbackRatio = SPLIT_DEFAULTS.ratio) {
   const safeFallback = normalizeSplitRatio(fallbackRatio, SPLIT_DEFAULTS.ratio);
@@ -17,7 +18,7 @@ function readStoredSplitRatio(fallbackRatio = SPLIT_DEFAULTS.ratio) {
         return normalizeSplitRatio(raw, safeFallback);
       }
     } catch {
-      // ignore storage errors
+      // ignore
     }
   }
   return safeFallback;
@@ -32,26 +33,12 @@ function persistSplitRatio(ratio) {
       localStorage.setItem(RATIO_KEY, Number(ratio).toFixed(6));
     }
   } catch {
-    // Storage may be unavailable; the in-memory ratio still applies.
+    // ignore
   }
 }
 
-/**
- * Vertical space the gallery spends outside its measured chrome block: the
- * gallery's own top/bottom padding plus the gap between the chrome and the grid.
- * Named so the split maths stay readable instead of carrying a magic number.
- */
-const GALLERY_MARGINS_H = 24;
-
-/**
- * NexusTavern — drives the Pinned / All split.
- *
- * Measures the live chrome (pinned header, All chrome, one grid row) so the pure
- * geometry module can apply the "always keep one row visible on both sides"
- * rule. The ratio is persisted across reloads, and the layout is recomputed on
- * container resize and whenever the measured chrome or card row geometry changes.
- */
 export function usePinnedSplit({
+  enabled = false,
   rootRef,
   pinnedRef,
   pinnedHeaderRef,
@@ -64,29 +51,19 @@ export function usePinnedSplit({
   const resolvedInitialRatio = readStoredSplitRatio(initialRatio);
   const ratioRef = useRef(resolvedInitialRatio);
   const [layout, setLayout] = useState(() =>
-    computeSplitLayout({
-      ratio: resolvedInitialRatio,
-    }),
+    computeSplitLayout({ ratio: resolvedInitialRatio }),
   );
-
   const isDraggingRef = useRef(false);
   const onRatioChangeRef = useRef(onRatioChange);
   onRatioChangeRef.current = onRatioChange;
 
   const measure = useCallback(() => {
+    if (!enabled) return null;
     const root = rootRef.current;
-    if (!root) return null;
+    if (!root || !root.clientHeight || root.clientHeight <= 120) return null;
 
-    const totalH = root.clientHeight;
-    if (!totalH || totalH <= 120) return null;
-
-    const header = pinnedHeaderRef.current;
-    const grid = pinnedGridRef.current;
-
-    // Measure a REAL grid row instead of a synthetic probe: the first tile's
-    // height plus the grid's own row gap. Fall back only when there is no tile
-    // to measure yet (empty Pinned section).
     let oneRowH = SPLIT_DEFAULTS.oneRowH;
+    const grid = pinnedGridRef.current;
     if (grid) {
       const tile = grid.querySelector('.bb-char-tile, .bb-pinned-folder');
       if (tile && tile.offsetHeight > 30) {
@@ -96,10 +73,10 @@ export function usePinnedSplit({
     }
 
     return {
-      totalH,
-      pinnedHeaderH: header ? header.offsetHeight + 8 : SPLIT_DEFAULTS.pinnedHeaderH,
-      // The All section's chrome is measured from the gallery itself, so it
-      // covers the search row, chips, toolbar and count line - not just a title.
+      totalH: root.clientHeight,
+      pinnedHeaderH: pinnedHeaderRef.current
+        ? pinnedHeaderRef.current.offsetHeight + 8
+        : SPLIT_DEFAULTS.pinnedHeaderH,
       allChromeH: allChromeRef.current
         ? allChromeRef.current.offsetHeight + GALLERY_MARGINS_H
         : SPLIT_DEFAULTS.allChromeH,
@@ -108,17 +85,17 @@ export function usePinnedSplit({
       ratio: ratioRef.current,
       extraPinnedH: 0,
     };
-  }, [rootRef, pinnedHeaderRef, pinnedGridRef, allChromeRef]);
+  }, [enabled, rootRef, pinnedHeaderRef, pinnedGridRef, allChromeRef]);
 
   const apply = useCallback(() => {
     const metrics = measure();
-    if (!metrics) return;
-    setLayout(computeSplitLayout(metrics));
+    if (metrics) setLayout(computeSplitLayout(metrics));
   }, [measure]);
 
-  // Hydrate from server session ratio if localStorage had no local entry yet.
   useEffect(() => {
-    if (initialRatio === null || initialRatio === undefined || isDraggingRef.current) return;
+    if (!enabled || initialRatio === null || initialRatio === undefined || isDraggingRef.current) {
+      return;
+    }
     let hasLocal = false;
     if (typeof localStorage !== 'undefined') {
       try {
@@ -134,41 +111,38 @@ export function usePinnedSplit({
       persistSplitRatio(normalized);
       apply();
     }
-  }, [initialRatio, apply]);
+  }, [enabled, initialRatio, apply]);
 
-  // Recompute on mount and whenever card density, aspect, or pinned entries change.
   useLayoutEffect(() => {
-    apply();
-  }, [apply, recomputeKey]);
+    if (enabled) apply();
+  }, [enabled, apply, recomputeKey]);
 
   useEffect(() => {
-    const root = rootRef.current;
-    if (!root || typeof ResizeObserver === 'undefined') return undefined;
-
+    if (!enabled || !rootRef.current || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
     let raf = null;
     const observer = new ResizeObserver(() => {
-      if (isDraggingRef.current) return;
-      if (raf !== null) return;
+      if (isDraggingRef.current || raf !== null) return;
       raf = requestAnimationFrame(() => {
         raf = null;
         apply();
       });
     });
-    observer.observe(root);
+    observer.observe(rootRef.current);
     if (pinnedHeaderRef.current) observer.observe(pinnedHeaderRef.current);
     if (allChromeRef.current) observer.observe(allChromeRef.current);
     const firstTile = pinnedGridRef.current?.querySelector('.bb-char-tile, .bb-pinned-folder');
     if (firstTile) observer.observe(firstTile);
-
     return () => {
       observer.disconnect();
       if (raf !== null) cancelAnimationFrame(raf);
     };
-  }, [rootRef, pinnedHeaderRef, pinnedGridRef, allChromeRef, apply, recomputeKey]);
+  }, [enabled, rootRef, pinnedHeaderRef, pinnedGridRef, allChromeRef, apply, recomputeKey]);
 
   const handleSplitterPointerDown = useCallback(
     (e) => {
-      if (e.button !== 0) return;
+      if (!enabled || e.button !== 0) return;
       e.preventDefault();
       const metrics = measure();
       if (!metrics) return;
@@ -190,7 +164,13 @@ export function usePinnedSplit({
           availableH,
         });
         ratioRef.current = next.ratio;
-        setLayout((prev) => ({ ...prev, pinnedH: next.pinnedH, minPinnedH, maxPinnedH, availableH }));
+        setLayout((prev) => ({
+          ...prev,
+          pinnedH: next.pinnedH,
+          minPinnedH,
+          maxPinnedH,
+          availableH,
+        }));
       };
 
       const finishDrag = () => {
@@ -211,7 +191,7 @@ export function usePinnedSplit({
       window.addEventListener('pointercancel', finishDrag);
       window.addEventListener('blur', finishDrag);
     },
-    [measure, layout.pinnedH, pinnedRef],
+    [enabled, measure, layout.pinnedH, pinnedRef],
   );
 
   const resetSplit = useCallback(() => {

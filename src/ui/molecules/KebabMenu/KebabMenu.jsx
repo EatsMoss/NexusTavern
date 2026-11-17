@@ -172,34 +172,48 @@ export function KebabMenu({
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
           >
-            {visibleItems.map((item, idx) => (
-              <button
-                key={item.id || item.label || idx}
-                type="button"
-                role="menuitem"
-                disabled={item.disabled}
-                title={item.title || item.label}
-                className={[
-                  'bb-kebab-menu__item',
-                  item.danger ? 'bb-kebab-menu__item--danger' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setOpen(false);
-                  item.onClick?.();
-                }}
-              >
-                {item.icon && (
-                  <span className="bb-kebab-menu__item-icon">
-                    <Icon name={item.icon} size={16} />
-                  </span>
-                )}
-                <span className="bb-kebab-menu__item-label">{item.label}</span>
-              </button>
-            ))}
+            {visibleItems.map((item, idx) =>
+              item.divider ? (
+                <div
+                  key={item.id || `div-${idx}`}
+                  role="separator"
+                  className="bb-kebab-menu__divider"
+                />
+              ) : (
+                <button
+                  key={item.id || item.label || idx}
+                  type="button"
+                  role="menuitem"
+                  disabled={item.disabled}
+                  title={item.title || item.label}
+                  className={[
+                    'bb-kebab-menu__item',
+                    item.active ? 'bb-kebab-menu__item--active' : '',
+                    item.danger ? 'bb-kebab-menu__item--danger' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setOpen(false);
+                    item.onClick?.();
+                  }}
+                >
+                  {item.icon && (
+                    <span className="bb-kebab-menu__item-icon">
+                      <Icon name={item.icon} size={16} />
+                    </span>
+                  )}
+                  <span className="bb-kebab-menu__item-label">{item.label}</span>
+                  {item.active && (
+                    <span className="bb-kebab-menu__item-check">
+                      <Icon name="check" size={14} />
+                    </span>
+                  )}
+                </button>
+              ),
+            )}
           </div>,
           document.body,
         )}

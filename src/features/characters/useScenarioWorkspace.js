@@ -1267,12 +1267,114 @@ export function useScenarioWorkspace({
     return sortCards(filtered, gallery.sortMode);
   }, [groups, hiddenTagSet, gallery.query, gallery.chipState, tagNameById, gallery.sortMode]);
 
+  const handleAssignTagToCard = useCallback(async (cardId, tagId) => {
+    if (!cardId || tagId == null) return;
+    const tid = String(tagId);
+    setCards((prev) =>
+      prev.map((c) => {
+        if (c.id !== cardId) return c;
+        const existing = (c.tagIds || []).map(String);
+        if (existing.includes(tid)) return c;
+        return { ...c, tagIds: [...existing, tid] };
+      }),
+    );
+    if (!isDemoCardId(cardId)) {
+      try {
+        await bulkSetCardTags([cardId], tid, 'add');
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  const handleRemoveTagFromCard = useCallback(async (cardId, tagId) => {
+    if (!cardId || tagId == null) return;
+    const tid = String(tagId);
+    setCards((prev) =>
+      prev.map((c) => {
+        if (c.id !== cardId) return c;
+        return { ...c, tagIds: (c.tagIds || []).map(String).filter((x) => x !== tid) };
+      }),
+    );
+    if (!isDemoCardId(cardId)) {
+      try {
+        await bulkSetCardTags([cardId], tid, 'remove');
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  const handleCreateTag = useCallback(async (rawName) => {
+    const trimmed = String(rawName || '').trim();
+    if (!trimmed) return;
+    try {
+      const res = await createTag(trimmed);
+      if (Array.isArray(res?.tags) && res.tags.length > 0) {
+        setTags(res.tags);
+        return;
+      }
+    } catch {
+      // Fallback to local state when server is unreachable
+    }
+    setTags((prev) => {
+      if (prev.some((t) => String(t.name || '').toLowerCase() === trimmed.toLowerCase())) {
+        return prev;
+      }
+      return [...prev, { id: `tag_${Date.now()}`, name: trimmed }];
+    });
+  }, []);
+
+  const handleRenameTagFolder = useCallback(async (tagId, newName) => {
+    if (tagId == null || !newName) return;
+    const tid = String(tagId);
+    setTags((prev) => prev.map((t) => (String(t.id) === tid ? { ...t, name: newName } : t)));
+    try {
+      await renameTag(tid, newName);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const pinnedLayout = usePinnedLayout({
+    cards,
+    tags,
+    hiddenTagIds,
+    onSyncCardPinServer: handleGalleryTogglePin,
+    onAssignTagToCard: handleAssignTagToCard,
+    onRemoveTagFromCard: handleRemoveTagFromCard,
+    onRenameTag: handleRenameTagFolder,
+  });
+
   const visibleSelectableIds = useMemo(() => {
     if (gallery.entityFilter === 'groups') {
       return visibleGalleryGroups.map((g) => g.id);
     }
+    if (gallery.entityFilter === 'pinned') {
+      const ids = [];
+      const seen = new Set();
+      for (const entry of pinnedLayout.resolvedEntries || []) {
+        if (entry.type === 'item' && entry.card?.id && !seen.has(entry.card.id)) {
+          seen.add(entry.card.id);
+          ids.push(entry.card.id);
+        } else if (entry.type === 'folder' && Array.isArray(entry.items)) {
+          for (const member of entry.items) {
+            if (member?.id && !seen.has(member.id)) {
+              seen.add(member.id);
+              ids.push(member.id);
+            }
+          }
+        }
+      }
+      return ids;
+    }
     return visibleGalleryCards.map((c) => c.id);
-  }, [gallery.entityFilter, visibleGalleryCards, visibleGalleryGroups]);
+  }, [
+    gallery.entityFilter,
+    visibleGalleryCards,
+    visibleGalleryGroups,
+    pinnedLayout.resolvedEntries,
+  ]);
 
   const allResultsSelected = useMemo(() => {
     if (visibleSelectableIds.length === 0) return false;
@@ -1469,85 +1571,6 @@ export function useScenarioWorkspace({
     (files) => galleryHandlersRef.current.importFiles(files, { importEmbeddedTags: true }),
     [],
   );
-
-  const handleAssignTagToCard = useCallback(async (cardId, tagId) => {
-    if (!cardId || tagId == null) return;
-    const tid = String(tagId);
-    setCards((prev) =>
-      prev.map((c) => {
-        if (c.id !== cardId) return c;
-        const existing = (c.tagIds || []).map(String);
-        if (existing.includes(tid)) return c;
-        return { ...c, tagIds: [...existing, tid] };
-      }),
-    );
-    if (!isDemoCardId(cardId)) {
-      try {
-        await bulkSetCardTags([cardId], tid, 'add');
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
-
-  const handleRemoveTagFromCard = useCallback(async (cardId, tagId) => {
-    if (!cardId || tagId == null) return;
-    const tid = String(tagId);
-    setCards((prev) =>
-      prev.map((c) => {
-        if (c.id !== cardId) return c;
-        return { ...c, tagIds: (c.tagIds || []).map(String).filter((x) => x !== tid) };
-      }),
-    );
-    if (!isDemoCardId(cardId)) {
-      try {
-        await bulkSetCardTags([cardId], tid, 'remove');
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
-
-  const handleCreateTag = useCallback(async (rawName) => {
-    const trimmed = String(rawName || '').trim();
-    if (!trimmed) return;
-    try {
-      const res = await createTag(trimmed);
-      if (Array.isArray(res?.tags) && res.tags.length > 0) {
-        setTags(res.tags);
-        return;
-      }
-    } catch {
-      // Fallback to local state when server is unreachable
-    }
-    setTags((prev) => {
-      if (prev.some((t) => String(t.name || '').toLowerCase() === trimmed.toLowerCase())) {
-        return prev;
-      }
-      return [...prev, { id: `tag_${Date.now()}`, name: trimmed }];
-    });
-  }, []);
-
-  const handleRenameTagFolder = useCallback(async (tagId, newName) => {
-    if (tagId == null || !newName) return;
-    const tid = String(tagId);
-    setTags((prev) => prev.map((t) => (String(t.id) === tid ? { ...t, name: newName } : t)));
-    try {
-      await renameTag(tid, newName);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const pinnedLayout = usePinnedLayout({
-    cards,
-    tags,
-    hiddenTagIds,
-    onSyncCardPinServer: handleGalleryTogglePin,
-    onAssignTagToCard: handleAssignTagToCard,
-    onRemoveTagFromCard: handleRemoveTagFromCard,
-    onRenameTag: handleRenameTagFolder,
-  });
 
   const handleDeleteCard = useCallback(
     async (id, { deleteChats = true, isGroup = false } = {}) => {

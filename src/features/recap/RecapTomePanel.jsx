@@ -8,13 +8,15 @@ export function RecapTomePanel({
   recap,
   tokenContext = null,
   savedChatTokens = 0,
-  collapsible = true,
-  defaultOpen = false,
+  onBack = null,
+  collapsible = false,
+  defaultOpen = true,
 }) {
   if (!recap) return null;
 
   return (
     <MessageRecapManager
+      onBack={onBack}
       collapsible={collapsible}
       defaultOpen={defaultOpen}
       config={recap.config}

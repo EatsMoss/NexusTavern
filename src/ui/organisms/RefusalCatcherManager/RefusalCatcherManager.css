@@ -13,6 +13,37 @@
   overflow: hidden;
 }
 
+.bb-rc-sheet.is-subscreen {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.bb-rc-sheet.is-subscreen > .bb-rc-sheet__body {
+  padding-left: 0;
+  padding-right: 0;
+  flex: 1 1 auto;
+}
+
+.bb-rc-sheet.is-subscreen .bb-rc-well {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+
+.bb-rc-sheet.is-subscreen .bb-rc-scroll {
+  max-height: none;
+  flex: 1 1 auto;
+}
+
+.bb-rc-sheet.is-subscreen .bb-rc-scroll .bb-overlay-scroll-area__viewport {
+  overflow: visible;
+}
+
 .bb-rc-sheet.is-disabled .bb-rc-sheet__body {
   opacity: 0.64;
 }

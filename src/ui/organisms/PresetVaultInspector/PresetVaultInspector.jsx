@@ -3,7 +3,6 @@ import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { Button } from '../../atoms/Button/Button.jsx';
 import { ProgressIndicator } from '../../atoms/ProgressIndicator/ProgressIndicator.jsx';
 import { BookmarkRibbons } from '../../molecules/BookmarkRibbons/BookmarkRibbons.jsx';
-import { FolderCard } from '../../molecules/FolderCard/FolderCard.jsx';
 import { Dropdown } from '../../molecules/Dropdown/Dropdown.jsx';
 import { KebabMenu } from '../../molecules/KebabMenu/KebabMenu.jsx';
 import { AvatarStack } from '../../molecules/AvatarStack/AvatarStack.jsx';
@@ -257,6 +256,7 @@ export function PresetVaultInspector({
         icon: 'copy',
         onClick: () => onDuplicatePreset?.(currentCategory, currentSelectedName),
       },
+      { divider: true },
       {
         id: 'import',
         label: 'Import JSON Preset(s)...',
@@ -272,6 +272,17 @@ export function PresetVaultInspector({
           setExportModalOpen(true);
         },
       },
+      ...(isPresetDirty
+        ? [
+            {
+              id: 'revert',
+              label: 'Revert Unsaved Edits',
+              icon: 'undo',
+              onClick: () => onRevertPreset?.(currentCategory, currentSelectedName),
+            },
+          ]
+        : []),
+      { divider: true },
       {
         id: 'delete',
         label: 'Delete Preset...',
@@ -303,37 +314,31 @@ export function PresetVaultInspector({
           }}
         />
 
-        <FolderCard
-          title="Completion Presets"
-          subtitle={`${currentList.length} SillyTavern presets • Drag & drop .json to import`}
-          icon="sliders"
-          defaultOpen
+        <section
+          className={`bb-preset-dropzone bb-preset-header-bar ${isDraggingFiles ? 'is-dragging-file' : ''}`}
+          onDragOver={(e) => {
+            if (e.dataTransfer?.types?.includes('Files')) {
+              e.preventDefault();
+              setIsDraggingFiles(true);
+            }
+          }}
+          onDragLeave={() => setIsDraggingFiles(false)}
+          onDrop={(e) => {
+            if (e.dataTransfer?.files?.length) {
+              e.preventDefault();
+              setIsDraggingFiles(false);
+              handleFilesImport(e.dataTransfer.files);
+            }
+          }}
         >
-          <div
-            className={`bb-preset-dropzone ${isDraggingFiles ? 'is-dragging-file' : ''}`}
-            onDragOver={(e) => {
-              if (e.dataTransfer?.types?.includes('Files')) {
-                e.preventDefault();
-                setIsDraggingFiles(true);
-              }
-            }}
-            onDragLeave={() => setIsDraggingFiles(false)}
-            onDrop={(e) => {
-              if (e.dataTransfer?.files?.length) {
-                e.preventDefault();
-                setIsDraggingFiles(false);
-                handleFilesImport(e.dataTransfer.files);
-              }
-            }}
-          >
-            {isDraggingFiles && (
-              <div className="bb-preset-dropzone-overlay">
-                <Icon name="upload" size={22} />
-                <span>Drop .json preset file(s) to import</span>
-              </div>
-            )}
+          {isDraggingFiles && (
+            <div className="bb-preset-dropzone-overlay">
+              <Icon name="upload" size={22} />
+              <span>Drop .json preset file(s) to import</span>
+            </div>
+          )}
 
-            <Dropdown
+          <Dropdown
               label="Chat Completion Preset"
               options={currentList.map((item) => {
                 const ts = formatPresetTimestamp(item);
@@ -448,85 +453,49 @@ export function PresetVaultInspector({
                 onSelectScenario={onSelectCharacter}
               />
             )}
-            {isPresetDirty && (
-              <div className="bb-preset-dirty-banner">
-                <span>Unsaved changes in “{currentSelectedName}”</span>
-                <div className="bb-preset-dirty-banner-actions">
-                  <Button
-                    variant="b2"
-                    size="sm"
-                    icon="refresh"
-                    title="Revert unsaved edits"
-                    onClick={() => onRevertPreset?.(currentCategory, currentSelectedName)}
-                  >
-                    Revert
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="bb-preset-action-row">
-              <div className="bb-preset-action-group">
-                <Button
-                  variant="b1"
-                  size="sm"
-                  emphasis="filled"
-                  icon="check"
-                  disabled={savingPreset}
-                  onClick={isOpenai ? onSaveOpenaiDoc : onSaveTextgenDoc}
-                  title="Save changes to active preset file"
-                >
-                  {savingPreset ? 'Saving...' : 'Save'}
-                </Button>
-                <Button
-                  variant="b1"
-                  size="sm"
-                  emphasis="outlined"
-                  icon="plus"
-                  onClick={() => {
-                    setSaveAsDraftName(`${currentSelectedName || 'Preset'} (Custom)`);
-                    setSaveAsModalOpen(true);
-                  }}
-                  title="Save as a new preset"
-                >
-                  Save As
-                </Button>
-                <Button
-                  variant="b1"
-                  size="sm"
-                  emphasis="outlined"
-                  icon="upload"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Import .json preset file(s)"
-                >
-                  Import
-                </Button>
-                <Button
-                  variant="b1"
-                  size="sm"
-                  emphasis="outlined"
-                  icon="download"
-                  onClick={() => {
-                    setExportWithConnection(false);
-                    setExportModalOpen(true);
-                  }}
-                  title="Export active preset to .json"
-                >
-                  Export
-                </Button>
-              </div>
-              <div className="bb-preset-action-group">
-                <KebabMenu items={manageMenuItems} title="More preset actions" />
-              </div>
+          <div className="bb-preset-action-row">
+            <div className="bb-preset-action-status">
+              {isPresetDirty ? (
+                <span className="bb-preset-dirty-pill">
+                  <span className="bb-preset-dirty-dot" aria-hidden="true" />
+                  <span>Unsaved edits</span>
+                </span>
+              ) : presetStatusMsg ? (
+                <span className="bb-caption-text" style={{ fontSize: 11 }}>
+                  {presetStatusMsg}
+                </span>
+              ) : (
+                <span className="bb-caption-text" style={{ fontSize: 11 }}>
+                  {currentList.length} presets · drop .json to import
+                </span>
+              )}
             </div>
 
-            {presetStatusMsg && (
-              <div className="bb-caption-text" style={{ fontSize: 11 }}>
-                {presetStatusMsg}
-              </div>
-            )}
+            <div className="bb-preset-action-group">
+              {isPresetDirty && (
+                <Button
+                  variant="b2"
+                  size="sm"
+                  icon="undo"
+                  title="Revert unsaved edits"
+                  onClick={() => onRevertPreset?.(currentCategory, currentSelectedName)}
+                />
+              )}
+              <Button
+                variant="b1"
+                size="sm"
+                emphasis={isPresetDirty ? 'filled' : 'tonal'}
+                icon="check"
+                disabled={savingPreset}
+                onClick={isOpenai ? onSaveOpenaiDoc : onSaveTextgenDoc}
+                title="Save changes to active preset file"
+              >
+                {savingPreset ? 'Saving...' : 'Save'}
+              </Button>
+              <KebabMenu items={manageMenuItems} title="More preset actions" />
+            </div>
           </div>
-        </FolderCard>
+        </section>
 
         <BookmarkRibbons
           variant="secondary"

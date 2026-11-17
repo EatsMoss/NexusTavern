@@ -7,6 +7,7 @@ export function FolderCard({
   subtitle,
   icon,
   actions,
+  variant = 'card',
   collapsible = true,
   defaultOpen = true,
   forceOpen = false,
@@ -25,6 +26,7 @@ export function FolderCard({
     <section
       className={[
         'bb-m3-folder',
+        variant === 'flat' ? 'bb-m3-folder--flat' : '',
         collapsible ? 'bb-m3-folder--collapsible' : '',
         effectiveOpen ? 'bb-m3-folder--open' : '',
         className,

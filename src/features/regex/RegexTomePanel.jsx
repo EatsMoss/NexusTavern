@@ -12,13 +12,15 @@ export function RegexTomePanel({
   personaName = 'User',
   latestMessageText = '',
   onNotify,
+  onBack = null,
   collapsible = false,
-  defaultOpen = false,
+  defaultOpen = true,
 }) {
   if (!workspace) return null;
 
   return (
     <RegexManager
+      onBack={onBack}
       collapsible={collapsible}
       defaultOpen={defaultOpen}
       masterEnabled={workspace.masterEnabled}

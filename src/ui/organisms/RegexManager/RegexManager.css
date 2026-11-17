@@ -13,6 +13,26 @@
   overflow: hidden;
 }
 
+.bb-rx-sheet.is-subscreen {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.bb-rx-sheet.is-subscreen > .bb-rx-sheet__controls,
+.bb-rx-sheet.is-subscreen > .bb-rx-sheet__body {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.bb-rx-sheet.is-subscreen > .bb-rx-sheet__body {
+  flex: 1 1 auto;
+}
+
 .bb-rx-sheet__header {
   display: flex;
   align-items: center;

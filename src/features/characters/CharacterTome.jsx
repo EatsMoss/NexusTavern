@@ -15,6 +15,7 @@ import './CharacterTome.css';
 
 const DRAG_THRESHOLD_PX = 6;
 const REORDER_DWELL_MS = 45;
+const PIN_TAB_SWITCH_DWELL_MS = 340;
 
 /**
  * Captures the baseline (un-transformed) slot rectangles of a grid container
@@ -337,6 +338,9 @@ export function CharacterTome({
   const [openAllTagId, setOpenAllTagId] = useState(null);
   const latestPinnedRef = useRef(pinnedLayout);
   latestPinnedRef.current = pinnedLayout;
+  const latestGalleryRef = useRef(gallery);
+  latestGalleryRef.current = gallery;
+  const isSplitMode = Boolean(gallery?.splitView);
 
   useEffect(() => {
     if (gallery.entityFilter !== 'tags' && openAllTagId !== null) {
@@ -385,11 +389,15 @@ export function CharacterTome({
   const [measuredGridWidth, setMeasuredGridWidth] = useState(0);
 
   useEffect(() => {
-    const targetEl = pinnedGridRef.current || rootRef.current;
+    const targetEl = pinnedGridRef.current || allScrollRef.current || rootRef.current;
     if (!targetEl || typeof ResizeObserver === 'undefined') return undefined;
 
     const updateWidth = () => {
-      const w = pinnedGridRef.current?.clientWidth || rootRef.current?.clientWidth || 0;
+      const w =
+        pinnedGridRef.current?.clientWidth ||
+        allScrollRef.current?.clientWidth ||
+        rootRef.current?.clientWidth ||
+        0;
       if (w > 0) setMeasuredGridWidth(w);
     };
 
@@ -400,7 +408,7 @@ export function CharacterTome({
       ro.observe(rootRef.current);
     }
     return () => ro.disconnect();
-  }, []);
+  }, [gallery.entityFilter]);
 
   const colsCount = useMemo(() => {
     const targetCardSize = Number(gallery.cardSize) || 88;
@@ -410,9 +418,10 @@ export function CharacterTome({
   }, [measuredGridWidth, gallery.cardSize]);
 
   const pinnedEntriesCount = pinnedLayout?.resolvedEntries?.length || 0;
-  const splitRecomputeKey = `${pinnedEntriesCount}:${colsCount}:${gallery.cardSize}:${gallery.aspect}:${gallery.entityFilter}:${gallery.activeChipIds?.length || 0}`;
+  const splitRecomputeKey = `${isSplitMode}:${pinnedEntriesCount}:${colsCount}:${gallery.cardSize}:${gallery.aspect}:${gallery.entityFilter}:${gallery.activeChipIds?.length || 0}`;
 
   const { layout, handleSplitterPointerDown, resetSplit } = usePinnedSplit({
+    enabled: isSplitMode,
     rootRef,
     pinnedRef,
     pinnedHeaderRef,
@@ -475,6 +484,7 @@ export function CharacterTome({
       let pendingRawHover = null;
       let pendingReorderKey = null;
       let reorderDwellTimer = null;
+      let pinTabSwitchTimer = null;
       let lastGhost = null;
       let outsidePopover = false;
 
@@ -485,6 +495,13 @@ export function CharacterTome({
         }
         pendingReorderKey = null;
         pendingRawHover = null;
+      };
+
+      const clearPinTabTimer = () => {
+        if (pinTabSwitchTimer !== null) {
+          clearTimeout(pinTabSwitchTimer);
+          pinTabSwitchTimer = null;
+        }
       };
 
       const pushDragState = () => {
@@ -551,8 +568,12 @@ export function CharacterTome({
           height: ghostH,
         };
 
-        const pinnedBox = pinnedRef.current?.getBoundingClientRect() || null;
+        const pinnedBox =
+          (latestGalleryRef.current?.splitView ? pinnedRef.current : pinnedGridRef.current)?.getBoundingClientRect() ||
+          null;
         const popoverBox = popoverRef.current?.getBoundingClientRect() || null;
+        const pinTabEl = rootRef.current?.querySelector('[data-bb-pin-drop-tab="true"]');
+        const pinTabBox = pinTabEl?.getBoundingClientRect() || null;
 
         // 1. Dragging from inside an open folder popover:
         //    As soon as the pointer leaves the folder bounds, close the folder immediately
@@ -567,6 +588,7 @@ export function CharacterTome({
 
           if (insidePop) {
             clearReorderTimer();
+            clearPinTabTimer();
             currentHover =
               meta.sourceFolderType === 'folder' && popoverMetrics
                 ? hitTestGrid(ev.clientX, ev.clientY, popoverMetrics, {
@@ -594,8 +616,41 @@ export function CharacterTome({
           );
         }
 
-        // 2. Check if dragging a Pinned tile (or a card pulled out of a Pinned user folder) downward into All to unpin
+        const overPinTab =
+          (meta.sourceOrigin === 'all' ||
+            meta.sourceOrigin === 'all-tag' ||
+            meta.sourceOrigin === 'folder-popover') &&
+          pinTabBox &&
+          ev.clientX >= pinTabBox.left - 6 &&
+          ev.clientX <= pinTabBox.right + 6 &&
+          ev.clientY >= pinTabBox.top - 6 &&
+          ev.clientY <= pinTabBox.bottom + 6;
+
+        if (overPinTab && latestGalleryRef.current?.entityFilter !== 'pinned') {
+          clearReorderTimer();
+          currentHover = { scope: 'pin-tab', mode: 'pin' };
+          if (pinTabSwitchTimer === null) {
+            pinTabSwitchTimer = setTimeout(() => {
+              pinTabSwitchTimer = null;
+              latestGalleryRef.current?.setEntityFilter?.('pinned');
+              window.requestAnimationFrame(() => {
+                pinnedMetrics = measureGridSlots(
+                  pinnedGridRef.current,
+                  '[data-bb-pinned-slot]',
+                  colsCount,
+                );
+                currentHover = null;
+                pushDragState();
+              });
+            }, PIN_TAB_SWITCH_DWELL_MS);
+          }
+          pushDragState();
+          return;
+        }
+        clearPinTabTimer();
+
         if (
+          latestGalleryRef.current?.splitView &&
           (meta.sourceOrigin === 'pinned' ||
             (meta.sourceOrigin === 'folder-popover' &&
               outsidePopover &&
@@ -617,7 +672,14 @@ export function CharacterTome({
           ev.clientX >= pinnedBox.left - 16 &&
           ev.clientX <= pinnedBox.right + 16
         ) {
-          // 3. Hovering over the Pinned section
+          if (!pinnedMetrics) {
+            pinnedMetrics = measureGridSlots(
+              pinnedGridRef.current,
+              '[data-bb-pinned-slot]',
+              colsCount,
+            );
+          }
+          // Hovering over the Pinned section
           const rawHover = hitTestGrid(ev.clientX, ev.clientY, pinnedMetrics, {
             isInternalReorder: meta.sourceOrigin === 'pinned',
             sourceIndex: meta.sourceOrigin === 'pinned' ? meta.sourceIndex : -1,
@@ -680,6 +742,7 @@ export function CharacterTome({
       const onPointerUp = (ev) => {
         const effectiveHover = currentHover || pendingRawHover;
         clearReorderTimer();
+        clearPinTabTimer();
         window.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('pointerup', onPointerUp);
         window.removeEventListener('pointercancel', onPointerUp);
@@ -698,8 +761,17 @@ export function CharacterTome({
         const ctrl = latestPinnedRef.current;
         if (!ctrl) return;
 
+        if (effectiveHover?.scope === 'pin-tab') {
+          const endIdx = (ctrl.resolvedEntries || []).length;
+          if (meta.card) {
+            ctrl.pinOrMoveItemToIndex?.(meta.card.id, endIdx);
+          } else if (meta.sourceOrigin === 'all-tag' && meta.tagId != null) {
+            ctrl.pinTagFolderToIndex?.(meta.tagId, endIdx);
+          }
+          return;
+        }
+
         if (!effectiveHover) {
-          // Pulled out of a user folder in Pinned and released outside slots (without unpinning into All)
           if (
             meta.sourceOrigin === 'folder-popover' &&
             outsidePopover &&
@@ -764,92 +836,106 @@ export function CharacterTome({
     },
     [colsCount, gallery.cardSize, gallery.aspect],
   );
+  const pinnedSectionNode = (
+    <PinnedSection
+      entries={pinnedLayout?.resolvedEntries || []}
+      query={isSplitMode ? '' : gallery.query}
+      showHeader={isSplitMode}
+      selectedId={selectedCardId}
+      openFolderId={pinnedLayout?.openFolderId || null}
+      multiSelectActive={multiSelectActive}
+      multiSelectedIds={multiSelectedIds}
+      onToggleMultiSelect={onToggleMultiSelect}
+      onSelect={onSelect}
+      onOpen={onOpen}
+      onTogglePin={onTogglePin}
+      onOpenFolder={handleOpenPinnedFolder}
+      onRenameFolder={pinnedLayout?.renameFolder}
+      onRemoveCardFromFolder={pinnedLayout?.removeCardFromFolder}
+      onStartPointerDrag={handleStartPointerDrag}
+      kebabItemsFor={kebabItemsFor}
+      kebabItemsForFolder={kebabItemsForFolder}
+      dragState={dragState}
+      gridStyle={gridStyle}
+      headerRef={pinnedHeaderRef}
+      anchorHeaderRef={allChromeRef}
+      gridRef={pinnedGridRef}
+      popoverRef={popoverRef}
+      popoverGridRef={popoverGridRef}
+    />
+  );
+
   return (
     <div className={`bb-char-tome ${multiSelectActive ? 'is-multi-select-active' : ''}`.trim()}>
-      <div className="bb-char-tome__split" ref={rootRef}>
-          <section
-            className="bb-char-tome__pinned"
-            ref={pinnedRef}
-            style={{ height: layout.pinnedH, minHeight: layout.minPinnedH }}
-          >
-            <PinnedSection
-              entries={pinnedLayout?.resolvedEntries || []}
-              selectedId={selectedCardId}
-              openFolderId={pinnedLayout?.openFolderId || null}
-              multiSelectActive={multiSelectActive}
-              multiSelectedIds={multiSelectedIds}
-              onToggleMultiSelect={onToggleMultiSelect}
-              onSelect={onSelect}
-              onOpen={onOpen}
-              onTogglePin={onTogglePin}
-              onOpenFolder={handleOpenPinnedFolder}
-              onRenameFolder={pinnedLayout?.renameFolder}
-              onRemoveCardFromFolder={pinnedLayout?.removeCardFromFolder}
-              onStartPointerDrag={handleStartPointerDrag}
-              kebabItemsFor={kebabItemsFor}
-              kebabItemsForFolder={kebabItemsForFolder}
-              dragState={dragState}
-              gridStyle={gridStyle}
-              headerRef={pinnedHeaderRef}
-              gridRef={pinnedGridRef}
-              popoverRef={popoverRef}
-              popoverGridRef={popoverGridRef}
-            />
-          </section>
-
-          <div
-            className="bb-char-splitter"
-            role="separator"
-            aria-orientation="horizontal"
-            title="Drag to resize the Pinned section (double-click to reset)"
-            onPointerDown={handleSplitterPointerDown}
-            onDoubleClick={resetSplit}
-          >
-            <span className="bb-char-splitter-grip" />
-          </div>
-
-          <div
-            className="bb-char-tome__all-wrap"
-            ref={allWrapRef}
-            style={{ minHeight: layout.minAllH }}
-          >
-            <section className="bb-char-tome__all">
-              <CharacterGallery
-                cards={cards}
-                groups={groups}
-                visibleCards={visibleCards}
-                visibleGroups={visibleGroups}
-                tags={tags}
-                gallery={gallery}
-                gridStyle={gridStyle}
-                selectedId={selectedCardId}
-                multiSelectActive={multiSelectActive}
-                multiSelectedIds={multiSelectedIds}
-                onToggleMultiSelect={onToggleMultiSelect}
-                onToggleMultiSelectMode={onToggleMultiSelectMode}
-                hiddenTagIds={hiddenTagIds}
-                onSelect={onSelect}
-                onOpen={onOpen}
-                onTogglePin={onTogglePin}
-                openTagFolderId={openAllTagId}
-                onOpenTag={(tagId) => {
-                  handleToggleAllTagFolder(tagId);
-                  onOpenTag?.(tagId);
-                }}
-                onToggleTagHidden={onToggleTagHidden}
-                onCreateTag={onCreateTag}
-                onOpenCreateModal={onOpenCreateModal}
-                onDropImportFiles={onDropImportFiles}
-                onStartPointerDrag={handleStartPointerDrag}
-                dragState={dragState}
-                kebabItemsFor={kebabItemsFor}
-                kebabItemsForTagFolder={kebabItemsForTagFolder}
-                userName={userName}
-                chromeRef={allChromeRef}
-                scrollRef={allScrollRef}
-                loading={loading}
-              />
+      <div className={isSplitMode ? 'bb-char-tome__split' : 'bb-char-tome__stage'} ref={rootRef}>
+        {isSplitMode && (
+          <>
+            <section
+              className="bb-char-tome__pinned"
+              ref={pinnedRef}
+              style={{ height: layout.pinnedH, minHeight: layout.minPinnedH }}
+            >
+              {pinnedSectionNode}
             </section>
+
+            <div
+              className="bb-char-splitter"
+              role="separator"
+              aria-orientation="horizontal"
+              title="Drag to resize the Pinned section (double-click to reset)"
+              onPointerDown={handleSplitterPointerDown}
+              onDoubleClick={resetSplit}
+            >
+              <span className="bb-char-splitter-grip" />
+            </div>
+          </>
+        )}
+
+        <div
+          className="bb-char-tome__all-wrap"
+          ref={allWrapRef}
+          style={isSplitMode ? { minHeight: layout.minAllH } : undefined}
+        >
+          <CharacterGallery
+            cards={cards}
+            groups={groups}
+            visibleCards={visibleCards}
+            visibleGroups={visibleGroups}
+            tags={tags}
+            gallery={gallery}
+            gridStyle={gridStyle}
+            selectedId={selectedCardId}
+            multiSelectActive={multiSelectActive}
+            multiSelectedIds={multiSelectedIds}
+            onToggleMultiSelect={onToggleMultiSelect}
+            onToggleMultiSelectMode={onToggleMultiSelectMode}
+            hiddenTagIds={hiddenTagIds}
+            onSelect={onSelect}
+            onOpen={onOpen}
+            onTogglePin={onTogglePin}
+            openTagFolderId={openAllTagId}
+            onOpenTag={(tagId) => {
+              handleToggleAllTagFolder(tagId);
+              onOpenTag?.(tagId);
+            }}
+            onToggleTagHidden={onToggleTagHidden}
+            onCreateTag={onCreateTag}
+            onOpenCreateModal={onOpenCreateModal}
+            onDropImportFiles={onDropImportFiles}
+            onStartPointerDrag={handleStartPointerDrag}
+            dragState={dragState}
+            kebabItemsFor={kebabItemsFor}
+            kebabItemsForTagFolder={kebabItemsForTagFolder}
+            userName={userName}
+            pinnedCount={pinnedEntriesCount}
+            pinnedDropHovered={Boolean(
+              dragState?.active && dragState.hover?.scope === 'pin-tab',
+            )}
+            pinnedSlot={isSplitMode ? null : pinnedSectionNode}
+            chromeRef={allChromeRef}
+            scrollRef={allScrollRef}
+            loading={loading}
+          />
 
             {/* Expanded Tag Folder Popover inside Characters / All / Tags */}
             <FolderPopover

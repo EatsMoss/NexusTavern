@@ -6,13 +6,18 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1 1 0%;
   min-height: 0;
   height: 100%;
-  padding: 2px 0 4px;
+  padding: 0;
   border-radius: 8px;
   box-sizing: border-box;
   overflow: hidden;
   transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.bb-char-tome.is-multi-select-active .bb-pinned-grid {
+  padding-bottom: 104px;
 }
 
 .bb-pinned-section.is-drop-active {

@@ -13,6 +13,19 @@
   overflow: hidden;
 }
 
+.bb-sti-sheet.is-subscreen {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  gap: 10px;
+}
+
+.bb-sti-sheet.is-subscreen > .bb-sti-sheet__body {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .bb-sti-sheet__header {
   display: flex;
   align-items: center;

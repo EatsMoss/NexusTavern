@@ -3,6 +3,7 @@ import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { Switch } from '../../atoms/Switch/Switch.jsx';
 import { BookmarkRibbons } from '../../molecules/BookmarkRibbons/BookmarkRibbons.jsx';
 import { KebabMenu } from '../../molecules/KebabMenu/KebabMenu.jsx';
+import { PanelScreenHeader } from '../../molecules/PanelScreenHeader/PanelScreenHeader.jsx';
 import { estimateTextTokens } from '@core/presets/tokenEstimator.js';
 import { normalizeRecapConfig } from '@core/recap/recapEngine.js';
 import { RecapCompressionCard, RecapPromptCard } from './MessageRecapSections.jsx';
@@ -21,6 +22,8 @@ export function MessageRecapManager({
   onPatchConfig,
   onResetDefaults,
   onImportConfig,
+  onBack = null,
+  backLabel = 'Back to Plugins',
   collapsible = false,
   defaultOpen = true,
   className = '',
@@ -104,9 +107,11 @@ export function MessageRecapManager({
 
   return (
     <section
-      className={`bb-mr-sheet ${collapsible ? 'bb-mr-sheet--collapsible' : ''} ${
-        !isOpen ? 'is-collapsed' : ''
-      } ${!resolved.enabled ? 'is-disabled' : ''} ${className}`.trim()}
+      className={`bb-mr-sheet ${onBack ? 'is-subscreen' : ''} ${
+        collapsible ? 'bb-mr-sheet--collapsible' : ''
+      } ${!isOpen ? 'is-collapsed' : ''} ${
+        !resolved.enabled ? 'is-disabled' : ''
+      } ${className}`.trim()}
     >
       <input
         ref={fileInputRef}
@@ -116,6 +121,39 @@ export function MessageRecapManager({
         onChange={handleFileImport}
       />
 
+      {onBack ? (
+        <PanelScreenHeader
+          title="Message Recap"
+          icon="scissors"
+          backLabel={backLabel}
+          onBack={onBack}
+          badge={
+            resolved.enabled && savedNumber > 0 ? (
+              <span
+                className="bb-mr-sheet__pill is-saved"
+                title={`Saving ~${savedNumber.toLocaleString('en-US')} tokens in the active chat`}
+              >
+                -{savedNumber >= 1000 ? `${(savedNumber / 1000).toFixed(1)}k` : savedNumber} tok
+              </span>
+            ) : (
+              <span className="bb-mr-sheet__pill">
+                {resolved.stripEnabled ? `Depth ≥ ${resolved.keepFullDepth}` : 'Prompts only'}
+              </span>
+            )
+          }
+          actions={
+            <>
+              <Switch
+                size="sm"
+                checked={resolved.enabled}
+                onChange={(val) => onPatchConfig?.({ enabled: val }, { immediate: true })}
+                title={resolved.enabled ? 'Message Recap enabled' : 'Message Recap paused'}
+              />
+              <KebabMenu items={menuItems} size="sm" title="Message Recap actions" />
+            </>
+          }
+        />
+      ) : (
       <div
         className="bb-mr-sheet__header"
         onClick={handleHeaderToggle}
@@ -175,6 +213,7 @@ export function MessageRecapManager({
           )}
         </div>
       </div>
+      )}
 
       {isOpen && (
         <div className="bb-mr-sheet__body">

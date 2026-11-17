@@ -53,6 +53,9 @@ import {
   TextColorCard,
   PatternTileCard,
   ThemePresetCard,
+  PanelScreenHeader,
+  ModuleNavCard,
+  PopoverSheet,
 } from '@ui/index.js';
 
 const LEFT_TOME_TABS = [
@@ -1714,6 +1717,83 @@ export function AtomsMoleculesShowcase() {
                 onSelect={() => setDemoPatternId(pat.id)}
               />
             ))}
+          </div>
+        </div>
+      </FolderCard>
+
+      <FolderCard
+        title="Contextual Sub-Screen Navigation & Solid Popover (Step A0)"
+        subtitle="PanelScreenHeader, ModuleNavCard & PopoverSheet"
+        icon="puzzle"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <PanelScreenHeader
+            title="Regex Studio"
+            icon="regex"
+            subtitle="← Plugins · Focused tool sub-screen"
+            backLabel="Back to Plugins"
+            onBack={() =>
+              pushSandboxToast({ message: 'Returned to Plugins hub', tone: 'info' })
+            }
+            actions={
+              <PopoverSheet icon="sliders" title="View & Sort" width={256}>
+                <div className="bb-popover-sheet__section">
+                  <div className="bb-popover-sheet__label">
+                    <span>Layout</span>
+                  </div>
+                  <ToggleGroup
+                    size="sm"
+                    value={galleryAspect}
+                    onChange={setGalleryAspect}
+                    options={[
+                      { value: 'portrait', icon: 'aspectPortrait', label: '2:3' },
+                      { value: 'square', icon: 'aspectSquare', label: '1:1' },
+                    ]}
+                  />
+                </div>
+                <div className="bb-popover-sheet__section">
+                  <div className="bb-popover-sheet__label">
+                    <span>Sort By</span>
+                  </div>
+                  <ToggleGroup
+                    size="sm"
+                    value={gallerySort}
+                    onChange={setGallerySort}
+                    options={[
+                      { value: 'recent', label: 'Recent' },
+                      { value: 'az', label: 'A–Z' },
+                    ]}
+                  />
+                </div>
+              </PopoverSheet>
+            }
+          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <ModuleNavCard
+              icon="scissors"
+              title="Message Recap"
+              badge="-1.4k tok"
+              badgeTone="saved"
+              subtitle="Compressing older history at Depth ≥ 4"
+              toggleChecked={streamingEnabled}
+              onToggleChange={setStreamingEnabled}
+              onClick={() =>
+                pushSandboxToast({ message: 'Opened Message Recap sub-screen', tone: 'info' })
+              }
+            />
+            <ModuleNavCard
+              icon="shieldAlert"
+              title="Refusal Catcher"
+              badge={promptCacheEnabled ? '14 phrases' : 'Off'}
+              badgeTone={promptCacheEnabled ? 'active' : 'neutral'}
+              subtitle="Detects canned AI refusals and retries or redirects"
+              toggleChecked={promptCacheEnabled}
+              onToggleChange={setPromptCacheEnabled}
+              onClick={() =>
+                pushSandboxToast({ message: 'Opened Refusal Catcher sub-screen', tone: 'info' })
+              }
+            />
           </div>
         </div>
       </FolderCard>

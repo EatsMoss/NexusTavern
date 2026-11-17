@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEXUSTAVERN CHARACTER TOME (Pinned / splitter / All composition)
+   NEXUSTAVERN CHARACTER TOME (Unified Single-Screen + Optional Split Pinned/All)
    ========================================================================== */
 
 .bb-char-tome {
@@ -15,19 +15,15 @@
   padding-bottom: 104px;
 }
 
+.bb-char-tome__stage,
 .bb-char-tome__split {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1 1 auto;
 }
 
-/*
- * The Pinned section takes an explicit height from usePinnedSplit. It never
- * shrinks below its own chrome plus one row, and the All section below always
- * keeps its own minimum, so dragging one side fully open still shows a full row
- * of the other.
- */
 .bb-char-tome__pinned {
   display: flex;
   flex-direction: column;
@@ -51,7 +47,7 @@
   flex: 1 1 auto;
 }
 
-/* Resizable splitter between Pinned and All */
+/* Resizable splitter between Pinned and All (when Split Pinned / All is enabled) */
 .bb-char-splitter {
   position: relative;
   height: 12px;
@@ -96,3 +92,5 @@
   width: 52px;
   background: var(--bb-ink-heading);
 }
+
+

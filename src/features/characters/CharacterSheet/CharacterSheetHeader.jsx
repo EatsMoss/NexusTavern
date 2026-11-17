@@ -77,7 +77,7 @@ export function CharacterSheetHeader({
   const chatsCount = card?.chatStats?.chatsCount ?? card?.chatsCount ?? 0;
   const portraitSrc = card?.avatarUrl || card?.thumbnailUrl || null;
 
-  const exportMenuItems = useMemo(
+  const scenarioMenuItems = useMemo(
     () => [
       {
         id: 'export-png',
@@ -92,12 +92,7 @@ export function CharacterSheetHeader({
         icon: 'download',
         onClick: () => onExportCard?.('json'),
       },
-    ],
-    [card?.avatar, onExportCard],
-  );
-
-  const moreMenuItems = useMemo(
-    () => [
+      { divider: true },
       {
         id: 'replace-file',
         label: 'Replace / Update from File...',
@@ -122,6 +117,7 @@ export function CharacterSheetHeader({
         icon: 'refresh',
         onClick: () => onRefreshChatPortraits?.(),
       },
+      { divider: true },
       {
         id: 'delete',
         label: 'Delete Scenario...',
@@ -130,7 +126,14 @@ export function CharacterSheetHeader({
         onClick: () => onDeleteCard?.(),
       },
     ],
-    [onDuplicateCard, onConvertToPersona, onRefreshChatPortraits, onDeleteCard],
+    [
+      card?.avatar,
+      onExportCard,
+      onDuplicateCard,
+      onConvertToPersona,
+      onRefreshChatPortraits,
+      onDeleteCard,
+    ],
   );
 
   const handleDropOnPortrait = (e) => {
@@ -261,6 +264,16 @@ export function CharacterSheetHeader({
         <div className="bb-cs-toolbar">
           <div className="bb-cs-toolbar__left">
             <Button
+              variant="b1"
+              size="sm"
+              emphasis="tonal"
+              icon="chatPlus"
+              title="Start a new chat with this scenario"
+              onClick={() => onStartNewChat?.()}
+            >
+              New Chat
+            </Button>
+            <Button
               variant="b2"
               size="sm"
               icon={isPinned ? 'starFilled' : 'star'}
@@ -269,25 +282,29 @@ export function CharacterSheetHeader({
               title={isPinned ? 'Pinned in Favorites (click to unpin)' : 'Pin scenario to Favorites'}
               onClick={onTogglePin}
             />
+          </div>
+
+          <div className="bb-cs-toolbar__right">
             <button
               type="button"
               className={`bb-cs-adv-btn ${isExpanded ? 'is-active' : ''}`.trim()}
               title={
                 isExpanded
                   ? 'Focus Advanced Definitions in Right Tome'
-                  : 'Expand Scenario & open Advanced Definitions in Right Tome'
+                  : 'Open Advanced Definitions'
               }
               onClick={onOpenAdvanced}
             >
               <Icon name="sliders" size={14} />
               <span>Advanced</span>
             </button>
-          </div>
-
-          <div className="bb-cs-toolbar__right">
-            <Button variant="b2" size="sm" icon="chatPlus" title="Start New Chat" onClick={onStartNewChat} />
-            <KebabMenu icon="download" size="sm" align="right" title="Export card" items={exportMenuItems} />
-            <KebabMenu icon="moreVert" size="sm" align="right" title="More scenario actions" items={moreMenuItems} />
+            <KebabMenu
+              icon="moreVert"
+              size="sm"
+              align="right"
+              title="Scenario actions & export"
+              items={scenarioMenuItems}
+            />
           </div>
         </div>
       </div>

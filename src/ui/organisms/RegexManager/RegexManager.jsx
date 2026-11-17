@@ -6,6 +6,7 @@ import { Switch } from '../../atoms/Switch/Switch.jsx';
 import { Checkbox } from '../../atoms/Checkbox/Checkbox.jsx';
 import { Dropdown } from '../../molecules/Dropdown/Dropdown.jsx';
 import { KebabMenu } from '../../molecules/KebabMenu/KebabMenu.jsx';
+import { PanelScreenHeader } from '../../molecules/PanelScreenHeader/PanelScreenHeader.jsx';
 import { SortableStack } from '../../molecules/SortableStack/SortableStack.jsx';
 import { MultiSelectBar } from '../MultiSelectBar/MultiSelectBar.jsx';
 import { Modal } from '../Modal/Modal.jsx';
@@ -90,6 +91,8 @@ export function RegexManager({
   onSaveFolders,
   onTransferScript,
   onNotify,
+  onBack = null,
+  backLabel = 'Back to Plugins',
   collapsible = false,
   defaultOpen = true,
 }) {
@@ -593,6 +596,7 @@ export function RegexManager({
     <div
       className={[
         'bb-rx-sheet',
+        onBack ? 'is-subscreen' : '',
         collapsible ? 'bb-rx-sheet--collapsible' : '',
         !showBody ? 'is-collapsed' : '',
       ]
@@ -610,6 +614,32 @@ export function RegexManager({
         }
       }}
     >
+      {onBack ? (
+        <PanelScreenHeader
+          title="Regex Studio"
+          icon="regex"
+          backLabel={backLabel}
+          onBack={onBack}
+          badge={
+            <span className="bb-rx-sheet__count" title="Active rules across Global, Scenario & Preset">
+              {activeTotalStackCount}
+            </span>
+          }
+          actions={
+            <>
+              <Switch
+                size="sm"
+                checked={masterEnabled}
+                onChange={(val) => onToggleMaster?.(val)}
+                title={masterEnabled ? 'Regex enabled' : 'Regex paused'}
+              />
+              {headerMenuItems.length > 0 && (
+                <KebabMenu items={headerMenuItems} size="sm" title="More options" />
+              )}
+            </>
+          }
+        />
+      ) : (
       <div
         className="bb-rx-sheet__header"
         onClick={() => {
@@ -650,6 +680,7 @@ export function RegexManager({
           )}
         </div>
       </div>
+      )}
 
       {showBody && (
       <>

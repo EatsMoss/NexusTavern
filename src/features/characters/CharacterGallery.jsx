@@ -1,10 +1,13 @@
 import React, { useMemo, useState, useRef } from 'react';
 import {
+  Button,
   SearchInput,
   Slider,
+  Switch,
   TagChip,
   TagPicker,
   ToggleGroup,
+  PopoverSheet,
   CharacterCardTile,
   CharacterCardRow,
   KebabMenu,
@@ -55,6 +58,9 @@ export function CharacterGallery({
   kebabItemsFor,
   kebabItemsForTagFolder,
   userName = 'User',
+  pinnedCount = 0,
+  pinnedDropHovered = false,
+  pinnedSlot = null,
   chromeRef,
   scrollRef: externalScrollRef,
   loading = false,
@@ -83,12 +89,15 @@ export function CharacterGallery({
     setSortMode,
     entityFilter,
     setEntityFilter,
+    splitView = false,
+    setSplitView,
     gridStyle: galleryGridStyle,
   } = gallery;
 
-  const isListMode = layoutMode === 'list' && entityFilter !== 'tags';
-  const activeViewOption =
-    entityFilter === 'tags' ? aspect : viewSwitcherValue || aspect;
+  const isPinnedMode = !splitView && entityFilter === 'pinned';
+  const supportsListMode = entityFilter === 'scenarios' || entityFilter === 'groups';
+  const isListMode = layoutMode === 'list' && supportsListMode;
+  const activeViewOption = supportsListMode ? viewSwitcherValue || aspect : aspect;
 
   const gridStyle = externalGridStyle || galleryGridStyle;
 
@@ -296,47 +305,282 @@ export function CharacterGallery({
       }}
     >
       <div className="bb-char-gallery__chrome" ref={chromeRef}>
-        <div className="bb-char-gallery__search">
-          <div className="bb-char-gallery__search-row">
-            <SearchInput
-              value={query}
-              onFocus={() => setTagPickerOpen(true)}
-              onClick={() => setTagPickerOpen(true)}
-              onChange={(next) => {
-                setQuery(next);
-                setTagPickerOpen(true);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape' && tagPickerOpen) {
+        <div
+          className="bb-char-gallery__tabs bb-scrollbar--hidden"
+          role="tablist"
+          aria-label="Library view"
+        >
+          {[
+            { id: 'scenarios', label: 'All', count: cards.length },
+            !splitView && {
+              id: 'pinned',
+              label: 'Pinned',
+              icon: 'starFilled',
+              count: pinnedCount,
+              isPinDropTab: true,
+            },
+            { id: 'groups', label: 'Groups', count: groups.length },
+            { id: 'tags', label: 'Tags', count: tags.length },
+          ]
+            .filter(Boolean)
+            .map((tab) => {
+            const active = entityFilter === tab.id;
+            const isDropTarget = Boolean(tab.isPinDropTab && pinnedDropHovered);
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                data-bb-pin-drop-tab={tab.isPinDropTab ? 'true' : undefined}
+                className={[
+                  'bb-char-gallery__tab',
+                  active ? 'is-active' : '',
+                  isDropTarget ? 'is-pin-drop-target' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => {
                   setTagPickerOpen(false);
+                  setEntityFilter(tab.id);
+                }}
+              >
+                {tab.icon && (
+                  <Icon
+                    name={tab.icon}
+                    size={13}
+                    className="bb-char-gallery__tab-icon"
+                  />
+                )}
+                <span>{tab.label}</span>
+                {tab.count > 0 && (
+                  <span className="bb-char-gallery__tab-count">{tab.count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="bb-char-gallery__search">
+          <div className="bb-char-gallery__action-row">
+            <div className="bb-char-gallery__search-row">
+              <SearchInput
+                value={query}
+                onFocus={() => {
+                  if (entityFilter === 'scenarios' || entityFilter === 'groups') {
+                    setTagPickerOpen(true);
+                  }
+                }}
+                onClick={() => {
+                  if (entityFilter === 'scenarios' || entityFilter === 'groups') {
+                    setTagPickerOpen(true);
+                  }
+                }}
+                onChange={(next) => {
+                  setQuery(next);
+                  if (entityFilter === 'scenarios' || entityFilter === 'groups') {
+                    setTagPickerOpen(true);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape' && tagPickerOpen) {
+                    setTagPickerOpen(false);
+                  }
+                }}
+                placeholder={
+                  entityFilter === 'tags'
+                    ? 'Search tags...'
+                    : entityFilter === 'groups'
+                      ? 'Search groups or tags...'
+                      : entityFilter === 'pinned'
+                        ? 'Filter pinned cards & folders...'
+                        : 'Search scenarios, tags or creators...'
                 }
-              }}
-              placeholder={
-                entityFilter === 'tags'
-                  ? 'Search tags or cards...'
-                  : entityFilter === 'groups'
-                    ? 'Search groups or tags...'
-                    : 'Search by name, tag or creator...'
+              />
+              {(entityFilter === 'scenarios' || entityFilter === 'groups') && (
+                <TagPicker
+                  compact
+                  hideTrigger
+                  open={tagPickerOpen}
+                  onOpenChange={setTagPickerOpen}
+                  tags={pickerTags}
+                  chipState={chipState}
+                  selectedIds={activeChipIds}
+                  externalQuery={query}
+                  onSelectMode={setTagChipMode}
+                  onToggleTag={(id) => (chipState[id] ? removeTagChip(id) : toggleTagChip(id))}
+                  onClearAll={clearTagChips}
+                  onCreateTag={onCreateTag}
+                />
+              )}
+            </div>
+
+            <PopoverSheet
+              icon="sliders"
+              size="sm"
+              align="right"
+              title="View & Sort"
+              width={272}
+              activeIndicator={
+                sortMode !== 'recent' ||
+                activeViewOption !== 'portrait' ||
+                (cardSize && cardSize !== CARD_SIZE_DEFAULT)
               }
+            >
+              <div className="bb-popover-sheet__section">
+                <div className="bb-popover-sheet__label">
+                  <span>Layout</span>
+                </div>
+                <ToggleGroup
+                  size="sm"
+                  value={activeViewOption}
+                  onChange={setAspect}
+                  title="Card layout"
+                  options={
+                    supportsListMode
+                      ? [
+                          { value: 'portrait', icon: 'aspectPortrait', label: '2:3', title: 'Portrait grid (2:3)' },
+                          { value: 'square', icon: 'aspectSquare', label: '1:1', title: 'Square grid (1:1)' },
+                          { value: 'list', icon: 'bars', label: 'List', title: 'Horizontal list' },
+                        ]
+                      : [
+                          { value: 'portrait', icon: 'aspectPortrait', label: '2:3', title: 'Portrait grid (2:3)' },
+                          { value: 'square', icon: 'aspectSquare', label: '1:1', title: 'Square grid (1:1)' },
+                        ]
+                  }
+                />
+              </div>
+
+              {!isPinnedMode ? (
+                <div className="bb-popover-sheet__section">
+                  <div className="bb-popover-sheet__label">
+                    <span>Sort By</span>
+                  </div>
+                  <ToggleGroup
+                    size="sm"
+                    value={sortMode}
+                    onChange={setSortMode}
+                    title="Sort order"
+                    options={[
+                      { value: 'recent', label: 'Recent Activity', title: 'Sort by recent activity' },
+                      { value: 'az', label: 'Name (A–Z)', title: 'Sort alphabetically (A–Z)' },
+                    ]}
+                  />
+                </div>
+              ) : (
+                <div className="bb-popover-sheet__section">
+                  <div className="bb-popover-sheet__label">
+                    <span>Order</span>
+                    <span style={{ textTransform: 'none', fontWeight: 500 }}>
+                      Custom drag &amp; drop
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {!isListMode && (
+                <div className="bb-popover-sheet__section">
+                  <div className="bb-popover-sheet__label">
+                    <span>Card Size</span>
+                    <span>{cardSize || CARD_SIZE_DEFAULT}px</span>
+                  </div>
+                  <Slider
+                    variant="inline"
+                    icon="gridView"
+                    min={CARD_SIZE_MIN}
+                    max={CARD_SIZE_MAX}
+                    step={2}
+                    value={cardSize || CARD_SIZE_DEFAULT}
+                    defaultValue={CARD_SIZE_DEFAULT}
+                    unit="px"
+                    ariaLabel="Card size"
+                    title="Target card width — double-click to reset"
+                    onChange={setCardSize}
+                  />
+                </div>
+              )}
+
+              {setSplitView && (
+                <div className="bb-popover-sheet__section">
+                  <div className="bb-popover-sheet__label">
+                    <span style={{ textTransform: 'none', fontSize: '12.5px', color: 'var(--bb-ink-main)' }}>
+                      Split Pinned / All
+                    </span>
+                    <Switch
+                      size="sm"
+                      bare
+                      checked={Boolean(splitView)}
+                      onChange={(val) => setSplitView(val)}
+                      title="Show Pinned and All stacked with a resizable splitter"
+                    />
+                  </div>
+                </div>
+              )}
+            </PopoverSheet>
+
+            {onOpenCreateModal && (
+              <Button
+                variant="b1"
+                size="sm"
+                emphasis="tonal"
+                icon="plus"
+                title="Create a new scenario card"
+                className="bb-char-gallery__create-btn"
+                onClick={() => onOpenCreateModal('create')}
+              >
+                New
+              </Button>
+            )}
+
+            <KebabMenu
+              size="sm"
+              align="right"
+              title="Library actions"
+              items={[
+                onDropImportFiles && {
+                  id: 'import-cards',
+                  label: 'Import Cards (.png / .json)...',
+                  icon: 'upload',
+                  onClick: () => importFileInputRef.current?.click(),
+                },
+                entityFilter !== 'tags' &&
+                  onToggleMultiSelectMode && {
+                    id: 'toggle-select',
+                    label: multiSelectActive ? 'Exit Multi-Select' : 'Select Multiple',
+                    icon: 'selectAll',
+                    active: multiSelectActive,
+                    onClick: () => onToggleMultiSelectMode(!multiSelectActive),
+                  },
+                setSplitView && { divider: true },
+                setSplitView && {
+                  id: 'toggle-split-view',
+                  label: 'Split Pinned / All',
+                  icon: 'window',
+                  active: Boolean(splitView),
+                  onClick: () => setSplitView(!splitView),
+                },
+              ].filter(Boolean)}
             />
-            <TagPicker
-              compact
-              hideTrigger
-              open={tagPickerOpen}
-              onOpenChange={setTagPickerOpen}
-              tags={pickerTags}
-              chipState={chipState}
-              selectedIds={activeChipIds}
-              externalQuery={query}
-              onSelectMode={setTagChipMode}
-              onToggleTag={(id) => (chipState[id] ? removeTagChip(id) : toggleTagChip(id))}
-              onClearAll={clearTagChips}
-              onCreateTag={onCreateTag}
-            />
+
+            {onDropImportFiles && (
+              <input
+                ref={importFileInputRef}
+                type="file"
+                accept=".png,.json,image/png,application/json"
+                multiple
+                hidden
+                onChange={(e) => {
+                  if (e.target.files?.length > 0) {
+                    onDropImportFiles(e.target.files);
+                  }
+                  e.target.value = '';
+                }}
+              />
+            )}
           </div>
         </div>
 
-        {activeChips.length > 0 && (
+        {!isPinnedMode && activeChips.length > 0 && (
           <div className="bb-char-gallery__chips">
             {activeChips.map((chip) => (
               <TagChip
@@ -360,131 +604,16 @@ export function CharacterGallery({
           </div>
         )}
 
-        <div className="bb-char-gallery__toolbar">
-          <ToggleGroup
-            size="sm"
-            value={entityFilter}
-            onChange={setEntityFilter}
-            title="Entity type"
-            options={[
-              { value: 'scenarios', icon: 'addressCard', title: 'Scenarios' },
-              { value: 'groups', icon: 'users', title: 'Groups' },
-              { value: 'tags', icon: 'tags', title: 'Tags' },
-            ]}
-          />
-
-          <Slider
-            variant="inline"
-            icon="gridView"
-            min={CARD_SIZE_MIN}
-            max={CARD_SIZE_MAX}
-            step={2}
-            value={cardSize || CARD_SIZE_DEFAULT}
-            defaultValue={CARD_SIZE_DEFAULT}
-            unit="px"
-            ariaLabel="Card size"
-            title="Target card width — double-click to reset (cards scale seamlessly until another column fits)"
-            onChange={setCardSize}
-            className="bb-char-gallery__size-control"
-          />
-
-          <ToggleGroup
-            size="sm"
-            value={activeViewOption}
-            onChange={setAspect}
-            title="Gallery view: Square grid (1:1), Portrait grid (2:3), or Horizontal list"
-            options={
-              entityFilter === 'tags'
-                ? [
-                    { value: 'square', icon: 'aspectSquare', title: 'Square 1:1' },
-                    { value: 'portrait', icon: 'aspectPortrait', title: 'Portrait 2:3' },
-                  ]
-                : [
-                    { value: 'square', icon: 'aspectSquare', title: 'Square grid (1:1)' },
-                    { value: 'portrait', icon: 'aspectPortrait', title: 'Portrait grid (2:3)' },
-                    { value: 'list', icon: 'bars', title: 'Horizontal list cards' },
-                  ]
-            }
-          />
-          <ToggleGroup
-            size="sm"
-            value={sortMode}
-            onChange={setSortMode}
-            title="Sort order"
-            options={[
-              { value: 'recent', label: 'Recent', title: 'Sort by recent activity' },
-              { value: 'az', label: 'A-Z', title: 'Sort alphabetically (A–Z)' },
-            ]}
-          />
-        </div>
-
-        <div className="bb-char-gallery__meta-row">
-          <div className="bb-char-gallery__count">
-            {loading ? 'Loading cards...' : `${totalShown} shown`}
-            {entityFilter === 'scenarios' && cards.length > 0 && totalShown !== cards.length
-              ? ` (filtered from ${cards.length})`
-              : ''}
-            {multiSelectActive && multiSelectedIds.length > 0
-              ? ` • ${multiSelectedIds.length} selected`
-              : ''}
-          </div>
-
-          <div className="bb-char-gallery__meta-actions">
-            {onOpenCreateModal && (
-              <button
-                type="button"
-                className="bb-char-gallery__new-btn"
-                title="Create a new scenario card from scratch"
-                onClick={() => onOpenCreateModal('create')}
-              >
-                <Icon name="plus" size={13} />
-                <span>New</span>
-              </button>
-            )}
-            {onDropImportFiles && (
-              <>
-                <button
-                  type="button"
-                  className="bb-char-gallery__import-btn"
-                  title="Import SillyTavern .png or .json card files"
-                  onClick={() => importFileInputRef.current?.click()}
-                >
-                  <Icon name="upload" size={13} />
-                  <span>Import</span>
-                </button>
-                <input
-                  ref={importFileInputRef}
-                  type="file"
-                  accept=".png,.json,image/png,application/json"
-                  multiple
-                  hidden
-                  onChange={(e) => {
-                    if (e.target.files?.length > 0) {
-                      onDropImportFiles(e.target.files);
-                    }
-                    e.target.value = '';
-                  }}
-                />
-              </>
-            )}
-
-            {entityFilter !== 'tags' && onToggleMultiSelectMode && (
-              <button
-                type="button"
-                className={`bb-char-gallery__select-btn ${multiSelectActive ? 'is-active' : ''}`.trim()}
-                title={
-                  multiSelectActive
-                    ? 'Exit multi-select mode (Esc)'
-                    : 'Enter multi-select mode (or Ctrl+Click / Shift+Click any card)'
-                }
-                onClick={() => onToggleMultiSelectMode(!multiSelectActive)}
-              >
-                <Icon name="selectAll" size={13} />
-                <span>{multiSelectActive ? 'Selecting' : 'Select'}</span>
-              </button>
-            )}
-          </div>
-        </div>
+        {!isPinnedMode &&
+          entityFilter === 'scenarios' &&
+          cards.length > 0 &&
+          totalShown !== cards.length && (
+            <div className="bb-char-gallery__filter-readout">
+              <span>
+                Showing <strong>{totalShown}</strong> of {cards.length} scenarios
+              </span>
+            </div>
+          )}
       </div>
 
       <div className="bb-char-gallery__stage">
@@ -496,11 +625,15 @@ export function CharacterGallery({
             ariaLabel="Updating scenario gallery"
           />
         )}
-        <div
-          className="bb-char-gallery__scroll bb-scrollbar--hidden"
-          ref={resolvedScrollRef}
-        >
-          {entityFilter === 'groups' ? (
+        {isPinnedMode ? (
+          pinnedSlot
+        ) : (
+          <>
+            <div
+              className="bb-char-gallery__scroll bb-scrollbar--hidden"
+              ref={resolvedScrollRef}
+            >
+              {entityFilter === 'groups' ? (
         <div
           className={isListMode ? 'bb-char-gallery__list' : 'bb-char-gallery__grid'}
           style={virtualContainerStyle}
@@ -742,8 +875,10 @@ export function CharacterGallery({
           )}
         </div>
       )}
-        </div>
-        <ScrollIndicator scrollRef={resolvedScrollRef} variant="panel" />
+            </div>
+            <ScrollIndicator scrollRef={resolvedScrollRef} variant="panel" />
+          </>
+        )}
       </div>
     </div>
   );

@@ -16,13 +16,14 @@ const STORAGE_KEYS = {
   layoutMode: 'nexustavern_char_layout_mode',
   sort: 'nexustavern_char_sort',
   entity: 'nexustavern_char_entity',
+  splitView: 'nexustavern_char_split_view',
 };
 
 const VALID_COLS = ['4', '5', '6'];
 const VALID_ASPECTS = ['square', 'portrait'];
 const VALID_LAYOUT_MODES = ['grid', 'list'];
 const VALID_SORTS = ['recent', 'az'];
-const VALID_ENTITIES = ['scenarios', 'groups', 'tags'];
+const VALID_ENTITIES = ['scenarios', 'pinned', 'groups', 'tags'];
 
 export const CARD_SIZE_MIN = 64;
 export const CARD_SIZE_MAX = 150;
@@ -65,9 +66,24 @@ export function useCharacterGallery() {
   const [sortMode, setSortMode] = useState(() =>
     readStored(STORAGE_KEYS.sort, VALID_SORTS, 'recent'),
   );
-  const [entityFilter, setEntityFilter] = useState(() =>
-    readStored(STORAGE_KEYS.entity, VALID_ENTITIES, 'scenarios'),
+  const [splitView, setSplitViewState] = useState(
+    () => readStored(STORAGE_KEYS.splitView, ['1', '0'], '0') === '1',
   );
+  const [entityFilter, setEntityFilter] = useState(() => {
+    const stored = readStored(STORAGE_KEYS.entity, VALID_ENTITIES, 'scenarios');
+    const isSplit = readStored(STORAGE_KEYS.splitView, ['1', '0'], '0') === '1';
+    return isSplit && stored === 'pinned' ? 'scenarios' : stored;
+  });
+
+  const setSplitView = useCallback((nextVal) => {
+    setSplitViewState((prev) => {
+      const resolved = typeof nextVal === 'function' ? Boolean(nextVal(prev)) : Boolean(nextVal);
+      if (resolved) {
+        setEntityFilter((cur) => (cur === 'pinned' ? 'scenarios' : cur));
+      }
+      return resolved;
+    });
+  }, []);
 
   const setAspect = useCallback((nextVal) => {
     if (nextVal === 'list') {
@@ -107,10 +123,11 @@ export function useCharacterGallery() {
       localStorage.setItem(STORAGE_KEYS.layoutMode, layoutMode);
       localStorage.setItem(STORAGE_KEYS.sort, sortMode);
       localStorage.setItem(STORAGE_KEYS.entity, entityFilter);
+      localStorage.setItem(STORAGE_KEYS.splitView, splitView ? '1' : '0');
     } catch {
       // Storage can be unavailable in private mode; the layout still works.
     }
-  }, [cols, cardSize, aspect, layoutMode, sortMode, entityFilter]);
+  }, [cols, cardSize, aspect, layoutMode, sortMode, entityFilter, splitView]);
 
   /**
    * Cycles a tag chip through OR -> AND -> NOT -> OR, or adds it as OR when it is
@@ -185,6 +202,8 @@ export function useCharacterGallery() {
     setSortMode,
     entityFilter,
     setEntityFilter,
+    splitView,
+    setSplitView,
     gridStyle,
   };
 }

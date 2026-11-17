@@ -7,6 +7,7 @@ import {
   Icon,
   Input,
   MarkdownEditor,
+  PanelScreenHeader,
   ScrollIndicator,
   Slider,
 } from '@ui/index.js';
@@ -164,35 +165,13 @@ export function AdvancedDefinitionsPanel({
       className={`bb-adv-panel ${isDirty || saving ? 'has-dirty-bar' : ''}`.trim()}
     >
       <div className="bb-adv-panel__top">
-        <div className="bb-adv-panel__header">
-          <div className="bb-adv-panel__title-group">
-            <span className="bb-adv-panel__icon-badge" aria-hidden="true">
-              <Icon name="sliders" size={15} />
-            </span>
-            <div className="bb-adv-panel__titles">
-              <div className="bb-adv-panel__title">Advanced Definitions</div>
-              <div className="bb-cs-telemetry">
-                <span className="bb-cs-telemetry__item">
-                  Perm <strong>{tokenStats.permanent.toLocaleString()}</strong>
-                </span>
-                <span className="bb-cs-telemetry__dot">·</span>
-                <span className="bb-cs-telemetry__item">
-                  Total <strong>{tokenStats.total.toLocaleString()}</strong> tok
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {onCollapseExpand && (
-            <Button
-              variant="b2"
-              size="sm"
-              icon="collapse"
-              title="Collapse expanded scenario back into Right Tome"
-              onClick={onCollapseExpand}
-            />
-          )}
-        </div>
+        <PanelScreenHeader
+          title="Advanced Definitions"
+          icon="sliders"
+          subtitle={`Perm ${tokenStats.permanent.toLocaleString()} · Total ${tokenStats.total.toLocaleString()} tok`}
+          backLabel="Back to Scenario Sheet"
+          onBack={onCollapseExpand}
+        />
 
         <BookmarkRibbons
           variant="secondary"

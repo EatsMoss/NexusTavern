@@ -31,6 +31,9 @@ export {
 
 export { Slider } from './molecules/Slider/Slider.jsx';
 export { BookmarkRibbons } from './molecules/BookmarkRibbons/BookmarkRibbons.jsx';
+export { PanelScreenHeader } from './molecules/PanelScreenHeader/PanelScreenHeader.jsx';
+export { ModuleNavCard } from './molecules/ModuleNavCard/ModuleNavCard.jsx';
+export { PopoverSheet } from './molecules/PopoverSheet/PopoverSheet.jsx';
 export { FolderCard } from './molecules/FolderCard/FolderCard.jsx';
 export { Dropdown } from './molecules/Dropdown/Dropdown.jsx';
 export { KebabMenu } from './molecules/KebabMenu/KebabMenu.jsx';

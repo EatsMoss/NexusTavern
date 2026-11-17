@@ -6,13 +6,15 @@ import { StImporterManager } from '@ui/organisms/StImporterManager/StImporterMan
  */
 export function StImporterTomePanel({
   importer,
-  collapsible = true,
-  defaultOpen = false,
+  onBack = null,
+  collapsible = false,
+  defaultOpen = true,
 }) {
   if (!importer) return null;
 
   return (
     <StImporterManager
+      onBack={onBack}
       collapsible={collapsible}
       defaultOpen={defaultOpen}
       isLocalHost={importer.isLocalHost}

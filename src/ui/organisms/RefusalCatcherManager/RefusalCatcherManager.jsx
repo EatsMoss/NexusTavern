@@ -4,6 +4,7 @@ import { Button } from '../../atoms/Button/Button.jsx';
 import { Switch } from '../../atoms/Switch/Switch.jsx';
 import { OverlayScrollArea } from '../../atoms/OverlayScrollArea/OverlayScrollArea.jsx';
 import { KebabMenu } from '../../molecules/KebabMenu/KebabMenu.jsx';
+import { PanelScreenHeader } from '../../molecules/PanelScreenHeader/PanelScreenHeader.jsx';
 import { ConnectionModelPicker } from '../../molecules/ConnectionModelPicker/ConnectionModelPicker.jsx';
 import {
   DEFAULT_BANNED_PHRASES,
@@ -38,6 +39,8 @@ export function RefusalCatcherManager({
   onAddCustomFamily,
   onDeleteCustomFamily,
   onOpenAddConnection,
+  onBack = null,
+  backLabel = 'Back to Plugins',
   collapsible = false,
   defaultOpen = true,
   className = '',
@@ -129,6 +132,7 @@ export function RefusalCatcherManager({
     <section
       className={[
         'bb-rc-sheet',
+        onBack ? 'is-subscreen' : '',
         collapsible ? 'bb-rc-sheet--collapsible' : '',
         !showBody ? 'is-collapsed' : '',
         !enabled ? 'is-disabled' : '',
@@ -137,6 +141,33 @@ export function RefusalCatcherManager({
         .filter(Boolean)
         .join(' ')}
     >
+      {onBack ? (
+        <PanelScreenHeader
+          title="Refusal Catcher"
+          icon="shieldAlert"
+          backLabel={backLabel}
+          onBack={onBack}
+          badge={
+            <span
+              className="bb-rc-sheet__count"
+              title={`${safePhrases.length} banned refusal phrases`}
+            >
+              {safePhrases.length}
+            </span>
+          }
+          actions={
+            <>
+              <Switch
+                size="sm"
+                checked={enabled}
+                onChange={(val) => onToggleEnabled?.(val)}
+                title={enabled ? 'Refusal Catcher enabled' : 'Refusal Catcher paused'}
+              />
+              <KebabMenu items={menuItems} size="sm" title="Refusal Catcher options" />
+            </>
+          }
+        />
+      ) : (
       <div className="bb-rc-sheet__header" onClick={handleHeaderToggle}>
         <div className="bb-rc-sheet__title-group">
           <Icon name="shieldAlert" size={17} className="bb-rc-sheet__title-icon" />
@@ -173,6 +204,7 @@ export function RefusalCatcherManager({
           )}
         </div>
       </div>
+      )}
 
       {showBody && (
         <div className="bb-rc-sheet__body">
@@ -321,7 +353,7 @@ export function RefusalCatcherManager({
                 )}
               </div>
             ) : (
-              <OverlayScrollArea className="bb-rc-scroll">
+              <OverlayScrollArea className="bb-rc-scroll" disabled={Boolean(onBack)}>
                 <div
                   className="bb-rc-list"
                   role="list"

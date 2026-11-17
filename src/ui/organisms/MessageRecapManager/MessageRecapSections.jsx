@@ -204,7 +204,7 @@ export function RecapPromptCard({
       )}
 
       <Textarea
-        rows={isOpening ? 7 : 4}
+        rows={isOpening ? 11 : 6}
         label={isOpening ? 'Prompt Content' : 'Reminder Content'}
         hint="Supports {{user}} and {{char}} macros."
         value={promptText}

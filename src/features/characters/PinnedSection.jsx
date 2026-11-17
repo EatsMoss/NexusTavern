@@ -111,6 +111,8 @@ export function computeDropSlotBox(dragHover, slotMetrics) {
 }
 export function PinnedSection({
   entries = [],
+  query = '',
+  showHeader = false,
   selectedId,
   openFolderId,
   multiSelectActive = false,
@@ -128,6 +130,7 @@ export function PinnedSection({
   dragState = null,
   gridStyle,
   headerRef,
+  anchorHeaderRef,
   gridRef,
   popoverRef,
   popoverGridRef,
@@ -143,6 +146,25 @@ export function PinnedSection({
     [multiSelectedIds],
   );
 
+  const trimmedQuery = String(query || '').trim().toLowerCase();
+  const displayedEntries = useMemo(() => {
+    if (!trimmedQuery) return entries;
+    return entries.filter((entry) => {
+      if (entry.type === 'folder' || entry.type === 'tag-folder') {
+        if (String(entry.name || '').toLowerCase().includes(trimmedQuery)) return true;
+        return (entry.items || []).some((m) =>
+          String(m?.name || '').toLowerCase().includes(trimmedQuery),
+        );
+      }
+      const c = entry.card;
+      if (!c) return false;
+      return (
+        String(c.name || '').toLowerCase().includes(trimmedQuery) ||
+        String(c.creator || '').toLowerCase().includes(trimmedQuery)
+      );
+    });
+  }, [entries, trimmedQuery]);
+
   const activeFolder = useMemo(
     () =>
       entries.find(
@@ -151,11 +173,13 @@ export function PinnedSection({
     [entries, openFolderId],
   );
 
-  const isPinnedDragActive = Boolean(dragState?.active);
-  const isUnpinWarning = Boolean(dragState?.active && dragState.hover?.mode === 'unpin');
+  const isPinnedDragActive = Boolean(dragState?.active && !trimmedQuery);
+  const isUnpinWarning = Boolean(
+    isPinnedDragActive && dragState.hover?.mode === 'unpin',
+  );
 
   const mainHover =
-    dragState?.active && dragState.hover?.scope === 'pinned' ? dragState.hover : null;
+    isPinnedDragActive && dragState.hover?.scope === 'pinned' ? dragState.hover : null;
 
   const mainDropSlotBox = computeDropSlotBox(mainHover, dragState?.pinnedMetrics);
 
@@ -170,15 +194,17 @@ export function PinnedSection({
         .filter(Boolean)
         .join(' ')}
     >
-      <div className="bb-char-section-header" ref={resolvedHeaderRef}>
-        <span className="bb-char-section-title">
-          <Icon name="pin" size={14} style={{ color: 'var(--bb-ink-accent)' }} />
-          Pinned ({entries.length})
-        </span>
-        <span className="bb-char-section-hint">
-          drag between cards to reorder · drop onto center to create folder
-        </span>
-      </div>
+      {showHeader && (
+        <div className="bb-char-section-header" ref={resolvedHeaderRef}>
+          <span className="bb-char-section-title">
+            <Icon name="pin" size={14} style={{ color: 'var(--bb-ink-accent)' }} />
+            Pinned ({entries.length})
+          </span>
+          <span className="bb-char-section-hint">
+            drag between cards to reorder · drop onto center to create folder
+          </span>
+        </div>
+      )}
 
       <div className="bb-pinned-grid-wrap">
         <div
@@ -204,20 +230,22 @@ export function PinnedSection({
           />
         )}
 
-        {entries.map((entry, index) => {
+        {displayedEntries.map((entry, index) => {
           const isSourceTile =
-            dragState?.active &&
+            isPinnedDragActive &&
             dragState.sourceOrigin === 'pinned' &&
             dragState.sourceIndex === index;
 
           const isMergeTarget =
             mainHover?.mode === 'merge' && mainHover.targetIndex === index && !isSourceTile;
 
-          const displacementStyle = computeSlotDisplacement(
-            index,
-            mainHover,
-            dragState?.pinnedMetrics,
-          );
+          const displacementStyle = isPinnedDragActive
+            ? computeSlotDisplacement(
+                index,
+                mainHover,
+                dragState?.pinnedMetrics,
+              )
+            : undefined;
 
           if (entry.type === 'folder' || entry.type === 'tag-folder') {
             const members = entry.items || [];
@@ -244,6 +272,10 @@ export function PinnedSection({
                   .join(' ')}
                 onPointerDown={(e) => {
                   if (e.target.closest('.bb-pinned-folder__actions, .bb-kebab-menu')) return;
+                  if (trimmedQuery) {
+                    onOpenFolder?.(entry.id);
+                    return;
+                  }
                   onStartPointerDrag?.(e, {
                     sourceOrigin: 'pinned',
                     sourceType: entry.type,
@@ -321,6 +353,10 @@ export function PinnedSection({
               onPointerDown={(e) => {
                 if (e.target.closest('.bb-char-tile__actions, .bb-kebab-menu')) return;
                 if (multiSelectActive || e.ctrlKey || e.metaKey || e.shiftKey) return;
+                if (trimmedQuery) {
+                  onSelect?.(card.id);
+                  return;
+                }
                 onStartPointerDrag?.(e, {
                   sourceOrigin: 'pinned',
                   sourceType: 'item',
@@ -366,10 +402,11 @@ export function PinnedSection({
           );
         })}
 
-        {entries.length === 0 && (
+        {displayedEntries.length === 0 && (
           <div className="bb-pinned-empty">
-            Drag any card or tag folder here to pin it — drop one card onto another to create a
-            folder.
+            {trimmedQuery
+              ? 'No pinned cards or folders match your search.'
+              : 'Star any card in All or drag a card onto ★ Pinned — drop one card onto another to create a folder.'}
           </div>
         )}
         </div>
@@ -381,7 +418,7 @@ export function PinnedSection({
         activeFolder={activeFolder}
         triggerKey={activeFolder ? `pinned:${activeFolder.id}` : ''}
         anchorSectionRef={sectionRef}
-        anchorHeaderRef={resolvedHeaderRef}
+        anchorHeaderRef={showHeader ? resolvedHeaderRef : anchorHeaderRef}
         popoverRef={popoverRef}
         popoverGridRef={popoverGridRef}
         gridStyle={gridStyle}

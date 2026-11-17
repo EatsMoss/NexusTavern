@@ -641,8 +641,18 @@
   transition: opacity 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
+.bb-tome__body .bb-pm-root {
+  padding: 4px 0 10px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .bb-pm-row:hover .bb-pm-act-btn,
+.bb-pm-row:focus-within .bb-pm-act-btn,
 .bb-pm-group-header:hover .bb-pm-act-btn,
+.bb-pm-group-header:focus-within .bb-pm-act-btn,
 .bb-pm-act-btn:focus-visible {
   opacity: 1;
   pointer-events: auto;
