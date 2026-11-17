@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useViewport } from '@core/hooks/useViewport.js';
 import { Icon } from '../../atoms/Icon/Icon.jsx';
 import { Button } from '../../atoms/Button/Button.jsx';
+import { BottomSheet } from '../../organisms/BottomSheet/BottomSheet.jsx';
 import './KebabMenu.css';
 
 /**
  * Reusable M3 Kebab / Action Popover Menu Molecule.
- * Renders its floating menu via a body portal so card/grid overflow never clips it.
+ * Renders an anchored Solid Sheet popover on desktop/tablet and automatically
+ * upgrades to a thumb-friendly M3 BottomSheet (`48px` rows) on `compact` viewports.
  */
 export function KebabMenu({
   items = [],
@@ -14,12 +17,15 @@ export function KebabMenu({
   icon = 'moreVert',
   size = 'sm',
   align = 'right',
-  title = 'Card actions',
+  title = 'Actions',
   disabled = false,
+  mobileSheet = true,
   onOpenChange = null,
   className = '',
 }) {
+  const { isMobile } = useViewport();
   const [open, setOpen] = useState(false);
+  const useMobileBottomSheet = Boolean(mobileSheet && isMobile);
 
   useEffect(() => {
     if (disabled && open) {
@@ -78,15 +84,15 @@ export function KebabMenu({
     : [];
 
   useLayoutEffect(() => {
-    if (!open) {
+    if (!open || useMobileBottomSheet) {
       setCoords((prev) => (prev.ready ? { top: 0, left: 0, ready: false } : prev));
       return;
     }
     updatePosition();
-  }, [open, visibleItems.length, updatePosition]);
+  }, [open, useMobileBottomSheet, visibleItems.length, updatePosition]);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || useMobileBottomSheet) return undefined;
 
     const handlePointerDown = (e) => {
       if (
@@ -118,10 +124,55 @@ export function KebabMenu({
       window.removeEventListener('resize', handleScrollOrResize);
       window.removeEventListener('scroll', handleScrollOrResize, true);
     };
-  }, [open]);
+  }, [open, useMobileBottomSheet]);
 
   if (!getItems && visibleItems.length === 0) return null;
   if (open && visibleItems.length === 0) return null;
+
+  const renderMenuItems = (inSheet = false) =>
+    visibleItems.map((item, idx) =>
+      item.divider ? (
+        <div
+          key={item.id || `div-${idx}`}
+          role="separator"
+          className="bb-kebab-menu__divider"
+        />
+      ) : (
+        <button
+          key={item.id || item.label || idx}
+          type="button"
+          role="menuitem"
+          disabled={item.disabled}
+          title={item.title || item.label}
+          className={[
+            'bb-kebab-menu__item',
+            inSheet ? 'bb-kebab-menu__item--sheet' : '',
+            item.active ? 'bb-kebab-menu__item--active' : '',
+            item.danger ? 'bb-kebab-menu__item--danger' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen(false);
+            item.onClick?.();
+          }}
+        >
+          {item.icon && (
+            <span className="bb-kebab-menu__item-icon">
+              <Icon name={item.icon} size={inSheet ? 18 : 16} />
+            </span>
+          )}
+          <span className="bb-kebab-menu__item-label">{item.label}</span>
+          {item.active && (
+            <span className="bb-kebab-menu__item-check">
+              <Icon name="check" size={inSheet ? 16 : 14} />
+            </span>
+          )}
+        </button>
+      ),
+    );
 
   return (
     <div
@@ -144,7 +195,7 @@ export function KebabMenu({
         active={open}
         disabled={disabled}
         title={title}
-        aria-haspopup="menu"
+        aria-haspopup={useMobileBottomSheet ? 'dialog' : 'menu'}
         aria-expanded={open}
         className="bb-kebab-menu__trigger"
         onClick={(e) => {
@@ -156,67 +207,40 @@ export function KebabMenu({
       />
 
       {open &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            ref={menuRef}
-            role="menu"
-            className={`bb-kebab-menu__popover bb-kebab-menu__popover--${align}`}
-            style={{
-              position: 'fixed',
-              top: `${coords.top}px`,
-              left: `${coords.left}px`,
-              visibility: coords.ready ? 'visible' : 'hidden',
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => e.stopPropagation()}
+        (useMobileBottomSheet ? (
+          <BottomSheet
+            open={open}
+            onClose={() => setOpen(false)}
+            title={title}
+            zIndex={9992}
+            bodyClassName="bb-kebab-menu__sheet-body"
           >
-            {visibleItems.map((item, idx) =>
-              item.divider ? (
-                <div
-                  key={item.id || `div-${idx}`}
-                  role="separator"
-                  className="bb-kebab-menu__divider"
-                />
-              ) : (
-                <button
-                  key={item.id || item.label || idx}
-                  type="button"
-                  role="menuitem"
-                  disabled={item.disabled}
-                  title={item.title || item.label}
-                  className={[
-                    'bb-kebab-menu__item',
-                    item.active ? 'bb-kebab-menu__item--active' : '',
-                    item.danger ? 'bb-kebab-menu__item--danger' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setOpen(false);
-                    item.onClick?.();
-                  }}
-                >
-                  {item.icon && (
-                    <span className="bb-kebab-menu__item-icon">
-                      <Icon name={item.icon} size={16} />
-                    </span>
-                  )}
-                  <span className="bb-kebab-menu__item-label">{item.label}</span>
-                  {item.active && (
-                    <span className="bb-kebab-menu__item-check">
-                      <Icon name="check" size={14} />
-                    </span>
-                  )}
-                </button>
-              ),
-            )}
-          </div>,
-          document.body,
-        )}
+            <div role="menu" className="bb-kebab-menu__sheet-list">
+              {renderMenuItems(true)}
+            </div>
+          </BottomSheet>
+        ) : (
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              className={`bb-kebab-menu__popover bb-kebab-menu__popover--${align}`}
+              style={{
+                position: 'fixed',
+                top: `${coords.top}px`,
+                left: `${coords.left}px`,
+                visibility: coords.ready ? 'visible' : 'hidden',
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+            >
+              {renderMenuItems(false)}
+            </div>,
+            document.body,
+          )
+        ))}
     </div>
   );
 }

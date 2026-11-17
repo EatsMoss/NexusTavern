@@ -1,0 +1,158 @@
+/* ==========================================================================
+   NEXUSTAVERN UI-KIT — M3 MOBILE TOP APP BAR ORGANISM
+   Compact 52px (40px in landscape) Header with Tappable Chat/Branch Identity
+   ========================================================================== */
+
+.bb-mobile-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: calc(
+    var(--bb-mobile-topbar-height, 52px) + var(--bb-safe-area-top, env(safe-area-inset-top, 0px))
+  );
+  padding: var(--bb-safe-area-top, env(safe-area-inset-top, 0px))
+    calc(10px + var(--bb-safe-area-right, 0px)) 0
+    calc(10px + var(--bb-safe-area-left, 0px));
+  background: var(--bb-sheet-header-bg, #18181e);
+  border-bottom: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  flex-shrink: 0;
+  box-sizing: border-box;
+  z-index: 40;
+}
+
+.bb-mobile-topbar__leading {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.bb-mobile-topbar__identity {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 6px;
+  border-radius: var(--bb-control-radius, 8px);
+}
+
+.bb-mobile-topbar__identity--button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 130ms ease, border-color 130ms ease;
+}
+
+.bb-mobile-topbar__identity--button:hover,
+.bb-mobile-topbar__identity--button:active {
+  background: var(--bb-sheet-item-hover, rgba(255, 255, 255, 0.06));
+  border-color: var(--bb-page-border, var(--md-sys-color-outline-variant));
+}
+
+.bb-mobile-topbar__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--md-sys-color-primary-container);
+  border: 1px solid var(--bb-page-border-mid, var(--md-sys-color-outline-variant));
+}
+
+[data-short-viewport='true'] .bb-mobile-topbar__avatar {
+  width: 26px;
+  height: 26px;
+}
+
+.bb-mobile-topbar__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
+}
+
+.bb-mobile-topbar__avatar-initials {
+  font-family: var(--bb-font-heading);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.bb-mobile-topbar__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--md-sys-color-primary);
+  flex-shrink: 0;
+}
+
+.bb-mobile-topbar__titles {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+
+.bb-mobile-topbar__title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.bb-mobile-topbar__title {
+  font-family: var(--bb-font-heading);
+  font-size: calc(15px * var(--bb-font-scale, 1));
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--bb-ink-heading, var(--md-sys-color-on-surface));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-mobile-topbar__chevron {
+  flex-shrink: 0;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  transition: transform 150ms ease;
+}
+
+.bb-mobile-topbar__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.bb-mobile-topbar__subtitle {
+  font-family: var(--bb-font-body);
+  font-size: var(--bb-caption-size, 11px);
+  line-height: 1.2;
+  color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-short-viewport='true'] .bb-mobile-topbar__subtitle {
+  display: none;
+}
+
+.bb-mobile-topbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}

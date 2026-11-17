@@ -19,6 +19,7 @@ import { RefusalCatcherManager } from '../organisms/RefusalCatcherManager/Refusa
 import { MessageRecapManager } from '../organisms/MessageRecapManager/MessageRecapManager.jsx';
 import { StImporterManager } from '../organisms/StImporterManager/StImporterManager.jsx';
 import { ConsoleDrawer } from '../organisms/ConsoleDrawer/ConsoleDrawer.jsx';
+import { AdaptiveShellShowcase } from './AdaptiveShellShowcase.jsx';
 import { DEFAULT_BANNED_PHRASES } from '@core/refusal/refusalEngine.js';
 import { normalizeRecapConfig } from '@core/recap/recapEngine.js';
 
@@ -571,6 +572,10 @@ export function OrganismsShowcase() {
             onMoveToFolder={handleMoveToFolder}
           />
         </FolderCard>
+      </div>
+
+      <div style={{ marginTop: 18 }}>
+        <AdaptiveShellShowcase />
       </div>
 
       <Modal

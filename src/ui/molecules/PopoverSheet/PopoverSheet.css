@@ -46,3 +46,17 @@
   text-transform: uppercase;
   color: var(--bb-ink-muted, var(--md-sys-color-on-surface-muted));
 }
+
+.bb-popover-sheet__mobile-body {
+  gap: 14px;
+  padding: 14px 16px 20px;
+}
+
+.bb-popover-sheet__mobile-body .bb-popover-sheet__section {
+  gap: 8px;
+}
+
+.bb-popover-sheet__mobile-body .bb-popover-sheet__section + .bb-popover-sheet__section {
+  padding-top: 12px;
+}
+

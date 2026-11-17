@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useViewport } from '@core/hooks/useViewport.js';
 import { isDemoCardId } from '@core/cards/cardsApi.js';
 import { readCachedUiState } from '@core/session/sessionApi.js';
+import { readCachedCustomization } from '@core/customization/customizationApi.js';
 import { useSessionBoot } from '@core/session/useSessionBoot.js';
 import {
   TopBar,
@@ -22,6 +23,13 @@ import { useMessageRecap } from '@features/recap/useMessageRecap.js';
 import { useStImporter } from '@features/st-importer/useStImporter.js';
 import { useCustomizationWorkspace } from '@features/customization/useCustomizationWorkspace.js';
 import { useWorkspaceSheetDismiss } from './useWorkspaceSheetDismiss.js';
+import {
+  useAdaptivePanes,
+  DEFAULT_TOME_WIDTH,
+  MIN_SINGLE_TOME_WIDTH,
+  MAX_STORED_TOME_WIDTH,
+  DEFAULT_CHAT_COLUMN_WIDTH,
+} from './useAdaptivePanes.js';
 import { usePromptTokenTelemetry } from './usePromptTokenTelemetry.js';
 import { buildCharacterSheetSharedProps } from './buildCharacterSheetSharedProps.js';
 import { LeftTomeContent } from './LeftTomeContent.jsx';
@@ -43,22 +51,10 @@ const RIGHT_TABS = [
   { id: 'extensions', label: 'Plugins', icon: 'puzzle' },
 ];
 
-const DEFAULT_TOME_WIDTH = 550;
-const MIN_TOME_WIDTH = 400;
-const MAX_STORED_TOME_WIDTH = 2400;
-const CHAT_COLUMN_WIDTH = 784;
-const TOME_TOGGLE_CLEARANCE = 52; // 8px from tome edge + 36px toggle button + 8px gap to chat edge
 const TOME_WIDTH_STORAGE_KEY = 'bookbound_panel_widths_v1';
 
-function computeMaxTomeWidth(viewportWidth, chatColWidth = CHAT_COLUMN_WIDTH) {
-  return Math.max(
-    MIN_TOME_WIDTH,
-    Math.floor((viewportWidth - chatColWidth) / 2) - TOME_TOGGLE_CLEARANCE,
-  );
-}
-
 function sanitizeStoredTomeWidth(width) {
-  return Math.max(MIN_TOME_WIDTH, Math.min(MAX_STORED_TOME_WIDTH, Math.round(width)));
+  return Math.max(MIN_SINGLE_TOME_WIDTH, Math.min(MAX_STORED_TOME_WIDTH, Math.round(width)));
 }
 
 function loadInitialTomeWidths() {
@@ -69,10 +65,10 @@ function loadInitialTomeWidths() {
     const right = Number(parsed?.right);
     return {
       left: sanitizeStoredTomeWidth(
-        Number.isFinite(left) && left >= MIN_TOME_WIDTH ? left : DEFAULT_TOME_WIDTH,
+        Number.isFinite(left) && left >= MIN_SINGLE_TOME_WIDTH ? left : DEFAULT_TOME_WIDTH,
       ),
       right: sanitizeStoredTomeWidth(
-        Number.isFinite(right) && right >= MIN_TOME_WIDTH ? right : DEFAULT_TOME_WIDTH,
+        Number.isFinite(right) && right >= MIN_SINGLE_TOME_WIDTH ? right : DEFAULT_TOME_WIDTH,
       ),
     };
   } catch (_err) {
@@ -82,15 +78,43 @@ function loadInitialTomeWidths() {
 }
 
 export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshStatus }) {
-  const { width: viewportWidth, isMobile } = useViewport();
+  const { width: viewportWidth } = useViewport();
   const initialUiRef = useRef(null);
   if (initialUiRef.current === null) {
     initialUiRef.current = readCachedUiState() || {};
   }
   const initialUi = initialUiRef.current;
-  const desktopPanesRef = useRef({
-    leftOpen: typeof initialUi.leftOpen === 'boolean' ? initialUi.leftOpen : true,
-    rightOpen: typeof initialUi.rightOpen === 'boolean' ? initialUi.rightOpen : true,
+
+  const [chatColMaxPref, setChatColMaxPref] = useState(
+    () => readCachedCustomization()?.chatColumnMaxWidth || DEFAULT_CHAT_COLUMN_WIDTH,
+  );
+  const [leftWidth, setLeftWidth] = useState(() => loadInitialTomeWidths().left);
+  const [rightWidth, setRightWidth] = useState(() => loadInitialTomeWidths().right);
+
+  const {
+    layoutMode,
+    leftOpen,
+    rightOpen,
+    setLeftOpen,
+    setRightOpen,
+    closeDrawers,
+    hydrateDesktopPanes,
+    desktopPanesRef,
+    minTomeWidth,
+    maxTomeWidth,
+    effectiveLeftWidth,
+    effectiveRightWidth,
+    leftTomeInset,
+    rightTomeInset,
+    allowResize,
+    isOverlayDrawer,
+  } = useAdaptivePanes({
+    viewportWidth,
+    chatColumnMaxWidth: chatColMaxPref,
+    initialLeftOpen: typeof initialUi.leftOpen === 'boolean' ? initialUi.leftOpen : true,
+    initialRightOpen: typeof initialUi.rightOpen === 'boolean' ? initialUi.rightOpen : true,
+    leftWidth,
+    rightWidth,
   });
 
   const [viewMode, setViewMode] = useState('tavern'); // 'tavern' | 'sandbox'
@@ -100,14 +124,6 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     pushToast: pushComposerToast,
     dismissToast: dismissComposerToast,
   } = useToastQueue();
-  const [leftOpen, setLeftOpen] = useState(() =>
-    isMobile ? false : desktopPanesRef.current.leftOpen,
-  );
-  const [rightOpen, setRightOpen] = useState(() =>
-    isMobile ? false : desktopPanesRef.current.rightOpen,
-  );
-  const [leftWidth, setLeftWidth] = useState(() => loadInitialTomeWidths().left);
-  const [rightWidth, setRightWidth] = useState(() => loadInitialTomeWidths().right);
   const [leftTab, setLeftTab] = useState(() => initialUi.leftTab || 'chats');
   const [rightTab, setRightTab] = useState(() => initialUi.rightTab || 'selected');
   const [aiSubTab, setAiSubTab] = useState(() => initialUi.aiSubTab || 'prompts');
@@ -175,34 +191,24 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     resetSession: () => {},
   });
 
-  useEffect(() => {
-    if (!isMobile) {
-      desktopPanesRef.current = { leftOpen, rightOpen };
-    }
-  }, [isMobile, leftOpen, rightOpen]);
-
-  const handleHydrateServerUiState = useCallback((srvUi, mobileNow) => {
-    desktopPanesRef.current = {
-      leftOpen: srvUi.leftOpen,
-      rightOpen: srvUi.rightOpen,
-    };
-    if (!mobileNow) {
-      setLeftOpen(srvUi.leftOpen);
-      setRightOpen(srvUi.rightOpen);
-    }
-    setLeftTab(srvUi.leftTab);
-    setRightTab(srvUi.rightTab);
-    setActiveSheetTab(srvUi.activeSheetTab);
-    setAiSubTab(srvUi.aiSubTab);
-    setTimelinesOpen(Boolean(srvUi.timelinesOpen));
-    setSheetExpanded(Boolean(srvUi.sheetExpanded));
-    if (srvUi.charSplitRatio !== null && srvUi.charSplitRatio !== undefined) {
-      setCharSplitRatio(srvUi.charSplitRatio);
-    }
-  }, []);
+  const handleHydrateServerUiState = useCallback(
+    (srvUi) => {
+      hydrateDesktopPanes(srvUi.leftOpen, srvUi.rightOpen);
+      setLeftTab(srvUi.leftTab);
+      setRightTab(srvUi.rightTab);
+      setActiveSheetTab(srvUi.activeSheetTab);
+      setAiSubTab(srvUi.aiSubTab);
+      setTimelinesOpen(Boolean(srvUi.timelinesOpen));
+      setSheetExpanded(Boolean(srvUi.sheetExpanded));
+      if (srvUi.charSplitRatio !== null && srvUi.charSplitRatio !== undefined) {
+        setCharSplitRatio(srvUi.charSplitRatio);
+      }
+    },
+    [hydrateDesktopPanes],
+  );
 
   const boot = useSessionBoot({
-    isMobile,
+    isMobile: isOverlayDrawer,
     uiSnapshot: {
       desktopLeftOpen: desktopPanesRef.current.leftOpen,
       desktopRightOpen: desktopPanesRef.current.rightOpen,
@@ -257,7 +263,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   }, []);
 
   const scenario = useScenarioWorkspace({
-    isMobile,
+    isMobile: isOverlayDrawer,
     sheetExpanded,
     setSheetExpanded,
     setLeftOpen,
@@ -285,7 +291,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   loadCardsAndPersonasRef.current = scenario.loadCardsAndPersonas;
 
   const personasWs = usePersonasWorkspace({
-    isMobile,
+    isMobile: isOverlayDrawer,
     selectedCardId: scenario.selectedCardId,
     activeCardFull: scenario.activeCardFull,
     chatSessionBridgeRef,
@@ -315,7 +321,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   });
 
   const presets = usePresetsWorkspace({
-    isMobile,
+    isMobile: isOverlayDrawer,
     selectedCardId: scenario.selectedCardId,
     ensureSessionPromise: boot.ensureSessionPromise,
     queueSessionPatch: boot.queueSessionPatch,
@@ -339,7 +345,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   };
 
   const chat = useChatWorkspace({
-    isMobile,
+    isMobile: isOverlayDrawer,
     cards: scenario.cards,
     groups: scenario.groups,
     selectedCardId: scenario.selectedCardId,
@@ -412,10 +418,11 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     customization.config.shaderStyle === 'off'
       ? 0
       : Number((customization.config.shaderIntensity / 100).toFixed(2));
-  const maxTomeWidth = useMemo(
-    () => computeMaxTomeWidth(viewportWidth, customization.config.chatColumnMaxWidth),
-    [viewportWidth, customization.config.chatColumnMaxWidth],
-  );
+
+  useEffect(() => {
+    const nextMax = Number(customization.config.chatColumnMaxWidth) || DEFAULT_CHAT_COLUMN_WIDTH;
+    setChatColMaxPref((prev) => (prev === nextMax ? prev : nextMax));
+  }, [customization.config.chatColumnMaxWidth]);
 
   // Global shortcut Ctrl+Shift+U to toggle UI Kit Sandbox page
   useEffect(() => {
@@ -428,10 +435,6 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  // Effective rendered widths clamp to current viewport space without overwriting the user's preferred widths
-  const effectiveLeftWidth = Math.max(MIN_TOME_WIDTH, Math.min(maxTomeWidth, leftWidth));
-  const effectiveRightWidth = Math.max(MIN_TOME_WIDTH, Math.min(maxTomeWidth, rightWidth));
 
   // Persist user-selected tome widths to localStorage
   useEffect(() => {
@@ -632,7 +635,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   });
 
   const characterSheetSharedProps = buildCharacterSheetSharedProps({
-    isMobile,
+    isMobile: isOverlayDrawer,
     scenario,
     personasWs,
     presets,
@@ -673,17 +676,11 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     <>
       <TopBar
         leftOpen={leftOpen}
-        onToggleLeft={() => {
-          if (isMobile && !leftOpen) setRightOpen(false);
-          setLeftOpen((v) => !v);
-        }}
+        onToggleLeft={() => setLeftOpen((v) => !v)}
         rightOpen={rightOpen}
-        onToggleRight={() => {
-          if (isMobile && !rightOpen) setLeftOpen(false);
-          setRightOpen((v) => !v);
-        }}
-        leftTomeInset={leftOpen && viewportWidth > 900 ? effectiveLeftWidth : 0}
-        rightTomeInset={rightOpen && viewportWidth > 900 ? effectiveRightWidth : 0}
+        onToggleRight={() => setRightOpen((v) => !v)}
+        leftTomeInset={leftTomeInset}
+        rightTomeInset={rightTomeInset}
         chatTitle={
           (chat.committedChatCardId === scenario.selectedCardId ? chat.activeChatFile : '') ||
           (scenario.hasActiveScenario ? scenario.activeCharacter.name : 'NexusTavern')
@@ -717,11 +714,8 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       <CenterWorkspaceSheets
         viewMode={viewMode}
         onExitSandbox={() => setViewMode('tavern')}
-        isMobile={isMobile}
-        leftOpen={leftOpen}
-        rightOpen={rightOpen}
-        effectiveLeftWidth={effectiveLeftWidth}
-        effectiveRightWidth={effectiveRightWidth}
+        leftTomeInset={leftTomeInset}
+        rightTomeInset={rightTomeInset}
         chatListOpen={chatListOpen}
         timelinesOpen={timelinesOpen}
         centerSheetSurfaceRef={centerSheetSurfaceRef}
@@ -794,8 +788,10 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
 
   return (
     <WorkspaceLayout
+      layoutMode={layoutMode}
       idleFade={idleFade}
-      minTomeWidth={MIN_TOME_WIDTH}
+      allowResize={allowResize}
+      minTomeWidth={minTomeWidth}
       maxTomeWidth={maxTomeWidth}
       defaultTomeWidth={DEFAULT_TOME_WIDTH}
       leftOpen={leftOpen}
@@ -816,6 +812,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       onChangeRightTab={setRightTab}
       rightScrollDisabled={rightTab === 'selected'}
       rightContent={rightTomeContent}
+      onCloseDrawers={closeDrawers}
       overlays={overlaysContent}
     >
       {centerContent}

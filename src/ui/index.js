@@ -115,11 +115,11 @@ export {
   applyEditedPromptToOrdered,
   applyEditedGroupToOrdered,
 } from './organisms/PromptManager/promptGroupsModel.js';
-export {
-  SplashScreen,
-  APP_VERSION,
-} from './organisms/SplashScreen/SplashScreen.jsx';
+export { SplashScreen, APP_VERSION } from './organisms/SplashScreen/SplashScreen.jsx';
 export { ConsoleToggleButton } from './organisms/ConsoleDrawer/ConsoleToggleButton.jsx';
+export { BottomSheet } from './organisms/BottomSheet/BottomSheet.jsx';
+export { BottomNavBar } from './organisms/BottomNavBar/BottomNavBar.jsx';
+export { MobileTopAppBar } from './organisms/MobileTopAppBar/MobileTopAppBar.jsx';
 export { WorkspaceLayout } from './layouts/WorkspaceLayout/WorkspaceLayout.jsx';
 
 

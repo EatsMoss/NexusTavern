@@ -180,11 +180,13 @@ export function TopBar({
             size="sm"
             emphasis={timelinesOpen ? 'filled' : 'outlined'}
             icon="timeline"
+            className="bb-topbar__action-btn"
             title={
               timelinesOpen
                 ? 'Close Timelines and return to chat'
                 : 'Open horizontal timeline branch tree'
             }
+            aria-label="Timelines"
             aria-pressed={timelinesOpen}
             onClick={onToggleTimelines}
           >
@@ -194,8 +196,10 @@ export function TopBar({
             variant="b1"
             size="sm"
             icon="plus"
+            className="bb-topbar__action-btn"
             disabled={loadingChat}
             title="Create a new .jsonl chat from current greeting"
+            aria-label="New Chat"
             onClick={onCreateNewChat}
           >
             New Chat

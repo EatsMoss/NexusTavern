@@ -5,13 +5,15 @@ import { TomeResizeCurtain } from '../../molecules/TomeResizeCurtain/TomeResizeC
 import './WorkspaceLayout.css';
 
 /**
- * Pure M3 Three-Column Workspace Layout (UI-Kit Layout Primitive).
- * Zero dependencies on `@features/*` or `@core/*`: renders Left Tome, Center Stage,
- * Right Tome, and modal/overlay portals via declarative slots.
+ * Pure M3 Adaptive Workspace Layout (UI-Kit Layout Primitive).
+ * Supports 4 canonical M3 Window Size Classes (`expanded-dual`, `expanded-single`,
+ * `medium` Modal Drawer with Scrim, and `compact`) with zero `@features/*` or `@core/*` imports.
  */
 export function WorkspaceLayout({
+  layoutMode = 'expanded-dual',
   idleFade = false,
-  minTomeWidth = 360,
+  allowResize = true,
+  minTomeWidth = 380,
   maxTomeWidth = 760,
   defaultTomeWidth = 550,
   leftOpen = false,
@@ -30,16 +32,41 @@ export function WorkspaceLayout({
   onChangeRightTab,
   rightScrollDisabled = false,
   rightContent = null,
+  onCloseDrawers,
   overlays = null,
   children,
 }) {
+  const isModalDrawer = layoutMode === 'medium';
+  const showIdleFade = Boolean(idleFade && !isModalDrawer && layoutMode === 'expanded-dual');
+  const showResizeCurtain = Boolean(allowResize && !isModalDrawer && layoutMode !== 'compact');
+  const showDrawerScrim = Boolean(isModalDrawer && (leftOpen || rightOpen));
+
   return (
-    <div className="bb-app-shell">
+    <div
+      className={`bb-app-shell bb-app-shell--${layoutMode}`}
+      data-shell-mode={layoutMode}
+    >
+      {showDrawerScrim && (
+        <div
+          className="bb-tome-scrim"
+          aria-hidden="true"
+          onClick={onCloseDrawers}
+        />
+      )}
+
       {leftOpen && (
         <aside
           id="left-nav-panel"
-          className={`bb-tome bb-tome--left ${idleFade ? 'bb-tome--idle-fade' : ''}`.trim()}
-          style={{ width: leftWidth }}
+          aria-label="Left workspace navigation tome"
+          className={[
+            'bb-tome',
+            'bb-tome--left',
+            isModalDrawer ? 'bb-tome--modal-drawer' : '',
+            showIdleFade ? 'bb-tome--idle-fade' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          style={isModalDrawer ? undefined : { width: leftWidth }}
         >
           <BookmarkRibbons
             tabs={leftTabs}
@@ -55,14 +82,16 @@ export function WorkspaceLayout({
             {leftContent}
           </OverlayScrollArea>
 
-          <TomeResizeCurtain
-            side="left"
-            width={leftWidth}
-            minWidth={minTomeWidth}
-            maxWidth={maxTomeWidth}
-            defaultWidth={defaultTomeWidth}
-            onChangeWidth={onChangeLeftWidth}
-          />
+          {showResizeCurtain && (
+            <TomeResizeCurtain
+              side="left"
+              width={leftWidth}
+              minWidth={minTomeWidth}
+              maxWidth={maxTomeWidth}
+              defaultWidth={defaultTomeWidth}
+              onChangeWidth={onChangeLeftWidth}
+            />
+          )}
         </aside>
       )}
 
@@ -71,17 +100,27 @@ export function WorkspaceLayout({
       {rightOpen && (
         <aside
           id="right-nav-panel"
-          className={`bb-tome bb-tome--right ${idleFade ? 'bb-tome--idle-fade' : ''}`.trim()}
-          style={{ width: rightWidth }}
+          aria-label="Right scenario and prompts tome"
+          className={[
+            'bb-tome',
+            'bb-tome--right',
+            isModalDrawer ? 'bb-tome--modal-drawer' : '',
+            showIdleFade ? 'bb-tome--idle-fade' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          style={isModalDrawer ? undefined : { width: rightWidth }}
         >
-          <TomeResizeCurtain
-            side="right"
-            width={rightWidth}
-            minWidth={minTomeWidth}
-            maxWidth={maxTomeWidth}
-            defaultWidth={defaultTomeWidth}
-            onChangeWidth={onChangeRightWidth}
-          />
+          {showResizeCurtain && (
+            <TomeResizeCurtain
+              side="right"
+              width={rightWidth}
+              minWidth={minTomeWidth}
+              maxWidth={maxTomeWidth}
+              defaultWidth={defaultTomeWidth}
+              onChangeWidth={onChangeRightWidth}
+            />
+          )}
 
           <BookmarkRibbons
             tabs={rightTabs}
@@ -103,3 +142,4 @@ export function WorkspaceLayout({
     </div>
   );
 }
+

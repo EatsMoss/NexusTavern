@@ -126,14 +126,32 @@
   color: var(--bb-danger-ink);
 }
 
-@media (max-width: 640px) {
+.bb-kebab-menu__sheet-body {
+  padding: 8px 10px 14px;
+}
+
+.bb-kebab-menu__sheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bb-kebab-menu__item--sheet {
+  min-height: var(--bb-list-row-height, 48px);
+  padding: 10px 14px;
+  font-size: calc(14.5px * var(--bb-font-scale, 1));
+  gap: 12px;
+  white-space: normal;
+}
+
+@media (max-width: 767px) {
   .bb-kebab-menu__popover {
     min-width: 204px;
     padding: 7px;
   }
 
   .bb-kebab-menu__item {
-    min-height: 44px;
+    min-height: 48px;
     padding: 8px 14px;
     font-size: 14px;
   }

@@ -130,10 +130,10 @@
   - [x] **`PanelScreenHeader` (`src/ui/molecules/PanelScreenHeader/`)** — лаконичная M3-шапка отдельного вложенного экрана внутри панели (`← Back`, иконка, заголовок, бейдж/подзаголовок и слот контекстных действий) для чистой навигации в `Plugins`, `Advanced Definitions` и мобильных суб-экранах.
   - [x] **`ModuleNavCard` (`src/ui/molecules/ModuleNavCard/`)** — двухстрочная M3-карточка навигации по модулям (иконка, название, живой бейдж статуса, изолированный от клика быстрый `Switch` и шеврон перехода `›`) для хаба `Plugins` и мобильного раздела `Workspace`.
   - [x] **`PopoverSheet` (`src/ui/molecules/PopoverSheet/`)** — непрозрачный M3 Solid Sheet поповер для компактных панелей настроек вида (`View & Sort` в галерее), готовый к авто-переключению в `BottomSheet` на смартфонах.
-  - [ ] **`BottomSheet` (`src/ui/organisms/BottomSheet/`)** — нативный мобильный M3 Modal Bottom Sheet с хэндлом-граббером, жестом `drag-to-dismiss`, `scrim`, `safe-area-inset-bottom` и поддержкой высоты `visualViewport`.
-  - [ ] **`BottomNavBar` (`src/ui/organisms/BottomNavBar/`)** — нижняя панель навигации M3 (`compact` портрет) + автоматический режим бокового `NavigationRail` (`compact` landscape при малой высоте экрана), с индикаторами активного стриминга и несохранённых изменений.
-  - [ ] **`MobileTopAppBar` (`src/ui/organisms/MobileTopAppBar/`)** — компактная мобильная шапка M3 (`48–52px`) со слотами `leading`, кликабельным заголовком/подзаголовком и `actions`.
-  - [ ] **Мобильный `BottomSheet`-режим в `KebabMenu` и `PopoverSheet`** — на экранах `compact` автоматически открывает пункты меню и настройки `View & Sort` внутри `BottomSheet` (крупные строки `48px` под большой палец) вместо мелкого плавающего поповера у края экрана.
+  - [x] **`BottomSheet` (`src/ui/organisms/BottomSheet/`)** — нативный мобильный M3 Modal Bottom Sheet с хэндлом-граббером, жестом `drag-to-dismiss`, `scrim`, `safe-area-inset-bottom` и поддержкой высоты `visualViewport`.
+  - [x] **`BottomNavBar` (`src/ui/organisms/BottomNavBar/`)** — нижняя панель навигации M3 (`compact` портрет) + автоматический режим бокового `NavigationRail` (`compact` landscape при малой высоте экрана), с индикаторами активного стриминга и несохранённых изменений.
+  - [x] **`MobileTopAppBar` (`src/ui/organisms/MobileTopAppBar/`)** — компактная мобильная шапка M3 (`48–52px`) со слотами `leading`, кликабельным заголовком/подзаголовком и `actions`.
+  - [x] **Мобильный `BottomSheet`-режим в `KebabMenu` и `PopoverSheet`** — на экранах `compact` автоматически открывает пункты меню и настройки `View & Sort` внутри `BottomSheet` (крупные строки `48px` под большой палец) вместо мелкого плавающего поповера у края экрана.
 
 ---
 
@@ -149,18 +149,18 @@
 - [x] **Контекстные кнопки и уборка лишней вложенности**: сокращён ряд из 5 кнопок в `PresetVaultInspector` до контекстной `Save` (+ быстрый `Undo`) и `⋮`, вторичные иконки строк в `PromptManager` открываются по `:hover` / `:focus-within`, два меню в `CharacterSheetHeader` объединены в одно `⋮` (`New Chat`, `★ Pin`, `Advanced`, `⋮`), `AdvancedDefinitionsPanel` переведён на `PanelScreenHeader`, выпрямлены вложенные рамки `FolderCard` в томах и объединена строка телеметрии (`time · tok · speed`) в `ChatMessageCard`.
 - [x] **Живая проверка A0**: проверено в браузере на ПК (`lint`, `51/51` unit-тестов, production-сборка и живой тест переключения режимов библиотеки, плагинов, пресетов и карточек).
 
-### Шаг A1 — Адаптивные токены, `useViewport` (Window Size Classes + Клавиатура) и примитивы UI-Kit
-- [ ] Расширить `src/core/hooks/useViewport.js`: реактивные флаги `layoutMode` (`'expanded-dual' | 'expanded-single' | 'medium' | 'compact'`), `isMobile`, `isTablet`, `isShortViewport`, `isCoarsePointer`, а также отслеживание `window.visualViewport` (`isKeyboardOpen`, `visualHeight`).
-- [ ] Добавить адаптивные токены и `@container` переменные в `src/styles/tokens.css`.
-- [ ] Реализовать в `src/ui/` новые M3-компоненты: `BottomSheet`, `BottomNavBar` (с поддержкой `NavigationRail` при малой высоте) и `MobileTopAppBar`, а также мобильный `BottomSheet`-режим в `KebabMenu` и поповере `View & Sort`.
-- [ ] Добавить демонстрацию новых компонентов в `src/ui/tokens/TokenSandbox.jsx`.
+### Шаг A1 — Адаптивные токены, `useViewport` (Window Size Classes + Клавиатура) и примитивы UI-Kit *(Выполнено)*
+- [x] Расширить `src/core/hooks/useViewport.js`: реактивные флаги `layoutMode` (`'expanded-dual' | 'expanded-single' | 'medium' | 'compact'`), `isMobile`, `isTablet`, `isShortViewport`, `isCoarsePointer`, а также отслеживание `window.visualViewport` (`isKeyboardOpen`, `visualHeight`).
+- [x] Добавить адаптивные токены и `@container` переменные в `src/styles/tokens.css`.
+- [x] Реализовать в `src/ui/` новые M3-компоненты: `BottomSheet`, `BottomNavBar` (с поддержкой `NavigationRail` при малой высоте) и `MobileTopAppBar`, а также мобильный `BottomSheet`-режим в `KebabMenu` и поповере `View & Sort`.
+- [x] Добавить демонстрацию новых компонентов в `src/ui/tokens/TokenSandbox.jsx`.
 - **Живая проверка A1**: открытие `TokenSandbox` (`Ctrl+Shift+U`) в широком окне, узком окне и мобильном режиме — проверка `BottomSheet` (свайп вниз), `PanelScreenHeader`, `BottomNavBar`, `MobileTopAppBar` и адаптивного `KebabMenu`.
 
-### Шаг A2 — Адаптация каркаса неполноэкранных окон ПК и планшетов (`expanded-single` и `medium`)
-- [ ] Перестроить `WorkspaceLayout` и `AppShell` для режимов `expanded-dual` (`≥ 1680px`), `expanded-single` (`1180px – 1679px`) и `medium` (`768px – 1179px`):
+### Шаг A2 — Адаптация каркаса неполноэкранных окон ПК и планшетов (`expanded-single` и `medium`) *(Выполнено)*
+- [x] Перестроить `WorkspaceLayout` и `AppShell` для режимов `expanded-dual` (`≥ 1680px`), `expanded-single` (`1180px – 1679px`) и `medium` (`768px – 1179px`):
   - В `expanded-single` — потоковое размещение одного активного тома рядом с эластичной колонкой чата (0 перекрытий текста и `TopBar`).
   - В `medium` — выдвижной M3 Modal Drawer со `Scrim`-затемнением, закрытием по клику мимо тома и клавише `Esc`, авто-сворачивание лишних панелей при ресайзе окна вниз.
-- [ ] Адаптировать `TopBar` через `@container`: автоматический переход `Timelines` и `New Chat` в круглые icon-only кнопки при узком просвете шапки.
+- [x] Адаптировать `TopBar` через `@container`: автоматический переход `Timelines` и `New Chat` в круглые icon-only кнопки при узком просвете шапки.
 - **Живая проверка A2**: плавное растягивание и сжатие окна браузера на ПК от `1920px` до `770px` (включая Windows Split-Screen 50%) — ни на одной ширине боковые тома не налезают на сообщения и шапку.
 
 ### Шаг A3 — Нативная мобильная оболочка смартфона (`compact` режим `≤ 767px`)
@@ -218,6 +218,30 @@
   - В `PresetVaultInspector` убрана внешняя обёртка `FolderCard`, кнопки сведены к контекстной `Save` (+ быстрый `Undo` при `isPresetDirty`) и единому меню `⋮`.
   - В `PromptManager` вторичные действия строк (`Duplicate`, `Unlink`) показываются контекстно по `:hover` / `:focus-within`, убрана лишняя внешняя рамка внутри тома.
   - В `CharacterSheetHeader` выстроен ряд `New Chat`, `★ Pin`, `Advanced` и одно объединённое меню `⋮`.
-  - В `ChatMessageCard` метаданные шапки (`time · tok · speed`) объединены в спокойную строку без отдельных рамочных боксов с сохранением работы `data-hide-msg-*` флагов из `Settings`.
+- **В `ChatMessageCard`** метаданные шапки (`time · tok · speed`) объединены в спокойную строку без отдельных рамочных боксов с сохранением работы `data-hide-msg-*` флагов из `Settings`.
+
+### Выполнено: Шаг A1 — Адаптивные токены, `useViewport` (Window Size Classes + Клавиатура) и примитивы UI-Kit
+- [x] **Ядро реактивного вьюпорта (`src/core/hooks/viewportMath.js` + `src/core/hooks/useViewport.js`)**:
+  - Единый rAF-батчированный `useSyncExternalStore` без дублирования слушателей `resize` / `visualViewport` между потребителями.
+  - Классы окна M3 `layoutMode`: `'compact'` (`≤ 767px`), `'medium'` (`768–1179px`), `'expanded-single'` (`1180–1679px`) и `'expanded-dual'` (`≥ 1680px`, с динамическим расширением под кастомную ширину колонки чата `chatColumnMaxWidth`).
+  - Отслеживание `window.visualViewport` (`visualHeight`, `keyboardInset`, `isKeyboardOpen` с отсечкой мелких сдвигов адресной строки мобильного браузера), `isShortViewport` (`≤ 520px`), `isCoarsePointer` и синхронизация атрибутов `data-layout-mode`, `data-short-viewport`, `data-keyboard-open`, `data-coarse-pointer` на `:root` + unit-тесты `tests/viewportState.test.js`.
+- [x] **Адаптивные токены M3 (`src/styles/tokens.css`)**:
+  - Safe-area переменные (`--bb-safe-area-*`), `--bb-visual-viewport-height`, `--bb-keyboard-inset`, высоты `--bb-mobile-topbar-height` (`52px` / `40px` в short viewport), `--bb-bottom-nav-height` (`64px`), `--bb-nav-rail-width` (`64px`), `--bb-bottom-sheet-radius` (`28px`) и контейнерный хелпер `.bb-cq-inline`.
+- [x] **Новые организмы и адаптивные молекулы M3 UI-Kit (`src/ui/`)**:
+  - `src/ui/organisms/BottomSheet/` (`BottomSheet.jsx`, `useBottomSheetDrag.js`, `BottomSheet.css`) — нативный M3 Modal Bottom Sheet с хэндлом `36×4px`, жестом `drag-to-dismiss` (по смещению и скорости свайпа), пружинным возвратом, `scrim`, стеком `Escape` и поддержкой `visualViewport`.
+  - `src/ui/organisms/BottomNavBar/` — нижняя M3-навигация с каноничной активной капсулой `64×32px`, точками статуса (`live` / `warning` / `primary`), числовыми бейджами и автоматическим режимом бокового `NavigationRail` при малой высоте экрана.
+  - `src/ui/organisms/MobileTopAppBar/` — компактная мобильная M3-шапка со слотами `leading`, кликабельной капсулой персонажа/ветки и `actions`.
+  - `KebabMenu` и `PopoverSheet` — автоматическое открытие внутри `BottomSheet` с крупными тач-строками `48px` на `compact`-экранах (`≤ 767px`).
+  - Экспорт в `src/ui/index.js` и интерактивный стенд `AdaptiveShellShowcase` в `TokenSandbox` (`Organisms`).
+
+### Выполнено: Шаг A2 — Адаптация каркаса неполноэкранных окон ПК и планшетов (`expanded-single` и `medium`)
+- [x] **Координатор адаптивных томов (`src/core/hooks/adaptivePanesMath.js` + `src/app/AppShell/useAdaptivePanes.js` + `AppShell.jsx`)**:
+  - `expanded-dual` (`≥ 1680px`, динамически учитывает пользовательскую ширину колонки чата `chatColumnMaxWidth` из `Settings`): классическая 3-колоночная раскладка с памятью `desktopPanesRef`.
+  - `expanded-single` (`1180–1679px`, ноутбуки и неполноэкранные окна): потоковый M3 Supporting Pane — максимум один открытый том в flex-потоке рядом с эластичной центральной колонкой чата (0 перекрытий карточек, сендформы и `TopBar`), плавное переключение `Left ↔ Right` и работающая ресайз-шторка `TomeResizeCurtain`.
+  - `medium` (`768–1179px`, Windows Split-Screen 50% и планшеты): авто-сворачивание панелей при ресайзе окна вниз без сохранения ложных `false` поверх настольной сессии, выдвижной M3 Modal Drawer (`min(420px, 86vw)`) с подложкой `Scrim`, закрытием по клику мимо, клавише `Escape` и при выборе чата / открытии центрального редактора.
+- [x] **Контейнерная адаптация `TopBar` (`src/ui/organisms/TopBar/TopBar.jsx` + `TopBar.css`)**:
+  - Автоматический переход кнопок `Timelines` и `New Chat` в круглые M3 icon-only кнопки при ширине контейнера `@container (max-width: 600px)`, благодаря чему заголовок активного чата не сжимается в `...`.
+
+
 
 

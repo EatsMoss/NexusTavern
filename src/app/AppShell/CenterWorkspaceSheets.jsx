@@ -36,11 +36,8 @@ const LazyIntroEditorSheet = lazy(() =>
 export function CenterWorkspaceSheets({
   viewMode,
   onExitSandbox,
-  isMobile,
-  leftOpen,
-  rightOpen,
-  effectiveLeftWidth,
-  effectiveRightWidth,
+  leftTomeInset = 0,
+  rightTomeInset = 0,
   chatListOpen,
   timelinesOpen,
   centerSheetSurfaceRef,
@@ -357,8 +354,8 @@ export function CenterWorkspaceSheets({
       loadingTimelines={chat.loadingTimelines}
       focusedTimelineRequest={chat.focusedTimelineRequest}
       onTimelineFocusChange={chat.setFocusedTimelineNodeFile}
-      leftTomeInset={leftOpen && !isMobile ? effectiveLeftWidth : 0}
-      rightTomeInset={rightOpen && !isMobile ? effectiveRightWidth : 0}
+      leftTomeInset={leftTomeInset}
+      rightTomeInset={rightTomeInset}
       chatFiles={
         chat.committedChatCardId === scenario.selectedCardId ? chat.chatFiles : []
       }

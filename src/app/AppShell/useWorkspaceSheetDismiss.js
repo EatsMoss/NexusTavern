@@ -19,6 +19,8 @@ const WORKSPACE_OUTSIDE_EXEMPT_SELECTOR = [
   '.bb-attach-lightbox',
   '.bb-toast-stack',
   '.bb-tome-curtain',
+  '.bb-tome--modal-drawer',
+  '.bb-tome-scrim',
   '.bb-panel-resize-editor',
   '.bb-panel-resize-tooltip',
   '.bb-topbar__drawer-slot',
@@ -32,8 +34,10 @@ const WORKSPACE_OUTSIDE_EXEMPT_SELECTOR = [
 
 const WORKSPACE_TOP_LAYER_OPEN_SELECTOR = [
   '.bb-modal-overlay',
+  '.bb-bottom-sheet__scrim',
   '.bb-starred-dropdown-overlay',
   '.bb-kebab-menu__popover',
+  '.bb-popover-sheet__surface',
   '.bb-emoji-picker',
   '.bb-conn-picker__overlay',
   '.bb-persona-picker__overlay',

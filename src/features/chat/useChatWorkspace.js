@@ -731,15 +731,25 @@ export function useChatWorkspace({
       if (!fileName || !selectedCardId || isDemoCardId(selectedCardId)) {
         setChatListOpen(false);
         setTimelinesOpen(false);
+        if (isMobile) setLeftOpen(false);
         scrollToChatBottom();
         return;
       }
       await openChatFileWindow(selectedCardId, fileName);
       setChatListOpen(false);
       setTimelinesOpen(false);
+      if (isMobile) setLeftOpen(false);
       scrollToChatBottom();
     },
-    [selectedCardId, openChatFileWindow, setChatListOpen, setTimelinesOpen, scrollToChatBottom],
+    [
+      isMobile,
+      selectedCardId,
+      openChatFileWindow,
+      setChatListOpen,
+      setTimelinesOpen,
+      setLeftOpen,
+      scrollToChatBottom,
+    ],
   );
 
   const handleBranchChatFromList = useCallback(

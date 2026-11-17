@@ -229,7 +229,8 @@
   color: #7cd48f;
 }
 
-/* Compact fallback when container or viewport is narrower than chat column + side toggles (784 + 2*52 = 888px) */
+/* 1. Container narrower than chat column + side toggle clearances:
+   dock Left & Right Tome buttons inline at the edges so they never collide with center track */
 @container (max-width: 887px) {
   .bb-topbar {
     justify-content: space-between;
@@ -258,35 +259,30 @@
   }
 }
 
-@media (max-width: 900px) {
-  .bb-topbar {
-    justify-content: space-between;
-    gap: 8px;
-    padding: 4px var(--bb-chat-column-gutter);
+/* 2. Narrow container (< 600px, e.g. Windows 50% Split-Screen or alongside a large Tome):
+   promote `Timelines` and `New Chat` into circular M3 icon-only buttons so the chat title never truncates into "..." */
+@container (max-width: 600px) {
+  .bb-topbar__chat-actions {
+    gap: 6px;
   }
 
-  .bb-topbar__drawer-slot {
-    position: static;
-    top: auto;
-    left: auto;
-    right: auto;
-    transform: none;
+  .bb-topbar__action-btn.bb-m3-btn {
+    width: var(--bb-control-height-md, 34px);
+    min-width: var(--bb-control-height-md, 34px);
+    height: var(--bb-control-height-md, 34px);
+    min-height: var(--bb-control-height-md, 34px);
+    max-height: var(--bb-control-height-md, 34px);
+    padding: 0 !important;
+    border-radius: var(--md-sys-shape-corner-full, 9999px);
+    gap: 0;
   }
 
-  .bb-topbar__center {
-    flex: 1 1 auto;
-    width: auto;
-    max-width: none;
-    margin: 0;
-  }
-
-  .bb-top-back-btn,
-  .bb-top-back-btn.has-title {
-    margin-left: 0;
+  .bb-topbar__action-btn .bb-m3-btn__label {
+    display: none;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .bb-topbar {
     --bb-chat-column-gutter: 10px;
   }

@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useViewport } from '@core/hooks/useViewport.js';
 import { Button } from '../../atoms/Button/Button.jsx';
+import { BottomSheet } from '../../organisms/BottomSheet/BottomSheet.jsx';
 import './PopoverSheet.css';
 
 /**
  * Reusable M3 Solid Sheet Popover Molecule.
- * Anchors a clean opaque M3 surface (`--bb-sheet-bg`) to a trigger button via body portal
- * with viewport boundary clamping, Escape dismiss, and outside-pointer dismiss.
+ * Anchors an opaque M3 surface (`--bb-sheet-bg`) on desktop/tablet and automatically
+ * promotes to an M3 Modal BottomSheet on `compact` viewports (`mobileSheet = true`).
  */
 export function PopoverSheet({
   open: controlledOpen,
@@ -19,15 +21,18 @@ export function PopoverSheet({
   title = 'Options',
   activeIndicator = false,
   disabled = false,
+  mobileSheet = true,
   width = 276,
   triggerClassName = '',
   popoverClassName = '',
   className = '',
   children,
 }) {
+  const { isMobile } = useViewport();
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? Boolean(controlledOpen) : uncontrolledOpen;
+  const useMobileBottomSheet = Boolean(mobileSheet && isMobile);
 
   const setOpen = useCallback(
     (next) => {
@@ -79,15 +84,15 @@ export function PopoverSheet({
   }, [align]);
 
   useLayoutEffect(() => {
-    if (!open) {
+    if (!open || useMobileBottomSheet) {
       setCoords((prev) => (prev.ready ? { top: 0, left: 0, ready: false } : prev));
       return;
     }
     updatePosition();
-  }, [open, updatePosition]);
+  }, [open, useMobileBottomSheet, updatePosition]);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || useMobileBottomSheet) return undefined;
 
     const handlePointerDown = (e) => {
       if (
@@ -117,7 +122,10 @@ export function PopoverSheet({
       document.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('resize', handleResize);
     };
-  }, [open, setOpen, updatePosition]);
+  }, [open, useMobileBottomSheet, setOpen, updatePosition]);
+
+  const resolvedContent =
+    typeof children === 'function' ? children({ close: () => setOpen(false) }) : children;
 
   return (
     <div
@@ -145,28 +153,42 @@ export function PopoverSheet({
       </Button>
 
       {open &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            role="dialog"
-            aria-label={title}
-            className={`bb-popover-sheet__surface ${popoverClassName}`.trim()}
-            style={{
-              position: 'fixed',
-              top: `${coords.top}px`,
-              left: `${coords.left}px`,
-              width: typeof width === 'number' ? `${width}px` : width,
-              maxWidth: 'calc(100vw - 16px)',
-              visibility: coords.ready ? 'visible' : 'hidden',
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
+        (useMobileBottomSheet ? (
+          <BottomSheet
+            open={open}
+            onClose={() => setOpen(false)}
+            title={title}
+            icon={icon}
+            zIndex={9988}
+            bodyClassName={`bb-popover-sheet__mobile-body ${popoverClassName}`.trim()}
           >
-            {typeof children === 'function' ? children({ close: () => setOpen(false) }) : children}
-          </div>,
-          document.body,
-        )}
+            {resolvedContent}
+          </BottomSheet>
+        ) : (
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div
+              ref={popoverRef}
+              role="dialog"
+              aria-label={title}
+              className={`bb-popover-sheet__surface ${popoverClassName}`.trim()}
+              style={{
+                position: 'fixed',
+                top: `${coords.top}px`,
+                left: `${coords.left}px`,
+                width: typeof width === 'number' ? `${width}px` : width,
+                maxWidth: 'calc(100vw - 16px)',
+                visibility: coords.ready ? 'visible' : 'hidden',
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {resolvedContent}
+            </div>,
+            document.body,
+          )
+        ))}
     </div>
   );
 }
+
