@@ -7,6 +7,8 @@ import { M3_PRESET_SEEDS } from '@ui/tokens/themeTokens.js';
  */
 export function buildCharacterSheetSharedProps({
   isMobile,
+  isCompact = false,
+  onNavigateMobileTab = null,
   scenario,
   personasWs,
   presets,
@@ -26,6 +28,7 @@ export function buildCharacterSheetSharedProps({
 
   return {
     card: scenario.matchedActiveCardFull,
+    compactMode: isCompact,
     loading: Boolean(scenario.hasActiveScenario && !scenario.matchedActiveCardFull),
     cleanSnapshot: scenario.cleanCardSnapshot,
     activeIntroIdx: scenario.activeIntroIdx,
@@ -45,6 +48,10 @@ export function buildCharacterSheetSharedProps({
     onToggleSpoilerBlur: scenario.handleToggleSpoilerBlur,
     onTogglePin: scenario.handleToggleActiveCardPin,
     onOpenAdvanced: () => {
+      if (isCompact) {
+        setActiveSheetTab((prev) => (prev === 'advanced' ? 'description' : 'advanced'));
+        return;
+      }
       const guardKind =
         activeWorkspaceSheetKind && activeWorkspaceSheetKind !== 'expandedCharacter'
           ? activeWorkspaceSheetKind
@@ -63,39 +70,46 @@ export function buildCharacterSheetSharedProps({
         { targetKind: guardKind },
       );
     },
-    onToggleExpand: () => {
-      if (sheetExpanded) {
-        runWithWorkspaceUnsavedGuard(
-          () => {
-            setSheetExpanded(false);
-            setRightTab('selected');
-            scrollToChatBottom();
-          },
-          { targetKind: 'expandedCharacter' },
-        );
-        return;
-      }
-      const guardKind =
-        activeWorkspaceSheetKind && activeWorkspaceSheetKind !== 'expandedCharacter'
-          ? activeWorkspaceSheetKind
-          : null;
-      runWithWorkspaceUnsavedGuard(
-        () => {
-          setTimelinesOpen(false);
-          presets.setEditingPromptSelection(null);
-          scenario.setEditingIntroTarget(null);
-          scenario.setCreateScenarioModalOpen(false);
-          personasWs.setPersonaModalOpen(false);
-          if (!isMobile) {
-            setRightOpen(true);
+    onToggleExpand: isCompact
+      ? null
+      : () => {
+          if (sheetExpanded) {
+            runWithWorkspaceUnsavedGuard(
+              () => {
+                setSheetExpanded(false);
+                setRightTab('selected');
+                scrollToChatBottom();
+              },
+              { targetKind: 'expandedCharacter' },
+            );
+            return;
           }
-          setRightTab('selected');
-          setSheetExpanded(true);
+          const guardKind =
+            activeWorkspaceSheetKind && activeWorkspaceSheetKind !== 'expandedCharacter'
+              ? activeWorkspaceSheetKind
+              : null;
+          runWithWorkspaceUnsavedGuard(
+            () => {
+              setTimelinesOpen(false);
+              presets.setEditingPromptSelection(null);
+              scenario.setEditingIntroTarget(null);
+              scenario.setCreateScenarioModalOpen(false);
+              personasWs.setPersonaModalOpen(false);
+              if (!isMobile) {
+                setRightOpen(true);
+              }
+              setRightTab('selected');
+              setSheetExpanded(true);
+            },
+            { targetKind: guardKind },
+          );
         },
-        { targetKind: guardKind },
-      );
+    onStartNewChat: async (introPayload) => {
+      await chat.handleCreateNewChat?.(introPayload);
+      if (isCompact) {
+        onNavigateMobileTab?.('chat');
+      }
     },
-    onStartNewChat: chat.handleCreateNewChat,
     onPickMainPortraitFile: scenario.handlePickMainPortraitFile,
     onUploadGalleryPortraits: scenario.handleUploadGalleryPortraits,
     onSelectGalleryPortrait: scenario.handleSelectGalleryPortrait,
@@ -156,7 +170,14 @@ export function buildCharacterSheetSharedProps({
           'openai',
         ),
       onActivatePreset: (presetName) => presets.handleSelectPreset('openai', presetName),
-      onOpenPresetInspector: () => setRightTab('aiconfig'),
+      onOpenPresetInspector: () => {
+        if (isCompact) {
+          onNavigateMobileTab?.('prompts');
+          return;
+        }
+        setRightOpen(true);
+        setRightTab('aiconfig');
+      },
       onChangePrimaryWorld: scenario.handleChangePrimaryWorld,
       onAddAuxWorld: (wName) => {
         const cur = Array.isArray(activeCardFull?.auxWorlds)

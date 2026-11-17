@@ -33,13 +33,43 @@ export function WorkspaceLayout({
   rightScrollDisabled = false,
   rightContent = null,
   onCloseDrawers,
+  mobileTopBar = null,
+  mobileNav = null,
+  mobileNavRail = false,
   overlays = null,
   children,
 }) {
+  const isCompact = layoutMode === 'compact';
   const isModalDrawer = layoutMode === 'medium';
   const showIdleFade = Boolean(idleFade && !isModalDrawer && layoutMode === 'expanded-dual');
-  const showResizeCurtain = Boolean(allowResize && !isModalDrawer && layoutMode !== 'compact');
+  const showResizeCurtain = Boolean(allowResize && !isModalDrawer && !isCompact);
   const showDrawerScrim = Boolean(isModalDrawer && (leftOpen || rightOpen));
+
+  if (isCompact) {
+    return (
+      <div
+        className={[
+          'bb-app-shell',
+          'bb-app-shell--compact',
+          mobileNavRail ? 'bb-app-shell--compact-rail' : 'bb-app-shell--compact-bar',
+          mobileTopBar ? 'has-mobile-topbar' : 'no-mobile-topbar',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        data-shell-mode="compact"
+      >
+        {mobileNavRail && mobileNav}
+
+        <div className="bb-compact-main">
+          {mobileTopBar}
+          <main className="bb-compact-stage">{children}</main>
+          {!mobileNavRail && mobileNav}
+        </div>
+
+        {overlays}
+      </div>
+    );
+  }
 
   return (
     <div

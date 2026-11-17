@@ -164,9 +164,9 @@
 - **Живая проверка A2**: плавное растягивание и сжатие окна браузера на ПК от `1920px` до `770px` (включая Windows Split-Screen 50%) — ни на одной ширине боковые тома не налезают на сообщения и шапку.
 
 ### Шаг A3 — Нативная мобильная оболочка смартфона (`compact` режим `≤ 767px`)
-- [ ] Подключить в `WorkspaceLayout` / `AppShell` отдельный `compact`-каркас: `MobileTopAppBar` + полноэкранный активный раздел (`Chat`, `Scenarios`, `Card`, `AI & Prompts`, `Workspace`) + нижний `BottomNavBar` (и боковой `NavigationRail` в landscape).
-- [ ] Реализовать быстрый `BottomSheet` переключения чатов и веток при тапе на имя персонажа в `MobileTopAppBar`.
-- [ ] Исправить навигационные переходы на смартфоне: тап по карточке в `Scenarios` переключает сценарий и переводит в `Chat`; `Advanced` открывается внутри мобильного `CharacterSheet` как вкладка; системная кнопка «Назад» (`popstate`) закрывает открытую шторку/редактор или возвращает к `Chat`.
+- [x] Подключить в `WorkspaceLayout` / `AppShell` отдельный `compact`-каркас: `MobileTopAppBar` + полноэкранный активный раздел (`Chat`, `Scenarios`, `Card`, `AI & Prompts`, `Workspace`) + нижний `BottomNavBar` (и боковой `NavigationRail` в landscape).
+- [x] Реализовать быстрый `BottomSheet` переключения чатов и веток при тапе на имя персонажа в `MobileTopAppBar`.
+- [x] Исправить навигационные переходы на смартфоне: тап по карточке в `Scenarios` переключает сценарий и переводит в `Chat`; `Advanced` открывается внутри мобильного `CharacterSheet` как вкладка; системная кнопка «Назад» (`popstate`) закрывает открытую шторку/редактор или возвращает к `Chat`.
 - **Живая проверка A3**: навигация по всем 5 разделам со смартфона / DevTools (`360×800`, `390×844`), быстрое переключение чатов из шапки, проверка горизонтального поворота телефона.
 
 ### Шаг A4 — Мобильный редизайн чата, карточек сообщений и композера с клавиатурой
@@ -241,6 +241,18 @@
   - `medium` (`768–1179px`, Windows Split-Screen 50% и планшеты): авто-сворачивание панелей при ресайзе окна вниз без сохранения ложных `false` поверх настольной сессии, выдвижной M3 Modal Drawer (`min(420px, 86vw)`) с подложкой `Scrim`, закрытием по клику мимо, клавише `Escape` и при выборе чата / открытии центрального редактора.
 - [x] **Контейнерная адаптация `TopBar` (`src/ui/organisms/TopBar/TopBar.jsx` + `TopBar.css`)**:
   - Автоматический переход кнопок `Timelines` и `New Chat` в круглые M3 icon-only кнопки при ширине контейнера `@container (max-width: 600px)`, благодаря чему заголовок активного чата не сжимается в `...`.
+
+### Выполнено: Шаг A3 — Нативная мобильная оболочка смартфона (`compact` режим `≤ 767px`)
+- [x] **Мобильный M3-каркас (`WorkspaceLayout`, `MobileCompactStage`, `MobileCompactTopBar`, `MobileWorkspaceHub`, `useMobileNavigation`, `mobileShellMath.js`)**:
+  - Чистая 5-вкладочная навигация `BottomNavBar`: **`Chat`** · **`Scenarios`** · **`Card`** · **`Prompts`** · **`Workspace`** с живыми точками статуса (`isGenerating`, `isActiveCardDirty`, `isCurrentPresetDirty`, `stImporter` / `tunnel`), автоматическим переходом в боковой M3 **`NavigationRail`** в горизонтальной ориентации телефона (`isShortViewport`) и авто-скрытием при открытых полноэкранных редакторах или экранной клавиатуре в чате.
+  - Правило **Single-Bar M3** без двойных шапок: `MobileTopAppBar` рендерится в `Chat` и корне хаба `Workspace`, а на вкладках `Scenarios`, `Card`, `Prompts` и во вложенных подэкранах `Workspace` сохраняется `safe-area-inset-top` без дублирующего второго хедера (+`52px` полезной высоты контенту).
+- [x] **Быстрая шторка чатов и веток (`MobileChatBranchesSheet.jsx`)**:
+  - Тап по капсуле персонажа и активной ветки в `MobileTopAppBar` открывает M3 `BottomSheet` с виртуализированным списком `ChatsTomePanel` (`TimelineBranchList`) — мгновенное переключение веток, поиск, ветвление `Branch`, создание `+ New Chat` и переход в граф `Timelines` без ухода из чата.
+- [x] **Мобильные переходы и системная кнопка «Назад» (`useScenarioWorkspace`, `CharacterSheet`, `AdvancedDefinitionsPanel`, `useMobileNavigation`)**:
+  - Тап по карточке в `Scenarios` на смартфоне переключает сценарий и сразу переводит в `Chat`, а пункт `Scenario Sheet` в меню `⋮` карточки открывает паспорт `Card`.
+  - В мобильном `CharacterSheet` (`Card`) раздел **`Advanced`** встроен прямо как вкладка (`Description · Intros · Advanced · Notes · Links`) без настольного dual-pane сплита.
+  - Пошаговая обработка системной кнопки/жеста «Назад» (`popstate`) + unit-тесты в `tests/viewportState.test.js`.
+
 
 
 

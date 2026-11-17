@@ -9,6 +9,11 @@ import {
   computeAdaptiveTomeGeometry,
   resolveModeTransitionPanes,
 } from '../src/core/hooks/adaptivePanesMath.js';
+import {
+  formatMobileChatSubtitle,
+  shouldHideMobileNavBar,
+  resolveMobileBackAction,
+} from '../src/core/hooks/mobileShellMath.js';
 
 describe('viewportMath — M3 Window Size Classes & visualViewport keyboard detection', () => {
   it('classifies compact, medium, expanded-single, and expanded-dual accurately', () => {
@@ -128,5 +133,59 @@ describe('viewportMath — M3 Window Size Classes & visualViewport keyboard dete
     assert.equal(mediumGeo.allowResize, false);
     assert.equal(mediumGeo.isOverlayDrawer, true);
     assert.equal(mediumGeo.effectiveLeftWidth, 420);
+  });
+
+  it('formats SillyTavern mobile branch subtitles and hides BottomNavBar when editors or chat keyboard open', () => {
+    assert.equal(
+      formatMobileChatSubtitle({
+        activeChatFile: '2026-11-17@14h20m - Branch #3.jsonl',
+        hasActiveScenario: true,
+      }),
+      'Branch #3 · 2026-11-17@14h20m',
+    );
+    assert.equal(
+      formatMobileChatSubtitle({
+        activeChatFile: 'Branch #2 - Lantern Parapet.jsonl',
+        hasActiveScenario: true,
+      }),
+      'Branch #2 · Lantern Parapet',
+    );
+    assert.equal(
+      shouldHideMobileNavBar({ hasActiveFullScreenEditor: false, mobileTab: 'chat', isKeyboardOpen: true }),
+      true,
+    );
+    assert.equal(
+      shouldHideMobileNavBar({ hasActiveFullScreenEditor: false, mobileTab: 'scenarios', isKeyboardOpen: true }),
+      false,
+    );
+    assert.equal(
+      shouldHideMobileNavBar({ hasActiveFullScreenEditor: true, mobileTab: 'prompts', isKeyboardOpen: false }),
+      true,
+    );
+  });
+
+  it('resolves compact Back navigation priority step-by-step', () => {
+    assert.equal(
+      resolveMobileBackAction({ chatBranchesOpen: true, mobileTab: 'chat' }),
+      'close-chat-branches',
+    );
+    assert.equal(
+      resolveMobileBackAction({ activeWorkspaceSheetKind: 'prompt', mobileTab: 'prompts' }),
+      'close-workspace-sheet',
+    );
+    assert.equal(
+      resolveMobileBackAction({ mobileTab: 'chat', timelinesOpen: true }),
+      'close-timelines',
+    );
+    assert.equal(
+      resolveMobileBackAction({ mobileTab: 'card', activeSheetTab: 'advanced' }),
+      'exit-card-advanced',
+    );
+    assert.equal(
+      resolveMobileBackAction({ mobileTab: 'workspace', workspaceSubScreen: 'regex' }),
+      'exit-workspace-subscreen',
+    );
+    assert.equal(resolveMobileBackAction({ mobileTab: 'scenarios' }), 'return-to-chat');
+    assert.equal(resolveMobileBackAction({ mobileTab: 'chat' }), null);
   });
 });

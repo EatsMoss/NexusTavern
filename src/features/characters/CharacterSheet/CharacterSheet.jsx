@@ -1,9 +1,10 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, lazy, Suspense } from 'react';
 import {
   BookmarkRibbons,
   Button,
   Icon,
   MarkdownEditor,
+  ProgressIndicator,
   ScrollIndicator,
   SkeletonCharacterSheet,
 } from '@ui/index.js';
@@ -13,6 +14,12 @@ import { DescriptionTab } from './DescriptionTab.jsx';
 import { IntrosTab } from './IntrosTab.jsx';
 import { LinksBindingsTab } from './LinksBindingsTab.jsx';
 import './CharacterSheet.css';
+
+const LazyAdvancedDefinitionsPanel = lazy(() =>
+  import('./AdvancedDefinitionsPanel.jsx').then((m) => ({
+    default: m.AdvancedDefinitionsPanel,
+  })),
+);
 
 export function serializeCardEditableSnapshot(card) {
   if (!card) return '';
@@ -47,6 +54,7 @@ export function CharacterSheet({
   activeTab: controlledTab,
   onChangeTab,
   isExpanded = false,
+  compactMode = false,
   loading = false,
   saving = false,
   busyPortrait = false,
@@ -111,14 +119,27 @@ export function CharacterSheet({
     );
   }
 
-  const tabs = [
-    { id: 'description', label: 'Description' },
-    { id: 'intros', label: 'Intros' },
-    { id: 'notes', label: 'Notes' },
-    { id: 'links', label: 'Links' },
-  ];
+  const resolvedSheetTab = !compactMode && sheetTab === 'advanced' ? 'description' : sheetTab;
 
-  const isFillTab = sheetTab === 'description' || sheetTab === 'notes';
+  const tabs = compactMode
+    ? [
+        { id: 'description', label: 'Description' },
+        { id: 'intros', label: 'Intros' },
+        { id: 'advanced', label: 'Advanced' },
+        { id: 'notes', label: 'Notes' },
+        { id: 'links', label: 'Links' },
+      ]
+    : [
+        { id: 'description', label: 'Description' },
+        { id: 'intros', label: 'Intros' },
+        { id: 'notes', label: 'Notes' },
+        { id: 'links', label: 'Links' },
+      ];
+
+  const isFillTab =
+    resolvedSheetTab === 'description' ||
+    resolvedSheetTab === 'notes' ||
+    resolvedSheetTab === 'advanced';
 
   return (
     <div
@@ -130,6 +151,7 @@ export function CharacterSheet({
         <CharacterSheetHeader
           card={card}
           isExpanded={isExpanded}
+          isAdvancedActive={compactMode && resolvedSheetTab === 'advanced'}
           busyPortrait={busyPortrait}
           onChangeName={(nextName) => onChangeCardField?.({ name: nextName })}
           onChangeSubtitle={(nextSub) =>
@@ -167,7 +189,7 @@ export function CharacterSheet({
         <BookmarkRibbons
           variant="secondary"
           tabs={tabs}
-          activeId={sheetTab}
+          activeId={resolvedSheetTab}
           onChange={setSheetTab}
           className="bb-cs-tabs"
         />
@@ -178,7 +200,7 @@ export function CharacterSheet({
           className={`bb-cs-body bb-scrollbar--hidden ${isFillTab ? 'is-fill-mode' : ''}`}
           ref={bodyScrollRef}
         >
-          {sheetTab === 'description' && (
+          {resolvedSheetTab === 'description' && (
             <DescriptionTab
               description={card.description || ''}
               spoilerBlur={Boolean(card.scenarioMeta?.spoilerBlur)}
@@ -187,7 +209,7 @@ export function CharacterSheet({
             />
           )}
 
-          {sheetTab === 'notes' && (
+          {resolvedSheetTab === 'notes' && (
             <div className="bb-cs-fill-tab">
               <MarkdownEditor
                 label="Creator's Notes"
@@ -202,7 +224,32 @@ export function CharacterSheet({
             </div>
           )}
 
-          {sheetTab === 'intros' && (
+          {resolvedSheetTab === 'advanced' && compactMode && (
+            <div className="bb-cs-fill-tab">
+              <Suspense
+                fallback={
+                  <ProgressIndicator
+                    variant="linear"
+                    size="sm"
+                    overlay="top"
+                    ariaLabel="Loading advanced definitions"
+                  />
+                }
+              >
+                <LazyAdvancedDefinitionsPanel
+                  embedded
+                  card={card}
+                  isDirty={isDirty}
+                  saving={saving}
+                  onChangeCardField={onChangeCardField}
+                  onSaveCard={onSaveCard}
+                  onDiscardChanges={onDiscardChanges}
+                />
+              </Suspense>
+            </div>
+          )}
+
+          {resolvedSheetTab === 'intros' && (
             <IntrosTab
               card={card}
               activeIntroIdx={activeIntroIdx}
@@ -218,7 +265,7 @@ export function CharacterSheet({
             />
           )}
 
-          {sheetTab === 'links' && (
+          {resolvedSheetTab === 'links' && (
             <LinksBindingsTab card={card} {...linksProps} />
           )}
         </div>

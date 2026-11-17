@@ -50,8 +50,13 @@ export function RightTomeContent({
   refusalCatcher,
   regexWorkspace,
   onNotifyToast,
+  activeExtensionId: controlledExtensionId,
+  onChangeExtensionId,
 }) {
-  const [activeExtensionId, setActiveExtensionId] = useState(null);
+  const [uncontrolledExtensionId, setUncontrolledExtensionId] = useState(null);
+  const activeExtensionId =
+    controlledExtensionId !== undefined ? controlledExtensionId : uncontrolledExtensionId;
+  const setActiveExtensionId = onChangeExtensionId || setUncontrolledExtensionId;
   const {
     matchedActiveCardFull,
     isActiveCardDirty,

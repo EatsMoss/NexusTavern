@@ -27,6 +27,8 @@ const WORKSPACE_OUTSIDE_EXEMPT_SELECTOR = [
   '.bb-topbar__back-slot',
   '.bb-topbar__chat-actions',
   '.bb-topbar__qr-slot',
+  '.bb-mobile-topbar',
+  '.bb-bottom-nav',
   '[role="dialog"]',
   '[role="listbox"]',
   '[role="menu"]',

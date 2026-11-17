@@ -36,6 +36,8 @@ import { LeftTomeContent } from './LeftTomeContent.jsx';
 import { RightTomeContent } from './RightTomeContent.jsx';
 import { CenterWorkspaceSheets } from './CenterWorkspaceSheets.jsx';
 import { AppShellOverlays } from './AppShellOverlays.jsx';
+import { useMobileNavigation } from './useMobileNavigation.js';
+import { useMobileCompactChrome } from './MobileCompactStage.jsx';
 
 const LEFT_TABS = [
   { id: 'characters', label: 'Characters', icon: 'addressCard' },
@@ -78,7 +80,7 @@ function loadInitialTomeWidths() {
 }
 
 export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshStatus }) {
-  const { width: viewportWidth } = useViewport();
+  const { width: viewportWidth, isShortViewport, isKeyboardOpen } = useViewport();
   const initialUiRef = useRef(null);
   if (initialUiRef.current === null) {
     initialUiRef.current = readCachedUiState() || {};
@@ -262,8 +264,17 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     presetBridgeRef.current.setStatusMsg(msg);
   }, []);
 
+  const mobileNavBridgeRef = useRef({ navigateTab: () => {} });
+  const handleNavigateMobileTabBridge = useCallback((tabId) => {
+    mobileNavBridgeRef.current.navigateTab(tabId);
+  }, []);
+
+  const isCompactLayout = layoutMode === 'compact';
+
   const scenario = useScenarioWorkspace({
     isMobile: isOverlayDrawer,
+    isCompact: isCompactLayout,
+    onNavigateMobileTab: handleNavigateMobileTabBridge,
     sheetExpanded,
     setSheetExpanded,
     setLeftOpen,
@@ -634,8 +645,29 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     scrollToChatBottom,
   });
 
+  const mobileNav = useMobileNavigation({
+    layoutMode,
+    isKeyboardOpen,
+    viewMode,
+    setViewMode,
+    activeWorkspaceSheetKind: sheetDismiss.activeWorkspaceSheetKind,
+    requestCloseActiveWorkspaceSheet: sheetDismiss.requestCloseActiveWorkspaceSheet,
+    timelinesOpen,
+    onCloseTimelines: chat.handleBackToChat,
+    activeSheetTab,
+    setActiveSheetTab,
+    sheetExpanded,
+    setSheetExpanded,
+    runWithWorkspaceUnsavedGuard,
+    onRefreshChatBranches: chat.reloadActiveCharacterChatList,
+  });
+
+  mobileNavBridgeRef.current.navigateTab = mobileNav.navigateMobileTab;
+
   const characterSheetSharedProps = buildCharacterSheetSharedProps({
     isMobile: isOverlayDrawer,
+    isCompact: isCompactLayout,
+    onNavigateMobileTab: mobileNav.navigateMobileTab,
     scenario,
     personasWs,
     presets,
@@ -652,25 +684,56 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     scrollToChatBottom,
   });
 
-  const leftTomeContent = (
-    <LeftTomeContent
-      leftTab={leftTab}
-      scenario={scenario}
-      personasWs={personasWs}
-      chat={chat}
-      charSplitRatio={charSplitRatio}
-      setCharSplitRatio={setCharSplitRatio}
-      timelinesOpen={timelinesOpen}
-      customization={customization}
-      onNotifyToast={(message, tone = 'info') => pushToast({ message, tone })}
-      serverStatus={serverStatus}
-      tunnelBusy={tunnelBusy}
-      onToggleTunnelWithToast={handleToggleTunnelWithToast}
-      onRefreshStatus={onRefreshStatus}
-      onOpenQrModal={() => setQrModalOpen(true)}
-      onOpenWelcomeGuide={boot.openWelcomeModal}
-    />
-  );
+  const leftTomeSharedProps = {
+    scenario,
+    personasWs,
+    chat,
+    charSplitRatio,
+    setCharSplitRatio,
+    timelinesOpen,
+    customization,
+    onNotifyToast: (message, tone = 'info') => pushToast({ message, tone }),
+    serverStatus,
+    tunnelBusy,
+    onToggleTunnelWithToast: handleToggleTunnelWithToast,
+    onRefreshStatus,
+    onOpenQrModal: () => setQrModalOpen(true),
+    onOpenWelcomeGuide: boot.openWelcomeModal,
+  };
+
+  const leftTomeContent = <LeftTomeContent leftTab={leftTab} {...leftTomeSharedProps} />;
+
+  const centerSheetsSharedProps = {
+    viewMode,
+    onExitSandbox: () => setViewMode('tavern'),
+    leftTomeInset,
+    rightTomeInset,
+    chatListOpen,
+    timelinesOpen,
+    centerSheetSurfaceRef,
+    createScenarioSheetRef,
+    introEditorSheetRef,
+    chatStreamRef,
+    chatComposerRef,
+    scenario,
+    personasWs,
+    apiHub,
+    presets,
+    chat,
+    sheetDismiss,
+    resolvedEditingPrompt,
+    onSaveEditedGroupInDoc: handleSaveGroupWithContext,
+    sheetExpanded,
+    characterSheetSharedProps,
+    shaderStyle,
+    shaderIntensity,
+    lowGpu,
+    pushComposerToast,
+    composerToasts,
+    dismissComposerToast,
+    consoleStream,
+    recapConfig: messageRecap.config,
+  };
 
   const centerContent = (
     <>
@@ -711,61 +774,52 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
         <ToastStack toasts={toasts} onDismiss={dismissToast} />
       )}
 
-      <CenterWorkspaceSheets
-        viewMode={viewMode}
-        onExitSandbox={() => setViewMode('tavern')}
-        leftTomeInset={leftTomeInset}
-        rightTomeInset={rightTomeInset}
-        chatListOpen={chatListOpen}
-        timelinesOpen={timelinesOpen}
-        centerSheetSurfaceRef={centerSheetSurfaceRef}
-        createScenarioSheetRef={createScenarioSheetRef}
-        introEditorSheetRef={introEditorSheetRef}
-        chatStreamRef={chatStreamRef}
-        chatComposerRef={chatComposerRef}
-        scenario={scenario}
-        personasWs={personasWs}
-        apiHub={apiHub}
-        presets={presets}
-        chat={chat}
-        sheetDismiss={sheetDismiss}
-        resolvedEditingPrompt={resolvedEditingPrompt}
-        onSaveEditedGroupInDoc={handleSaveGroupWithContext}
-        sheetExpanded={sheetExpanded}
-        characterSheetSharedProps={characterSheetSharedProps}
-        shaderStyle={shaderStyle}
-        shaderIntensity={shaderIntensity}
-        lowGpu={lowGpu}
-        pushComposerToast={pushComposerToast}
-        composerToasts={composerToasts}
-        dismissComposerToast={dismissComposerToast}
-        consoleStream={consoleStream}
-        recapConfig={messageRecap.config}
-      />
+      <CenterWorkspaceSheets {...centerSheetsSharedProps} />
     </>
   );
 
-  const rightTomeContent = (
-    <RightTomeContent
-      rightTab={rightTab}
-      sheetExpanded={sheetExpanded}
-      scenario={scenario}
-      personasWs={personasWs}
-      apiHub={apiHub}
-      presets={presets}
-      chat={chat}
-      characterSheetSharedProps={characterSheetSharedProps}
-      aiSubTab={aiSubTab}
-      setAiSubTab={setAiSubTab}
-      promptTokenContext={promptTokenContext}
-      savedChatTokens={chatHistoryTokenBreakdown.savedTokens}
-      stImporter={stImporter}
-      messageRecap={messageRecap}
-      refusalCatcher={refusalCatcher}
-      regexWorkspace={regexWorkspace}
-      onNotifyToast={(message, tone = 'info') => pushToast({ message, tone })}
-    />
-  );
+  const rightTomeSharedProps = {
+    sheetExpanded,
+    scenario,
+    personasWs,
+    apiHub,
+    presets,
+    chat,
+    characterSheetSharedProps,
+    aiSubTab,
+    setAiSubTab,
+    promptTokenContext,
+    savedChatTokens: chatHistoryTokenBreakdown.savedTokens,
+    stImporter,
+    messageRecap,
+    refusalCatcher,
+    regexWorkspace,
+    onNotifyToast: (message, tone = 'info') => pushToast({ message, tone }),
+  };
+
+  const rightTomeContent = <RightTomeContent rightTab={rightTab} {...rightTomeSharedProps} />;
+
+  const { mobileTopBarNode, mobileNavNode, mobileNavRail, mobileStageNode } =
+    useMobileCompactChrome({
+      mobileNav,
+      isShortViewport,
+      viewMode,
+      setViewMode,
+      timelinesOpen,
+      leftTomeSharedProps,
+      rightTomeSharedProps,
+      centerSheetsSharedProps,
+      scenario,
+      personasWs,
+      apiHub,
+      presets,
+      chat,
+      stImporter,
+      toasts,
+      dismissToast,
+      serverStatus,
+      onOpenQrModal: () => setQrModalOpen(true),
+    });
 
   const overlaysContent = (
     <AppShellOverlays
@@ -813,9 +867,12 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       rightScrollDisabled={rightTab === 'selected'}
       rightContent={rightTomeContent}
       onCloseDrawers={closeDrawers}
+      mobileTopBar={mobileTopBarNode}
+      mobileNav={mobileNavNode}
+      mobileNavRail={mobileNavRail}
       overlays={overlaysContent}
     >
-      {centerContent}
+      {isCompactLayout ? mobileStageNode : centerContent}
     </WorkspaceLayout>
   );
 }

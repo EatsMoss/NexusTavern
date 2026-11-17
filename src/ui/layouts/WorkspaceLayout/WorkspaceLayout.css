@@ -469,3 +469,49 @@
   animation: bb-drawer-enter-right 180ms var(--md-sys-motion-easing-emphasized, cubic-bezier(0.2, 0, 0, 1));
 }
 
+/* 3. `compact` (<= 767px):
+   Native Smartphone M3 Shell — Single-Bar Top Chrome + Full-Screen Stage +
+   BottomNavBar (Portrait) / Left NavigationRail (Landscape `isShortViewport`) */
+.bb-app-shell--compact {
+  height: var(--bb-visual-viewport-height, 100dvh);
+}
+
+.bb-compact-main {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bb-compact-stage {
+  position: relative;
+  flex: 1 1 0%;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* When a compact tab omits `MobileTopAppBar` (Scenarios, Card, Prompts, Sub-screens),
+   preserve top notch / status-bar safe-area without rendering a duplicate second header */
+.bb-app-shell--compact.no-mobile-topbar .bb-compact-stage {
+  padding-top: var(--bb-safe-area-top, env(safe-area-inset-top, 0px));
+}
+
+.bb-app-shell--compact-bar .bb-compact-stage {
+  padding-left: var(--bb-safe-area-left, env(safe-area-inset-left, 0px));
+  padding-right: var(--bb-safe-area-right, env(safe-area-inset-right, 0px));
+}
+
+.bb-app-shell--compact-rail .bb-compact-stage {
+  padding-right: var(--bb-safe-area-right, env(safe-area-inset-right, 0px));
+}
+
+

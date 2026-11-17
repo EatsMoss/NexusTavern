@@ -1384,6 +1384,10 @@
   flex: 1 1 auto;
 }
 
+.bb-adv-panel--embedded {
+  padding-top: 2px;
+}
+
 .bb-adv-panel.has-dirty-bar .bb-cs-body {
   padding-bottom: 58px;
 }

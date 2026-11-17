@@ -35,6 +35,7 @@ export function AdvancedDefinitionsPanel({
   card = null,
   isDirty = false,
   saving = false,
+  embedded = false,
   onChangeCardField,
   onSaveCard,
   onDiscardChanges,
@@ -162,16 +163,20 @@ export function AdvancedDefinitionsPanel({
   const isFillExamples = activeTab === 'examples';
   return (
     <div
-      className={`bb-adv-panel ${isDirty || saving ? 'has-dirty-bar' : ''}`.trim()}
+      className={`bb-adv-panel ${embedded ? 'bb-adv-panel--embedded' : ''} ${
+        !embedded && (isDirty || saving) ? 'has-dirty-bar' : ''
+      }`.trim()}
     >
       <div className="bb-adv-panel__top">
-        <PanelScreenHeader
-          title="Advanced Definitions"
-          icon="sliders"
-          subtitle={`Perm ${tokenStats.permanent.toLocaleString()} · Total ${tokenStats.total.toLocaleString()} tok`}
-          backLabel="Back to Scenario Sheet"
-          onBack={onCollapseExpand}
-        />
+        {!embedded && (
+          <PanelScreenHeader
+            title="Advanced Definitions"
+            icon="sliders"
+            subtitle={`Perm ${tokenStats.permanent.toLocaleString()} · Total ${tokenStats.total.toLocaleString()} tok`}
+            backLabel="Back to Scenario Sheet"
+            onBack={onCollapseExpand}
+          />
+        )}
 
         <BookmarkRibbons
           variant="secondary"
@@ -519,7 +524,7 @@ export function AdvancedDefinitionsPanel({
         )}
       </div>
 
-      {(isDirty || saving) && (
+      {!embedded && (isDirty || saving) && (
         <div className="bb-cs-dirty-bar" role="region" aria-label="Unsaved changes">
           <div className="bb-cs-dirty-bar__info">
             <span className="bb-cs-dirty-bar__dot" aria-hidden="true" />

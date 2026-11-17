@@ -51,6 +51,7 @@ export function computeCardTokenStats(card) {
 export function CharacterSheetHeader({
   card,
   isExpanded = false,
+  isAdvancedActive = false,
   busyPortrait = false,
   onChangeName,
   onChangeSubtitle,
@@ -287,11 +288,13 @@ export function CharacterSheetHeader({
           <div className="bb-cs-toolbar__right">
             <button
               type="button"
-              className={`bb-cs-adv-btn ${isExpanded ? 'is-active' : ''}`.trim()}
+              className={`bb-cs-adv-btn ${isExpanded || isAdvancedActive ? 'is-active' : ''}`.trim()}
               title={
-                isExpanded
-                  ? 'Focus Advanced Definitions in Right Tome'
-                  : 'Open Advanced Definitions'
+                isAdvancedActive
+                  ? 'Return to Scenario Description'
+                  : isExpanded
+                    ? 'Focus Advanced Definitions in Right Tome'
+                    : 'Open Advanced Definitions'
               }
               onClick={onOpenAdvanced}
             >

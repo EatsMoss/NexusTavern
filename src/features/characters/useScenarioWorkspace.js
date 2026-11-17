@@ -65,6 +65,8 @@ export const EMPTY_CHARACTER_FALLBACK = {
  */
 export function useScenarioWorkspace({
   isMobile,
+  isCompact = false,
+  onNavigateMobileTab = null,
   sheetExpanded,
   setSheetExpanded,
   setLeftOpen,
@@ -910,6 +912,11 @@ export function useScenarioWorkspace({
         setCreateScenarioModalOpen(false);
         setPersonaModalOpen(false);
         setSelectedCardId(id);
+        if (isCompact) {
+          setChatListOpen(false);
+          setTimelinesOpen(false);
+          onNavigateMobileTab?.('chat');
+        }
       };
 
       if (guardKind) {
@@ -919,6 +926,10 @@ export function useScenarioWorkspace({
       proceed();
     },
     [
+      isCompact,
+      onNavigateMobileTab,
+      setChatListOpen,
+      setTimelinesOpen,
       retireRestorePointers,
       recordSessionPointer,
       setPersonaModalOpen,
@@ -947,7 +958,11 @@ export function useScenarioWorkspace({
         setEditingIntroTarget(null);
         setCreateScenarioModalOpen(false);
         setPersonaModalOpen(false);
-        setLeftTab('chats');
+        if (isCompact) {
+          onNavigateMobileTab?.('chat');
+        } else {
+          setLeftTab('chats');
+        }
       };
 
       if (guardKind) {
@@ -957,6 +972,8 @@ export function useScenarioWorkspace({
       proceed();
     },
     [
+      isCompact,
+      onNavigateMobileTab,
       retireRestorePointers,
       recordSessionPointer,
       setChatListOpen,
@@ -1116,6 +1133,9 @@ export function useScenarioWorkspace({
           commitLoadedActiveCard(res.card);
           setLeftTab('chats');
           setRightTab('selected');
+          if (isCompact) {
+            onNavigateMobileTab?.('chat');
+          }
           pushToast({
             variant: 'success',
             message: `Created scenario "${res.card.name || res.card.avatar}"`,
@@ -1130,7 +1150,15 @@ export function useScenarioWorkspace({
         setCreatingScenario(false);
       }
     },
-    [commitLoadedActiveCard, loadCardsAndPersonas, setLeftTab, setRightTab, pushToast],
+    [
+      isCompact,
+      onNavigateMobileTab,
+      commitLoadedActiveCard,
+      loadCardsAndPersonas,
+      setLeftTab,
+      setRightTab,
+      pushToast,
+    ],
   );
 
   const handleImportScenarioFiles = useCallback(
@@ -1480,11 +1508,71 @@ export function useScenarioWorkspace({
     [multiSelectActive, visibleSelectableIds, cards, lastMultiClick],
   );
 
+  const handleOpenCardSheetFromGallery = useCallback(
+    (id) => {
+      if (!id) return;
+      const isChangingCard = Boolean(id !== selectedCardIdRef.current);
+      const { activeKind, isCardDirty } = workspaceGuardBridgeRef.current;
+      const guardKind =
+        isChangingCard &&
+        (isCardDirty
+          ? 'expandedCharacter'
+          : activeKind === 'intro' ||
+              activeKind === 'createScenario' ||
+              activeKind === 'persona'
+            ? activeKind
+            : null);
+
+      const proceed = () => {
+        retireRestorePointers();
+        if (isChangingCard) {
+          setEditingIntroTarget(null);
+          if (!isDemoCardId(id)) {
+            recordSessionPointer(id, '');
+          }
+        }
+        setCreateScenarioModalOpen(false);
+        setPersonaModalOpen(false);
+        setSelectedCardId(id);
+        if (isCompact) {
+          onNavigateMobileTab?.('card');
+        } else {
+          setRightOpen(true);
+          setRightTab('selected');
+        }
+      };
+
+      if (guardKind) {
+        runWithWorkspaceUnsavedGuard(proceed, { targetKind: guardKind });
+        return;
+      }
+      proceed();
+    },
+    [
+      isCompact,
+      onNavigateMobileTab,
+      retireRestorePointers,
+      recordSessionPointer,
+      setPersonaModalOpen,
+      setRightOpen,
+      setRightTab,
+      runWithWorkspaceUnsavedGuard,
+      workspaceGuardBridgeRef,
+    ],
+  );
+
   const kebabItemsForCard = useCallback(
     (card) => {
       if (!card) return [];
       const isSelectedInMulti = multiSelectActive && multiSelectedIds.includes(card.id);
       return [
+        {
+          id: 'open-sheet',
+          label: 'Scenario Sheet',
+          icon: 'bookOpen',
+          hidden: Boolean(card.isGroup),
+          onClick: () => handleOpenCardSheetFromGallery(card.id),
+        },
         {
           id: 'select',
           label: isSelectedInMulti ? 'Deselect' : 'Select',
@@ -1534,7 +1622,13 @@ export function useScenarioWorkspace({
         },
       ];
     },
-    [multiSelectActive, multiSelectedIds, handleToggleMultiSelectCard, handleDuplicateCard],
+    [
+      multiSelectActive,
+      multiSelectedIds,
+      handleOpenCardSheetFromGallery,
+      handleToggleMultiSelectCard,
+      handleDuplicateCard,
+    ],
   );
 
   const galleryHandlersRef = useRef({});
