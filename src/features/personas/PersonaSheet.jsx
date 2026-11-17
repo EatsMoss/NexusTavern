@@ -18,6 +18,7 @@ import {
   ImageCropModal,
   useImageCropQueue,
 } from '@ui/index.js';
+import { useViewport } from '@core/hooks/useViewport.js';
 import './PersonaSheet.css';
 
 function estimatePersonaTokens(text = '') {
@@ -66,6 +67,7 @@ export const PersonaSheet = forwardRef(function PersonaSheet(
   },
   ref,
 ) {
+  const { isMobile } = useViewport();
   const [mode, setMode] = useState(initialMode === 'create' ? 'create' : 'manage');
   const [selectedAvatar, setSelectedAvatar] = useState('');
   const [activeTab, setActiveTab] = useState('details'); // 'details' | 'connections'
@@ -502,9 +504,21 @@ export const PersonaSheet = forwardRef(function PersonaSheet(
 
       <header className="bb-persona-sheet__header">
         <div className="bb-persona-sheet__title-group">
-          <span className="bb-persona-sheet__icon-badge" aria-hidden="true">
-            <Icon name={mode === 'create' ? 'userPlus' : 'user'} size={16} />
-          </span>
+          {isMobile && onClose ? (
+            <Button
+              variant="b2"
+              size="sm"
+              icon="arrowLeft"
+              title="Back"
+              aria-label="Back"
+              disabled={busy}
+              onClick={onClose}
+            />
+          ) : (
+            <span className="bb-persona-sheet__icon-badge" aria-hidden="true">
+              <Icon name={mode === 'create' ? 'userPlus' : 'user'} size={16} />
+            </span>
+          )}
           <div className="bb-persona-sheet__titles">
             <div className="bb-persona-sheet__title-row">
               <span className="bb-persona-sheet__title">
@@ -516,23 +530,38 @@ export const PersonaSheet = forwardRef(function PersonaSheet(
                 <span className="bb-persona-sheet__active-pill">Active in Chat</span>
               )}
             </div>
-            <div className="bb-persona-sheet__subtitle">
-              {mode === 'create'
-                ? 'Create a user persona with portrait, description & scenario bindings'
-                : 'Edit persona portrait, prompt description & scenario bindings'}
-            </div>
+            {!isMobile && (
+              <div className="bb-persona-sheet__subtitle">
+                {mode === 'create'
+                  ? 'Create a user persona with portrait, description & scenario bindings'
+                  : 'Edit persona portrait, prompt description & scenario bindings'}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="bb-persona-sheet__header-right">
-          {onClose && (
+          {isMobile ? (
             <Button
-              variant="b2"
+              variant="b1"
+              emphasis={mode === 'create' || isDirty ? 'filled' : 'tonal'}
               size="sm"
-              icon="close"
-              title="Close persona sheet"
-              onClick={onClose}
-            />
+              icon={mode === 'create' ? 'plus' : 'check'}
+              disabled={busy || !nameDraft.trim() || (mode === 'manage' && !isDirty)}
+              onClick={handleSubmitSave}
+            >
+              {busy ? 'Saving...' : mode === 'create' ? 'Create' : 'Save'}
+            </Button>
+          ) : (
+            onClose && (
+              <Button
+                variant="b2"
+                size="sm"
+                icon="close"
+                title="Close persona sheet"
+                onClick={onClose}
+              />
+            )
           )}
         </div>
       </header>

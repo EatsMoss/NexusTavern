@@ -175,10 +175,10 @@
 - [x] Адаптировать `ChatComposer`: однострочный ряд чипов `Model + Persona` без переноса + авто-сворачивание чипов и скрытие `BottomNavBar` при открытии экранной клавиатуры (`isKeyboardOpen`).
 - **Живая проверка A4**: чтение длинных RP-сообщений с таблицами и рассуждениями `<think>`, набор текста с открытой экранной клавиатурой на телефоне, свайпы реплик и выбор модели/персоны.
 
-### Шаг A5 — `@container`-адаптация панелей и полноэкранные редакторы на смартфонах
-- [ ] Перевести поповер `View & Sort`, `TagPicker` и `FolderPopover` в `CharacterGallery` на автоматический `BottomSheet` в `compact`-режиме.
-- [ ] Перевести внутренние сетки и тулбары (`CharacterGallery`, `CharacterSheetHeader`, `Slider`, `SettingsTomePanel`, `PresetVaultInspector`, `RegexManager`) на `@container` запросы, чтобы и в узком томе на ПК (`380px`) ничего не обрезалось.
-- [ ] Перевести центральные редакторы (`CreateScenarioSheet`, `PersonaSheet`, `PromptEditorSheet`, `IntroEditorSheet`) в чистый Full-Screen режим на смартфонах + однострочный прокручиваемый тулбар в `MarkdownEditor`.
+### Шаг A5 — `@container`-адаптация панелей и полноэкранные редакторы на смартфонах *(Выполнено)*
+- [x] Перевести поповер `View & Sort`, `TagPicker` и `FolderPopover` в `CharacterGallery` на автоматический `BottomSheet` в `compact`-режиме.
+- [x] Перевести внутренние сетки и тулбары (`CharacterGallery`, `CharacterSheetHeader`, `Slider`, `SettingsTomePanel`, `PresetVaultInspector`, `RegexManager`) на `@container` запросы, чтобы и в узком томе на ПК (`380px`) ничего не обрезалось.
+- [x] Перевести центральные редакторы (`CreateScenarioSheet`, `PersonaSheet`, `PromptEditorSheet`, `IntroEditorSheet`) в чистый Full-Screen режим на смартфонах + однострочный прокручиваемый тулбар в `MarkdownEditor`.
 - **Живая проверка A5**: фильтрация по тегам, открытие папок, создание карточки, редактирование промпта и приветствия на экране `360px` и в узком томе на ПК.
 
 ### Шаг A6 — Сенсорная физика (Touch Drag & Drop, Hover-элементы и Pinch-to-Zoom в `TimelineTree`)
@@ -264,6 +264,20 @@
 - [x] **Адаптация `ChatComposer` под смартфоны и экранную клавиатуру (`src/features/chat/ChatComposer.jsx`, `ChatViewport.css`, `MobileCompactTopBar.jsx`, `MobileWorkspaceHub.jsx`)**:
   - Эластичный однострочный ряд чипов `[Provider | Model]` + `[Persona]` без переноса (`flex-wrap: nowrap`), перенос кнопки `Live Output Console` в меню `⋮` мобильной шапки и хаб `Workspace`.
   - Авто-сворачивание ряда чипов при открытой экранной клавиатуре (`isKeyboardOpen`) с кнопкой быстрого разворота поверх клавиатуры и шрифтом `≥ 16px` на `textarea` против принудительного авто-зума мобильных браузеров.
+
+### Выполнено: Шаг A5 — `@container`-адаптация панелей и полноэкранные редакторы на смартфонах
+- [x] **Мобильные M3 `BottomSheet` шторки в библиотеке персонажей (`TagPicker`, `FolderPopover`, `CharacterGallery`, `CharacterTome`)**:
+  - `TagPicker` в `compact`-режиме смартфона переведён на автоматический M3 `BottomSheet` (`Filter by Tags` со встроенным `SearchInput`, легендой `+ OR · Tag AND · − NOT`, кнопкой `Clear (N)` в шапке и созданием тега в футере) с выделенной кнопкой фильтра тегов в строке поиска (не блокируя ввод текста в главный `SearchInput` скрумом шторки).
+  - `FolderPopover` (для пользовательских `2×2` папок во вкладке `★ Pinned` и тег-папок во вкладке `Tags`) на смартфонах автоматически открывается как M3 `BottomSheet` с сохранением виртуализации `useVirtualWindow` для больших папок, переименованием папки в шапке и авто-закрытием шторки при выборе сценария.
+  - В `compact`-режиме принудительно работает единый полноразмерный скролл библиотеки (`All · ★ Pinned · Groups · Tags`) со скрытием десктопного сплиттера `Split Pinned / All` без сброса настольной настройки в `localStorage`.
+- [x] **Контейнерная `@container` адаптация панелей, тулбаров и сеток (`WorkspaceLayout.css`, `MobileCompactStage.css`, `CharacterGallery.css`, `CharacterSheet.css`, `Slider.css`, `SettingsTomePanel.css`, `PresetVaultInspector.css`, `RegexManager.css`)**:
+  - Включён `container-type: inline-size` на телах боковых томов, мобильных панелей и автономных организмах UI-Kit.
+  - Адаптированы под узкую ширину контейнера (включая суженный до `380px` боковой том на широком мониторе ПК): переход `+ New` в icon-only кнопку в `CharacterGallery`, масштабирование портрета и тулбара `CharacterSheetHeader`, компактное поле числа в `Slider`, перестроение двухколоночных сеток `SettingsTomePanel`, `PresetVaultInspector` (`Samplers`) и `RegexManager` в 1 колонку без обрезки контролов.
+- [x] **Полноэкранные M3 редакторы на смартфонах и однострочный тулбар `MarkdownEditor` (`CreateScenarioSheet`, `PersonaSheet`, `PromptEditorSheet`, `IntroEditorSheet`, `MarkdownEditor`)**:
+  - В `compact`-режиме `.bb-center-column__sheet` и `.bb-center-column__sheet-surface` разворачиваются на `100% × 100%` без внешних отступов, рамок и скруглений с учётом `safe-area-inset-bottom`.
+  - Во всех четырёх центральных редакторах на смартфонах добавлена закреплённая M3-навигация с кнопкой `← Back` и контекстной кнопкой сохранения (`Save` / `Create` / `Import`) прямо в шапке, а карточки портрета и мета-полей уложены компактно по горизонтали, сохраняя максимум высоты под текст.
+  - Тулбар `MarkdownEditor` на узких контейнерах (`@container (max-width: 560px)`) и смартфонах переведён в чистую однострочную горизонтально прокручиваемую полосу (`.bb-md-toolbar-track`) с закреплённым справа тумблером `LiveMD`.
+
 
 
 

@@ -24,6 +24,7 @@ import {
   convertImageFileToPngBase64,
   readFileAsBase64,
 } from '@core/utils/imageCodec.js';
+import { useViewport } from '@core/hooks/useViewport.js';
 import './CreateScenarioSheet.css';
 
 export { convertImageFileToPngBase64, readFileAsBase64 };
@@ -47,6 +48,7 @@ export const CreateScenarioSheet = forwardRef(function CreateScenarioSheet(
   },
   ref,
 ) {
+  const { isMobile } = useViewport();
   const [mode, setMode] = useState(initialMode === 'import' ? 'import' : 'create');
   const [editorTab, setEditorTab] = useState('description');
   const [name, setName] = useState('');
@@ -242,18 +244,31 @@ export const CreateScenarioSheet = forwardRef(function CreateScenarioSheet(
     <div className="bb-create-scen-sheet">
       <header className="bb-create-scen-sheet__header">
         <div className="bb-create-scen-sheet__title-group">
-          <span className="bb-create-scen-sheet__icon-badge" aria-hidden="true">
-            <Icon name={mode === 'import' ? 'upload' : 'userPlus'} size={16} />
-          </span>
+          {isMobile && onClose ? (
+            <Button
+              variant="b2"
+              size="sm"
+              icon="arrowLeft"
+              title="Back"
+              aria-label="Back"
+              onClick={onClose}
+            />
+          ) : (
+            <span className="bb-create-scen-sheet__icon-badge" aria-hidden="true">
+              <Icon name={mode === 'import' ? 'upload' : 'userPlus'} size={16} />
+            </span>
+          )}
           <div className="bb-create-scen-sheet__titles">
             <div className="bb-create-scen-sheet__title">
-              {mode === 'import' ? 'Import Scenario Cards' : 'Create New Scenario'}
+              {mode === 'import' ? 'Import Cards' : 'New Scenario'}
             </div>
-            <div className="bb-create-scen-sheet__subtitle">
-              {mode === 'import'
-                ? 'Import SillyTavern Character Card Spec V2 / V3 (.png & .json)'
-                : 'SillyTavern-compatible V2 / CCv3 scenario card'}
-            </div>
+            {!isMobile && (
+              <div className="bb-create-scen-sheet__subtitle">
+                {mode === 'import'
+                  ? 'Import SillyTavern Character Card Spec V2 / V3 (.png & .json)'
+                  : 'SillyTavern-compatible V2 / CCv3 scenario card'}
+              </div>
+            )}
           </div>
         </div>
 
@@ -267,14 +282,27 @@ export const CreateScenarioSheet = forwardRef(function CreateScenarioSheet(
               { value: 'import', label: 'Import' },
             ]}
           />
-          {onClose && (
+          {isMobile ? (
             <Button
-              variant="b2"
+              variant="b1"
               size="sm"
-              icon="close"
-              title="Close scenario creator"
-              onClick={onClose}
-            />
+              emphasis={canSubmit ? 'filled' : 'tonal'}
+              icon={mode === 'import' ? 'upload' : 'check'}
+              disabled={!canSubmit}
+              onClick={handleSubmit}
+            >
+              {submitting ? 'Saving...' : mode === 'import' ? 'Import' : 'Create'}
+            </Button>
+          ) : (
+            onClose && (
+              <Button
+                variant="b2"
+                size="sm"
+                icon="close"
+                title="Close scenario creator"
+                onClick={onClose}
+              />
+            )
           )}
         </div>
       </header>

@@ -3,6 +3,7 @@
    ========================================================================== */
 
 .bb-mobile-pane {
+  container-type: inline-size;
   flex: 1 1 0%;
   min-height: 0;
   height: 100%;
@@ -39,6 +40,7 @@
 }
 
 .bb-mobile-scroll {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 10px;

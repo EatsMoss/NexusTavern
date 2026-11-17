@@ -15,6 +15,7 @@ import { Dropdown } from '../../molecules/Dropdown/Dropdown.jsx';
 import { EmojiPicker } from '../../molecules/EmojiPicker/EmojiPicker.jsx';
 import { InlineEditableTitle } from '../../molecules/InlineEditableTitle/InlineEditableTitle.jsx';
 import { MarkdownEditor } from '../MarkdownEditor/MarkdownEditor.jsx';
+import { useViewport } from '@core/hooks/useViewport.js';
 import {
   sanitizeXmlTagName,
   estimatePromptTokens,
@@ -134,6 +135,7 @@ export const PromptEditorSheet = forwardRef(function PromptEditorSheet(
   },
   ref,
 ) {
+  const { isMobile } = useViewport();
   const [draft, setDraft] = useState(() => buildNormalizedDraft(mode, target));
   const [baselineSnapshot, setBaselineSnapshot] = useState(() =>
     serializePromptDraftSnapshot(mode, buildNormalizedDraft(mode, target)),
@@ -336,6 +338,17 @@ export const PromptEditorSheet = forwardRef(function PromptEditorSheet(
     >
       {/* 1. M3 HEADER */}
       <header className="bb-pm-sheet__header">
+        {isMobile && onClose && (
+          <Button
+            variant="b2"
+            size="sm"
+            icon="arrowLeft"
+            title="Back"
+            aria-label="Back"
+            className="bb-pm-sheet__mobile-back"
+            onClick={onClose}
+          />
+        )}
         <div className="bb-pm-sheet__icon-slot">
           <button
             ref={emojiTriggerRef}
@@ -400,7 +413,19 @@ export const PromptEditorSheet = forwardRef(function PromptEditorSheet(
                     Reset
                   </Button>
                 )}
-                {onClose && (
+                {isMobile && isDirty && (
+                  <Button
+                    variant="b1"
+                    size="sm"
+                    emphasis="filled"
+                    icon="check"
+                    title="Apply prompt changes"
+                    onClick={handleApply}
+                  >
+                    Save
+                  </Button>
+                )}
+                {!isMobile && onClose && (
                   <Button
                     variant="b2"
                     size="sm"

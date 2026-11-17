@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useViewport } from '@core/hooks/useViewport.js';
 import { Icon } from '@ui/atoms/Icon/Icon.jsx';
 import { SearchInput } from '@ui/atoms/Input/Input.jsx';
 import { OverlayScrollArea } from '@ui/atoms/OverlayScrollArea/OverlayScrollArea.jsx';
+import { BottomSheet } from '../../organisms/BottomSheet/BottomSheet.jsx';
 import './TagPicker.css';
 
 /**
@@ -9,7 +11,8 @@ import './TagPicker.css';
  *
  * Supports tri-state mode (`chipState` + `onSelectMode(tagId, mode)`) with
  * `[+]` (OR) / `[Tag Name]` (AND) / `[−]` (NOT) pills, as well as legacy
- * `selectedIds` + `onToggleTag`.
+ * `selectedIds` + `onToggleTag`. Automatically promotes to an M3 Modal BottomSheet
+ * on `compact` smartphone viewports (`mobileSheet = true`).
  */
 export function TagPicker({
   tags = [],
@@ -22,12 +25,15 @@ export function TagPicker({
   externalQuery = '',
   compact = false,
   hideTrigger = false,
+  mobileSheet = true,
   open: controlledOpen,
   onOpenChange,
   placeholder = 'Filter by tags...',
   disabled = false,
   className = '',
 }) {
+  const { isMobile } = useViewport();
+  const useMobileBottomSheet = Boolean(mobileSheet && isMobile);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [internalQuery, setInternalQuery] = useState('');
   const [newTagName, setNewTagName] = useState('');
@@ -35,11 +41,14 @@ export function TagPicker({
   const searchInputRef = useRef(null);
 
   const isOpen = controlledOpen !== undefined ? controlledOpen : uncontrolledOpen;
-  const setIsOpen = (nextVal) => {
-    const resolved = typeof nextVal === 'function' ? nextVal(isOpen) : nextVal;
-    if (controlledOpen === undefined) setUncontrolledOpen(resolved);
-    onOpenChange?.(resolved);
-  };
+  const setIsOpen = useCallback(
+    (nextVal) => {
+      const resolved = typeof nextVal === 'function' ? nextVal(isOpen) : nextVal;
+      if (controlledOpen === undefined) setUncontrolledOpen(resolved);
+      onOpenChange?.(resolved);
+    },
+    [controlledOpen, isOpen, onOpenChange],
+  );
 
   const activeMap = useMemo(() => {
     if (chipState && typeof chipState === 'object') return chipState;
@@ -51,7 +60,7 @@ export function TagPicker({
   const activeCount = useMemo(() => Object.keys(activeMap).length, [activeMap]);
 
   useEffect(() => {
-    if (!isOpen) return undefined;
+    if (!isOpen || useMobileBottomSheet) return undefined;
     const onDocPointerDown = (e) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) {
         const searchScope = wrapRef.current.closest(
@@ -71,7 +80,7 @@ export function TagPicker({
       document.removeEventListener('pointerdown', onDocPointerDown);
       document.removeEventListener('keydown', onDocKeyDown);
     };
-  }, [isOpen, compact, hideTrigger]);
+  }, [isOpen, useMobileBottomSheet, compact, hideTrigger, setIsOpen]);
 
   const effectiveFilter = (internalQuery.trim() || externalQuery.trim()).toLowerCase();
 
@@ -107,6 +116,102 @@ export function TagPicker({
 
 
   if (hideTrigger && !isOpen) return null;
+
+  const legendNode = (
+    <span className="bb-tag-picker__legend">
+      <span className="bb-tag-picker__legend-item is-or">
+        <b>+</b> OR
+      </span>
+      <span className="bb-tag-picker__legend-sep">·</span>
+      <span className="bb-tag-picker__legend-item is-and">
+        <b>Tag</b> AND
+      </span>
+      <span className="bb-tag-picker__legend-sep">·</span>
+      <span className="bb-tag-picker__legend-item is-not">
+        <b>−</b> NOT
+      </span>
+    </span>
+  );
+
+  const renderCloudItems = () =>
+    filtered.length === 0 ? (
+      <div className="bb-tag-picker__empty">
+        {effectiveFilter ? `No tags matching "${effectiveFilter}"` : 'No tags created yet'}
+      </div>
+    ) : (
+      filtered.map((tag) => {
+        const tid = String(tag.id);
+        const activeMode = activeMap[tid] || '';
+        return (
+          <div
+            key={tid}
+            className={`bb-tag-pick-pill ${activeMode ? `is-active-${activeMode}` : ''}`.trim()}
+          >
+            <button
+              type="button"
+              className={`bb-tag-pick-seg bb-tag-pick-seg--or ${
+                activeMode === 'or' ? 'is-active' : ''
+              }`.trim()}
+              title="OR: include cards with at least one OR tag (+)"
+              onClick={() => handleModeClick(tag.id, 'or')}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className={`bb-tag-pick-seg bb-tag-pick-seg--and ${
+                activeMode === 'and' ? 'is-active' : ''
+              }`.trim()}
+              title="AND: require cards to carry this tag"
+              onClick={() => handleModeClick(tag.id, 'and')}
+            >
+              <span className="bb-tag-pick-seg__name">{tag.name}</span>
+              {tag.count !== undefined && (
+                <span className="bb-tag-pick-seg__count">{tag.count}</span>
+              )}
+            </button>
+            <button
+              type="button"
+              className={`bb-tag-pick-seg bb-tag-pick-seg--not ${
+                activeMode === 'not' ? 'is-active' : ''
+              }`.trim()}
+              title="NOT: exclude cards carrying this tag (−)"
+              onClick={() => handleModeClick(tag.id, 'not')}
+            >
+              −
+            </button>
+          </div>
+        );
+      })
+    );
+
+  const createRowNode = onCreateTag ? (
+    <div className="bb-tag-picker__create">
+      <input
+        type="text"
+        value={newTagName}
+        onChange={(e) => setNewTagName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleCreate();
+          }
+        }}
+        placeholder="New tag name..."
+        className="bb-tag-picker__create-input"
+      />
+      <button
+        type="button"
+        disabled={!canCreate}
+        title="Create new tag"
+        className="bb-tag-picker__create-btn"
+        onClick={handleCreate}
+      >
+        <Icon name="plus" size={13} />
+        <span>Create</span>
+      </button>
+    </div>
+  ) : null;
 
   return (
     <div
@@ -148,25 +253,17 @@ export function TagPicker({
           </button>
         ))}
 
-      {isOpen && (
-        <div className="bb-tag-picker__popover" role="dialog" aria-label="Tag filter picker">
-          <div className="bb-tag-picker__header">
-            <span className="bb-tag-picker__legend">
-              <span className="bb-tag-picker__legend-item is-or">
-                <b>+</b> OR
-              </span>
-              <span className="bb-tag-picker__legend-sep">·</span>
-              <span className="bb-tag-picker__legend-item is-and">
-                <b>Tag</b> AND
-              </span>
-              <span className="bb-tag-picker__legend-sep">·</span>
-              <span className="bb-tag-picker__legend-item is-not">
-                <b>−</b> NOT
-              </span>
-            </span>
-
-            <div className="bb-tag-picker__header-actions">
-              {activeCount > 0 && onClearAll && (
+      {isOpen &&
+        (useMobileBottomSheet ? (
+          <BottomSheet
+            open={isOpen}
+            onClose={() => setIsOpen(false)}
+            title="Filter by Tags"
+            icon="tags"
+            zIndex={9988}
+            bodyClassName="bb-tag-picker__mobile-body"
+            headerActions={
+              activeCount > 0 && onClearAll ? (
                 <button
                   type="button"
                   className="bb-tag-picker__clear-btn"
@@ -175,117 +272,73 @@ export function TagPicker({
                 >
                   Clear ({activeCount})
                 </button>
-              )}
-              <button
-                type="button"
-                className="bb-tag-picker__close-btn"
-                title="Close tag list"
-                aria-label="Close tag list"
-                onClick={() => setIsOpen(false)}
-              >
-                <Icon name="close" size={12} />
-              </button>
-            </div>
-          </div>
-
-          {!compact && !hideTrigger && (
-            <SearchInput
-              size="sm"
-              inputRef={searchInputRef}
-              value={internalQuery}
-              onChange={(next) => setInternalQuery(next)}
-              placeholder="Search tags..."
-              className="bb-starred-dropdown-search"
-            />
-          )}
-
-          <OverlayScrollArea
-            viewportClassName="bb-tag-picker__cloud"
-            variant="compact"
+              ) : null
+            }
+            footer={createRowNode}
           >
-            {filtered.length === 0 ? (
-              <div className="bb-tag-picker__empty">
-                {effectiveFilter ? `No tags matching "${effectiveFilter}"` : 'No tags created yet'}
-              </div>
-            ) : (
-              filtered.map((tag) => {
-                const tid = String(tag.id);
-                const activeMode = activeMap[tid] || '';
-                return (
-                  <div
-                    key={tid}
-                    className={`bb-tag-pick-pill ${
-                      activeMode ? `is-active-${activeMode}` : ''
-                    }`.trim()}
-                  >
-                    <button
-                      type="button"
-                      className={`bb-tag-pick-seg bb-tag-pick-seg--or ${
-                        activeMode === 'or' ? 'is-active' : ''
-                      }`.trim()}
-                      title="OR: include cards with at least one OR tag (+)"
-                      onClick={() => handleModeClick(tag.id, 'or')}
-                    >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      className={`bb-tag-pick-seg bb-tag-pick-seg--and ${
-                        activeMode === 'and' ? 'is-active' : ''
-                      }`.trim()}
-                      title="AND: require cards to carry this tag"
-                      onClick={() => handleModeClick(tag.id, 'and')}
-                    >
-                      <span className="bb-tag-pick-seg__name">{tag.name}</span>
-                      {tag.count !== undefined && (
-                        <span className="bb-tag-pick-seg__count">{tag.count}</span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className={`bb-tag-pick-seg bb-tag-pick-seg--not ${
-                        activeMode === 'not' ? 'is-active' : ''
-                      }`.trim()}
-                      title="NOT: exclude cards carrying this tag (−)"
-                      onClick={() => handleModeClick(tag.id, 'not')}
-                    >
-                      −
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </OverlayScrollArea>
-
-          {onCreateTag && (
-            <div className="bb-tag-picker__create">
-              <input
-                type="text"
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleCreate();
-                  }
-                }}
-                placeholder="New tag name..."
-                className="bb-tag-picker__create-input"
+            <div className="bb-tag-picker__mobile-subhead">
+              {legendNode}
+              <SearchInput
+                size="sm"
+                value={internalQuery}
+                onChange={(next) => setInternalQuery(next)}
+                placeholder="Search tags..."
+                className="bb-tag-picker__mobile-search"
               />
-              <button
-                type="button"
-                disabled={!canCreate}
-                title="Create new tag"
-                className="bb-tag-picker__create-btn"
-                onClick={handleCreate}
-              >
-                <Icon name="plus" size={13} />
-                <span>Create</span>
-              </button>
             </div>
-          )}
-        </div>
-      )}
+            <div className="bb-tag-picker__cloud bb-tag-picker__cloud--sheet">
+              {renderCloudItems()}
+            </div>
+          </BottomSheet>
+        ) : (
+          <div className="bb-tag-picker__popover" role="dialog" aria-label="Tag filter picker">
+            <div className="bb-tag-picker__header">
+              {legendNode}
+
+              <div className="bb-tag-picker__header-actions">
+                {activeCount > 0 && onClearAll && (
+                  <button
+                    type="button"
+                    className="bb-tag-picker__clear-btn"
+                    title="Clear all active tag filters"
+                    onClick={() => onClearAll()}
+                  >
+                    Clear ({activeCount})
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="bb-tag-picker__close-btn"
+                  title="Close tag list"
+                  aria-label="Close tag list"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Icon name="close" size={12} />
+                </button>
+              </div>
+            </div>
+
+            {!compact && !hideTrigger && (
+              <SearchInput
+                size="sm"
+                inputRef={searchInputRef}
+                value={internalQuery}
+                onChange={(next) => setInternalQuery(next)}
+                placeholder="Search tags..."
+                className="bb-starred-dropdown-search"
+              />
+            )}
+
+            <OverlayScrollArea
+              viewportClassName="bb-tag-picker__cloud"
+              variant="compact"
+            >
+              {renderCloudItems()}
+            </OverlayScrollArea>
+
+            {createRowNode}
+          </div>
+        ))}
     </div>
   );
 }

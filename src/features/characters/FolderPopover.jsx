@@ -7,9 +7,11 @@ import React, {
   useCallback,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useViewport } from '@core/hooks/useViewport.js';
 import { Icon } from '@ui/atoms/Icon/Icon.jsx';
 import { ScrollIndicator } from '@ui/atoms/ScrollIndicator/ScrollIndicator.jsx';
 import { CharacterCardTile } from '@ui/molecules/CharacterCardTile/CharacterCardTile.jsx';
+import { BottomSheet } from '@ui/organisms/BottomSheet/BottomSheet.jsx';
 import { useVirtualWindow } from '@core/hooks/useVirtualWindow.js';
 import { computeSlotDisplacement, computeDropSlotBox } from './PinnedSection.jsx';
 
@@ -37,10 +39,21 @@ export function FolderPopover({
   kebabItemsFor,
   dragState = null,
 }) {
+  const { isMobile } = useViewport();
   const internalPopoverRef = useRef(null);
   const resolvedPopoverRef = externalPopoverRef || internalPopoverRef;
   const internalPopoverGridRef = useRef(null);
   const resolvedPopoverGridRef = externalPopoverGridRef || internalPopoverGridRef;
+
+  const handleMemberSelect = useCallback(
+    (id) => {
+      onSelect?.(id);
+      if (isMobile && !multiSelectActive) {
+        onClose?.();
+      }
+    },
+    [onSelect, isMobile, multiSelectActive, onClose],
+  );
 
   const handleMemberOpen = useCallback(
     (id) => {
@@ -143,7 +156,7 @@ export function FolderPopover({
   }, [anchorSectionRef, anchorHeaderRef, resolvedPopoverRef]);
 
   useLayoutEffect(() => {
-    if (!activeFolder) {
+    if (!activeFolder || isMobile) {
       setPopoverCoords((prev) => (prev.ready ? { ...prev, ready: false } : prev));
       return undefined;
     }
@@ -163,6 +176,7 @@ export function FolderPopover({
     };
   }, [
     activeFolder,
+    isMobile,
     members.length,
     topPaddingPx,
     bottomPaddingPx,
@@ -172,7 +186,7 @@ export function FolderPopover({
   ]);
 
   useEffect(() => {
-    if (!activeFolder || typeof document === 'undefined') return undefined;
+    if (!activeFolder || isMobile || typeof document === 'undefined') return undefined;
 
     const closeFolderSafely = () => {
       const popEl = resolvedPopoverRef.current;
@@ -228,7 +242,7 @@ export function FolderPopover({
       document.removeEventListener('pointerdown', handleDocPointerDown, true);
       document.removeEventListener('keydown', handleDocKeyDown);
     };
-  }, [activeFolder, triggerKey, onClose, resolvedPopoverRef]);
+  }, [activeFolder, isMobile, triggerKey, onClose, resolvedPopoverRef]);
 
   if (!activeFolder || typeof document === 'undefined') return null;
 
@@ -239,6 +253,156 @@ export function FolderPopover({
   const popoverDropSlotBox = isUserFolder
     ? computeDropSlotBox(popoverHover, dragState?.popoverMetrics)
     : null;
+
+  const gridStageNode = (
+    <div className="bb-folder-popover-grid-wrap" style={isMobile ? gridStyle : undefined}>
+      <div
+        className={[
+          'bb-folder-popover-grid',
+          'bb-scrollbar--hidden',
+          dragState?.active ? 'is-drag-active' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        style={
+          virtualizePopover
+            ? {
+                paddingTop: `${topPaddingPx}px`,
+                paddingBottom: `${bottomPaddingPx}px`,
+              }
+            : undefined
+        }
+        ref={resolvedPopoverGridRef}
+      >
+          {popoverDropSlotBox && (
+            <div
+              className="bb-pinned-drop-slot-indicator"
+              style={{
+                left: `${popoverDropSlotBox.left}px`,
+                top: `${popoverDropSlotBox.top}px`,
+                width: `${popoverDropSlotBox.width}px`,
+                height: `${popoverDropSlotBox.height}px`,
+              }}
+            />
+          )}
+
+          {visibleMembers.map((member, localIdx) => {
+            const mIndex = virtualizePopover ? windowStart + localIdx : localIdx;
+            const isPopoverSource =
+              dragState?.active &&
+              dragState.sourceOrigin === 'folder-popover' &&
+              dragState.draggedCard?.id === member.id;
+
+            const memberDisplacement = isUserFolder
+              ? computeSlotDisplacement(mIndex, popoverHover, dragState?.popoverMetrics)
+              : undefined;
+
+            return (
+              <div
+                key={member.id}
+                data-bb-popover-slot={mIndex}
+                style={memberDisplacement}
+                className={`${isUserFolder ? 'bb-pinned-slot' : 'bb-char-gallery__item'} ${isPopoverSource ? 'is-dragging-source' : ''}`.trim()}
+                onPointerDown={(e) => {
+                  if (isMobile) return;
+                  if (
+                    e.target.closest(
+                      '.bb-folder-member-remove, .bb-char-tile__actions, .bb-kebab-menu',
+                    )
+                  ) {
+                    return;
+                  }
+                  if (multiSelectActive || e.ctrlKey || e.metaKey || e.shiftKey) return;
+                  onStartPointerDrag?.(e, {
+                    sourceOrigin: 'folder-popover',
+                    sourceType: 'item',
+                    sourceIndex: mIndex,
+                    sourceFolderId: activeFolder.id,
+                    sourceFolderType: activeFolder.type,
+                    card: member,
+                  });
+                }}
+              >
+                <CharacterCardTile
+                  item={member}
+                  showPinBadge={activeFolder.type === 'tag-folder'}
+                  selected={member.id === selectedId}
+                  multiSelectActive={multiSelectActive}
+                  multiSelected={multiSelectedSet.has(member.id)}
+                  onToggleMultiSelect={onToggleMultiSelect}
+                  onSelect={handleMemberSelect}
+                  onOpen={handleMemberOpen}
+                  kebabItemsFor={kebabItemsFor}
+                />
+                {onRemoveCardFromFolder && (
+                  <button
+                    type="button"
+                    className="bb-folder-member-remove"
+                    title={
+                      activeFolder.type === 'tag-folder'
+                        ? `Remove tag "${activeFolder.name}"`
+                        : 'Move out of folder'
+                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveCardFromFolder(activeFolder.id, member.id, false);
+                    }}
+                  >
+                    <Icon name="close" size={11} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {members.length === 0 && (
+            <div className="bb-pinned-empty">This folder is empty.</div>
+          )}
+        </div>
+        <ScrollIndicator
+          scrollRef={resolvedPopoverGridRef}
+          className="bb-scroll-indicator--panel"
+        />
+      </div>
+  );
+
+  if (isMobile) {
+    return (
+      <BottomSheet
+        open={Boolean(activeFolder)}
+        onClose={onClose}
+        icon={activeFolder.type === 'tag-folder' ? 'tags' : 'folder'}
+        title={activeFolder.type === 'tag-folder' ? activeFolder.name : ''}
+        subtitle={`${members.length} ${members.length === 1 ? 'card' : 'cards'}`}
+        bodyScrollable={false}
+        zIndex={9986}
+        bodyClassName="bb-folder-popover-sheet__body"
+        headerActions={
+          activeFolder.type === 'folder' && onRenameFolder ? (
+            <input
+              type="text"
+              className="bb-folder-title-input bb-folder-title-input--sheet"
+              aria-label="Folder name"
+              defaultValue={activeFolder.name}
+              key={`${activeFolder.id}:${activeFolder.name}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onBlur={(e) => onRenameFolder(activeFolder.id, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+              }}
+            />
+          ) : null
+        }
+      >
+        <div ref={resolvedPopoverRef} className="bb-folder-popover-sheet__stage">
+          {gridStageNode}
+        </div>
+      </BottomSheet>
+    );
+  }
 
   return createPortal(
     <div
@@ -290,114 +454,7 @@ export function FolderPopover({
         </button>
       </div>
 
-      <div className="bb-folder-popover-grid-wrap">
-        <div
-          className={[
-            'bb-folder-popover-grid',
-            'bb-scrollbar--hidden',
-            dragState?.active ? 'is-drag-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          style={
-            virtualizePopover
-              ? {
-                  paddingTop: `${topPaddingPx}px`,
-                  paddingBottom: `${bottomPaddingPx}px`,
-                }
-              : undefined
-          }
-          ref={resolvedPopoverGridRef}
-        >
-          {popoverDropSlotBox && (
-            <div
-              className="bb-pinned-drop-slot-indicator"
-              style={{
-                left: `${popoverDropSlotBox.left}px`,
-                top: `${popoverDropSlotBox.top}px`,
-                width: `${popoverDropSlotBox.width}px`,
-                height: `${popoverDropSlotBox.height}px`,
-              }}
-            />
-          )}
-
-          {visibleMembers.map((member, localIdx) => {
-            const mIndex = virtualizePopover ? windowStart + localIdx : localIdx;
-            const isPopoverSource =
-              dragState?.active &&
-              dragState.sourceOrigin === 'folder-popover' &&
-              dragState.draggedCard?.id === member.id;
-
-            const memberDisplacement = isUserFolder
-              ? computeSlotDisplacement(mIndex, popoverHover, dragState?.popoverMetrics)
-              : undefined;
-
-            return (
-              <div
-                key={member.id}
-                data-bb-popover-slot={mIndex}
-                style={memberDisplacement}
-                className={`${isUserFolder ? 'bb-pinned-slot' : 'bb-char-gallery__item'} ${isPopoverSource ? 'is-dragging-source' : ''}`.trim()}
-                onPointerDown={(e) => {
-                  if (
-                    e.target.closest(
-                      '.bb-folder-member-remove, .bb-char-tile__actions, .bb-kebab-menu',
-                    )
-                  ) {
-                    return;
-                  }
-                  if (multiSelectActive || e.ctrlKey || e.metaKey || e.shiftKey) return;
-                  onStartPointerDrag?.(e, {
-                    sourceOrigin: 'folder-popover',
-                    sourceType: 'item',
-                    sourceIndex: mIndex,
-                    sourceFolderId: activeFolder.id,
-                    sourceFolderType: activeFolder.type,
-                    card: member,
-                  });
-                }}
-              >
-                <CharacterCardTile
-                  item={member}
-                  showPinBadge={activeFolder.type === 'tag-folder'}
-                  selected={member.id === selectedId}
-                  multiSelectActive={multiSelectActive}
-                  multiSelected={multiSelectedSet.has(member.id)}
-                  onToggleMultiSelect={onToggleMultiSelect}
-                  onSelect={onSelect}
-                  onOpen={handleMemberOpen}
-                  kebabItemsFor={kebabItemsFor}
-                />
-                {onRemoveCardFromFolder && (
-                  <button
-                    type="button"
-                    className="bb-folder-member-remove"
-                    title={
-                      activeFolder.type === 'tag-folder'
-                        ? `Remove tag "${activeFolder.name}"`
-                        : 'Move out of folder'
-                    }
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveCardFromFolder(activeFolder.id, member.id, false);
-                    }}
-                  >
-                    <Icon name="close" size={11} />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-
-          {members.length === 0 && (
-            <div className="bb-pinned-empty">This folder is empty.</div>
-          )}
-        </div>
-        <ScrollIndicator
-          scrollRef={resolvedPopoverGridRef}
-          className="bb-scroll-indicator--panel"
-        />
-      </div>
+      {gridStageNode}
     </div>,
     document.body,
   );

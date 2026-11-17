@@ -18,6 +18,7 @@ import {
   SkeletonListRow,
 } from '@ui/index.js';
 import { Icon } from '@ui/atoms/Icon/Icon.jsx';
+import { useViewport } from '@core/hooks/useViewport.js';
 import { useVirtualWindow } from '@core/hooks/useVirtualWindow.js';
 import { filterCards, sortCards, countCardsByTag, TAG_MODES } from './tagFilters.js';
 import { CARD_SIZE_MIN, CARD_SIZE_MAX, CARD_SIZE_DEFAULT } from './useCharacterGallery.js';
@@ -61,10 +62,12 @@ export function CharacterGallery({
   pinnedCount = 0,
   pinnedDropHovered = false,
   pinnedSlot = null,
+  hideSplitToggle = false,
   chromeRef,
   scrollRef: externalScrollRef,
   loading = false,
 }) {
+  const { isMobile } = useViewport();
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const importFileInputRef = useRef(null);
@@ -94,7 +97,9 @@ export function CharacterGallery({
     gridStyle: galleryGridStyle,
   } = gallery;
 
-  const isPinnedMode = !splitView && entityFilter === 'pinned';
+  const effectiveSplitView = Boolean(splitView && !hideSplitToggle);
+  const canSplitView = Boolean(setSplitView && !hideSplitToggle);
+  const isPinnedMode = !effectiveSplitView && entityFilter === 'pinned';
   const supportsListMode = entityFilter === 'scenarios' || entityFilter === 'groups';
   const isListMode = layoutMode === 'list' && supportsListMode;
   const activeViewOption = supportsListMode ? viewSwitcherValue || aspect : aspect;
@@ -367,18 +372,18 @@ export function CharacterGallery({
               <SearchInput
                 value={query}
                 onFocus={() => {
-                  if (entityFilter === 'scenarios' || entityFilter === 'groups') {
+                  if (!isMobile && (entityFilter === 'scenarios' || entityFilter === 'groups')) {
                     setTagPickerOpen(true);
                   }
                 }}
                 onClick={() => {
-                  if (entityFilter === 'scenarios' || entityFilter === 'groups') {
+                  if (!isMobile && (entityFilter === 'scenarios' || entityFilter === 'groups')) {
                     setTagPickerOpen(true);
                   }
                 }}
                 onChange={(next) => {
                   setQuery(next);
-                  if (entityFilter === 'scenarios' || entityFilter === 'groups') {
+                  if (!isMobile && (entityFilter === 'scenarios' || entityFilter === 'groups')) {
                     setTagPickerOpen(true);
                   }
                 }}
@@ -400,13 +405,13 @@ export function CharacterGallery({
               {(entityFilter === 'scenarios' || entityFilter === 'groups') && (
                 <TagPicker
                   compact
-                  hideTrigger
+                  hideTrigger={!isMobile}
                   open={tagPickerOpen}
                   onOpenChange={setTagPickerOpen}
                   tags={pickerTags}
                   chipState={chipState}
                   selectedIds={activeChipIds}
-                  externalQuery={query}
+                  externalQuery={isMobile ? '' : query}
                   onSelectMode={setTagChipMode}
                   onToggleTag={(id) => (chipState[id] ? removeTagChip(id) : toggleTagChip(id))}
                   onClearAll={clearTagChips}
@@ -500,7 +505,7 @@ export function CharacterGallery({
                 </div>
               )}
 
-              {setSplitView && (
+              {canSplitView && (
                 <div className="bb-popover-sheet__section">
                   <div className="bb-popover-sheet__label">
                     <span style={{ textTransform: 'none', fontSize: '12.5px', color: 'var(--bb-ink-main)' }}>
@@ -509,7 +514,7 @@ export function CharacterGallery({
                     <Switch
                       size="sm"
                       bare
-                      checked={Boolean(splitView)}
+                      checked={effectiveSplitView}
                       onChange={(val) => setSplitView(val)}
                       title="Show Pinned and All stacked with a resizable splitter"
                     />
@@ -528,7 +533,7 @@ export function CharacterGallery({
                 className="bb-char-gallery__create-btn"
                 onClick={() => onOpenCreateModal('create')}
               >
-                New
+                <span className="bb-char-gallery__create-btn-label">New</span>
               </Button>
             )}
 
@@ -551,13 +556,13 @@ export function CharacterGallery({
                     active: multiSelectActive,
                     onClick: () => onToggleMultiSelectMode(!multiSelectActive),
                   },
-                setSplitView && { divider: true },
-                setSplitView && {
+                canSplitView && { divider: true },
+                canSplitView && {
                   id: 'toggle-split-view',
                   label: 'Split Pinned / All',
                   icon: 'window',
-                  active: Boolean(splitView),
-                  onClick: () => setSplitView(!splitView),
+                  active: effectiveSplitView,
+                  onClick: () => setSplitView(!effectiveSplitView),
                 },
               ].filter(Boolean)}
             />

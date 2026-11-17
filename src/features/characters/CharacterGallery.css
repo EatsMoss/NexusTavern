@@ -4,6 +4,7 @@
    ========================================================================== */
 
 .bb-char-gallery {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -139,12 +140,40 @@
   position: relative;
   display: flex;
   align-items: center;
+  gap: 6px;
   flex: 1 1 auto;
   min-width: 0;
 }
 
 .bb-char-gallery__create-btn {
   flex-shrink: 0;
+}
+
+.bb-char-gallery__create-btn-label {
+  display: inline;
+}
+
+/* Narrow side tome (380px on desktop) & compact smartphone stage (360px):
+   collapse `+ New` into an icon-only button so SearchInput keeps maximum width */
+@container (max-width: 430px) {
+  .bb-char-gallery__action-row {
+    gap: 5px;
+  }
+
+  .bb-char-gallery__search-row {
+    gap: 5px;
+  }
+
+  .bb-char-gallery__create-btn {
+    min-width: var(--bb-control-height-sm);
+    width: var(--bb-control-height-sm);
+    padding: 0;
+    justify-content: center;
+  }
+
+  .bb-char-gallery__create-btn-label {
+    display: none;
+  }
 }
 
 .bb-char-gallery__filter-readout {
@@ -212,7 +241,7 @@
   min-width: 72px;
 }
 
-@media (max-width: 400px) {
+@container (max-width: 400px) {
   .bb-char-gallery__toolbar {
     flex-wrap: wrap;
   }
@@ -494,6 +523,12 @@
 .bb-tag-folder__actions:focus-within,
 .bb-tag-folder__actions[data-kebab-open='true'] {
   opacity: 1;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .bb-tag-folder__actions {
+    opacity: 1;
+  }
 }
 
 .bb-char-gallery__item {

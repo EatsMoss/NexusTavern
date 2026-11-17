@@ -424,6 +424,38 @@ body.bb-char-dragging .bb-pinned-slot {
   opacity: 1;
 }
 
+@media (hover: none), (pointer: coarse) {
+  .bb-folder-member-remove {
+    opacity: 0.92;
+  }
+}
+
+.bb-folder-popover-sheet__body {
+  padding: 8px 12px 14px !important;
+  overflow: hidden !important;
+}
+
+.bb-folder-popover-sheet__stage {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: min(64dvh, calc(var(--bb-visual-viewport-height, 100dvh) - 136px));
+  min-height: 180px;
+  overflow: hidden;
+}
+
+.bb-folder-popover-sheet__stage .bb-folder-popover-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--bb-char-card-size, 92px)), 1fr));
+  padding: 2px 0 8px;
+}
+
+.bb-folder-title-input--sheet {
+  width: min(190px, 48vw);
+  height: var(--bb-control-height-sm);
+  padding: 0 9px;
+  font-size: 14px;
+}
+
 .bb-folder-member-remove:hover {
   background-color: var(--bb-danger-hover-bg, #5c2824);
   border-color: var(--bb-danger-hover-border, #a84a42);

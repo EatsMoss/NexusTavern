@@ -3,6 +3,7 @@
    ========================================================================== */
 
 .bb-character-sheet {
+  container-type: inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -220,6 +221,54 @@
 .bb-cs-adv-btn:hover {
   background: var(--md-sys-color-surface-container-highest);
   border-color: var(--md-sys-color-outline);
+}
+
+/* Narrow Tome (380px on desktop) & Smartphone Card tab (360px):
+   scale portrait and compact toolbar spacing so no action ever clips */
+@container (max-width: 440px) {
+  .bb-cs-header {
+    gap: 10px;
+    min-height: 136px;
+  }
+
+  .bb-cs-portrait {
+    width: 80px;
+    height: 120px;
+    min-width: 80px;
+    flex: 0 0 80px;
+  }
+
+  .bb-cs-controls {
+    min-height: 120px;
+  }
+
+  .bb-cs-toolbar {
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .bb-cs-adv-btn {
+    padding: 0 9px;
+    font-size: 11.5px;
+  }
+}
+
+@container (max-width: 365px) {
+  .bb-cs-portrait {
+    width: 72px;
+    height: 108px;
+    min-width: 72px;
+    flex: 0 0 72px;
+  }
+
+  .bb-cs-controls {
+    min-height: 108px;
+  }
+
+  .bb-cs-toolbar__left .bb-m3-btn {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
 }
 
 /* 2. SMART AVATAR GALLERY STRIP */
@@ -1728,6 +1777,49 @@
 
   .bb-character-sheet--expanded .bb-cs-controls {
     height: 138px;
+  }
+}
+
+/* --- Full-Screen M3 Workspace Editors on Smartphones (`compact` <= 767px) --- */
+.bb-app-shell--compact .bb-center-column__sheet {
+  --bb-chat-column-gutter: 0px;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.bb-app-shell--compact .bb-center-column__sheet-surface {
+  container-type: inline-size;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  padding: 10px 12px calc(12px + var(--bb-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--bb-sheet-bg, var(--bb-page-bg, var(--md-sys-color-background)));
+}
+
+.bb-intro-sheet__mobile-back {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+@media (max-width: 767px) {
+  .bb-intro-sheet__header {
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+
+  .bb-intro-sheet__portrait {
+    width: 44px;
+    height: 66px;
+    flex: 0 0 44px;
+  }
+
+  .bb-intro-sheet__dirty-kbd {
+    display: none;
   }
 }
 

@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useViewport } from '@core/hooks/useViewport.js';
 import {
   Icon,
   SafeImage,
@@ -336,11 +337,12 @@ export function CharacterTome({
 
   const [dragState, setDragState] = useState(null);
   const [openAllTagId, setOpenAllTagId] = useState(null);
+  const { isMobile } = useViewport();
   const latestPinnedRef = useRef(pinnedLayout);
   latestPinnedRef.current = pinnedLayout;
   const latestGalleryRef = useRef(gallery);
   latestGalleryRef.current = gallery;
-  const isSplitMode = Boolean(gallery?.splitView);
+  const isSplitMode = Boolean(gallery?.splitView && !isMobile);
 
   useEffect(() => {
     if (gallery.entityFilter !== 'tags' && openAllTagId !== null) {
@@ -932,6 +934,7 @@ export function CharacterTome({
               dragState?.active && dragState.hover?.scope === 'pin-tab',
             )}
             pinnedSlot={isSplitMode ? null : pinnedSectionNode}
+            hideSplitToggle={isMobile}
             chromeRef={allChromeRef}
             scrollRef={allScrollRef}
             loading={loading}

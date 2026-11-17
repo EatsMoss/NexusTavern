@@ -3,6 +3,7 @@
    ========================================================================== */
 
 .bb-aiconfig-root {
+  container-type: inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -179,8 +180,14 @@
   border-color: var(--bb-danger-border);
 }
 
-@media (max-width: 520px) {
+@container (max-width: 480px) {
   .bb-samplers-grid-2col {
     grid-template-columns: 1fr;
+  }
+}
+
+@container (max-width: 390px) {
+  .bb-preset-action-row {
+    gap: 6px;
   }
 }

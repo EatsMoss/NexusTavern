@@ -375,3 +375,33 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* Mobile M3 BottomSheet presentation for TagPicker */
+.bb-tag-picker__mobile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 14px 16px;
+}
+
+.bb-tag-picker__mobile-subhead {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bb-tag-picker__mobile-search {
+  width: 100%;
+}
+
+.bb-tag-picker__cloud--sheet {
+  max-height: none;
+  padding: 2px 0 4px;
+}
+
+.bb-bottom-sheet__footer .bb-tag-picker__create {
+  padding: 0;
+  border-top: none;
+  background: transparent;
+  width: 100%;
+}

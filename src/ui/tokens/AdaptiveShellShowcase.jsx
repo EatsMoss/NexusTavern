@@ -6,6 +6,7 @@ import {
   FolderCard,
   KebabMenu,
   PopoverSheet,
+  TagPicker,
   ToggleGroup,
   Slider,
   Switch,
@@ -37,6 +38,7 @@ export function AdaptiveShellShowcase() {
   const [viewLayout, setViewLayout] = useState('portrait');
   const [cardSize, setCardSize] = useState(144);
   const [splitPinned, setSplitPinned] = useState(false);
+  const [demoTagState, setDemoTagState] = useState({ t1: 'and', t3: 'not' });
 
   const activeBranch = DEMO_BRANCHES.find((b) => b.id === activeBranchId) || DEMO_BRANCHES[0];
 
@@ -85,6 +87,25 @@ export function AdaptiveShellShowcase() {
               <Switch size="sm" checked={splitPinned} onChange={setSplitPinned} label="Split Pinned / All" />
             </div>
           </PopoverSheet>
+
+          <TagPicker
+            compact
+            tags={[
+              { id: 't1', name: 'Fantasy', count: 42 },
+              { id: 't2', name: 'Sci-Fi', count: 18 },
+              { id: 't3', name: 'Spoiler', count: 7 },
+            ]}
+            chipState={demoTagState}
+            onSelectMode={(id, mode) =>
+              setDemoTagState((prev) => {
+                const next = { ...prev };
+                if (!mode) delete next[id];
+                else next[id] = mode;
+                return next;
+              })
+            }
+            onClearAll={() => setDemoTagState({})}
+          />
 
           <KebabMenu
             title="Scenario Actions"

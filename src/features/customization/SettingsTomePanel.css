@@ -3,6 +3,7 @@
    ========================================================================== */
 
 .bb-settings-tome {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -138,10 +139,18 @@
   gap: 8px;
 }
 
-@media (max-width: 420px) {
+@container (max-width: 430px) {
+  .bb-cust-presets-grid {
+    grid-template-columns: 1fr;
+  }
+
   .bb-cust-textcards-grid,
   .bb-cust-patterns-grid {
     grid-template-columns: 1fr;
+  }
+
+  .bb-cust-portrait-bar {
+    flex-wrap: wrap;
   }
 }
 

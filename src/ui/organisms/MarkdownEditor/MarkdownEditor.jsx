@@ -592,6 +592,7 @@ export function MarkdownEditor({
 
       <div className="bb-md-editor-shell">
         <div className="bb-md-toolbar" onMouseDown={preventFocusLoss}>
+          <div className="bb-md-toolbar-track">
           <div className="bb-md-toolbar-group">
               <ToolBtn
                 className="bb-md-tool-btn"
@@ -771,6 +772,7 @@ export function MarkdownEditor({
                 {'{{user}}'}
               </ToolBtn>
             </div>
+          </div>
 
           <div className="bb-md-toolbar-right">
             <button

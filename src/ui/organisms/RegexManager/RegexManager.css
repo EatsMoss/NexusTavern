@@ -4,6 +4,7 @@
    ========================================================================== */
 
 .bb-rx-sheet {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   border-radius: var(--bb-control-radius, 8px);
@@ -617,6 +618,23 @@
   font-size: 12px;
   line-height: 1.4;
   color: var(--bb-ink-muted);
+}
+
+@container (max-width: 420px) {
+  .bb-rx-select-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bb-rx-item {
+    gap: 6px;
+    padding: 6px 8px 6px 6px;
+  }
+}
+
+@container (max-width: 340px) {
+  .bb-rx-top-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {

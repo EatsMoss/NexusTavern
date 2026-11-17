@@ -16,6 +16,7 @@ import {
   SafeImage,
   estimateIntroTokens,
 } from '@ui/index.js';
+import { useViewport } from '@core/hooks/useViewport.js';
 
 function serializeIntroSnapshot(draft) {
   if (!draft) return '';
@@ -44,6 +45,7 @@ export const IntroEditorSheet = forwardRef(function IntroEditorSheet(
   },
   ref,
 ) {
+  const { isMobile } = useViewport();
   const [draft, setDraft] = useState(null);
   const [baselineSnapshot, setBaselineSnapshot] = useState('');
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -240,6 +242,17 @@ export const IntroEditorSheet = forwardRef(function IntroEditorSheet(
       />
 
       <header className="bb-intro-sheet__header">
+        {isMobile && onClose && (
+          <Button
+            variant="b2"
+            size="sm"
+            icon="arrowLeft"
+            title="Back"
+            aria-label="Back"
+            className="bb-intro-sheet__mobile-back"
+            onClick={onClose}
+          />
+        )}
         <button
           type="button"
           className="bb-intro-sheet__portrait"
@@ -308,11 +321,24 @@ export const IntroEditorSheet = forwardRef(function IntroEditorSheet(
                       onClose?.({ skipGuard: true });
                     }}
                   >
-                    Start Chat
+                    {isMobile ? null : 'Start Chat'}
                   </Button>
                 )}
 
-                {onClose && (
+                {isMobile && isDirty && (
+                  <Button
+                    variant="b1"
+                    size="sm"
+                    emphasis="filled"
+                    icon="check"
+                    title="Apply greeting changes"
+                    onClick={commitDraft}
+                  >
+                    Save
+                  </Button>
+                )}
+
+                {!isMobile && onClose && (
                   <Button
                     variant="b2"
                     size="sm"

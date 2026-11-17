@@ -53,6 +53,7 @@
 }
 
 .bb-md-editor-shell {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -73,11 +74,75 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 2px;
+  gap: 4px;
   padding: 5px 6px;
   background: var(--bb-sheet-header-bg, var(--bb-page-card-bg));
   border-bottom: 1px solid var(--bb-page-border);
   user-select: none;
+}
+
+.bb-md-toolbar-track {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Single-row horizontally scrollable formatting strip in narrow containers & smartphones */
+@container (max-width: 560px) {
+  .bb-md-toolbar {
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding: 4px 6px;
+  }
+
+  .bb-md-toolbar-track {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bb-md-toolbar-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bb-md-toolbar-group {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .bb-md-toolbar {
+    flex-wrap: nowrap;
+  }
+
+  .bb-md-toolbar-track {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .bb-md-toolbar-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bb-md-toolbar-group {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+
+  .bb-md-textarea,
+  .bb-md-rich-editor {
+    font-size: max(16px, calc(14px * var(--bb-font-scale, 1)));
+  }
 }
 
 .bb-md-toolbar-right {
