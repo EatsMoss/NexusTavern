@@ -9,6 +9,7 @@ import React, {
   forwardRef,
   memo,
 } from 'react';
+import { useViewport } from '@core/hooks/useViewport.js';
 import {
   subscribeCustomizationRuntime,
   getCustomizationRuntimeSnapshot,
@@ -100,6 +101,18 @@ export const ChatComposer = memo(
     },
     ref,
   ) {
+    const { layoutMode, isKeyboardOpen } = useViewport();
+    const isCompact = layoutMode === 'compact';
+    const [manualKeyboardChipsOpen, setManualKeyboardChipsOpen] = useState(false);
+
+    useEffect(() => {
+      if (!isKeyboardOpen && manualKeyboardChipsOpen) {
+        setManualKeyboardChipsOpen(false);
+      }
+    }, [isKeyboardOpen, manualKeyboardChipsOpen]);
+
+    const chipsCollapsed = Boolean(isCompact && isKeyboardOpen && !manualKeyboardChipsOpen);
+
     const [draftMsg, setDraftMsg] = useState(() => loadInitialComposerDraft());
     const [pendingAttachments, setPendingAttachments] = useState([]);
     const [composerDragOver, setComposerDragOver] = useState(false);
@@ -424,9 +437,13 @@ export const ChatComposer = memo(
 
     return (
       <form
-        className={`bb-chat-viewport__composer ${
-          composerDragOver ? 'is-drag-over' : ''
-        }`.trim()}
+        className={[
+          'bb-chat-viewport__composer',
+          composerDragOver ? 'is-drag-over' : '',
+          chipsCollapsed ? 'is-chips-collapsed' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         onSubmit={handleFormSubmit}
         onDragEnter={handleComposerDragEnter}
         onDragOver={handleComposerDragOver}
@@ -495,10 +512,14 @@ export const ChatComposer = memo(
                   {!hasActiveScenario
                     ? 'Select or create a scenario card to begin...'
                     : isGenerating
-                      ? `${characterName} is responding... (Press Esc or Stop to halt)`
-                      : enterToSend
-                        ? `Write a message to ${characterName}... (Enter to send, Shift+Enter for new line)`
-                        : `Write a message to ${characterName}... (Ctrl+Enter to send, Enter for new line)`}
+                      ? isCompact
+                        ? `${characterName} is responding...`
+                        : `${characterName} is responding... (Press Esc or Stop to halt)`
+                      : isCompact
+                        ? `Message ${characterName}...`
+                        : enterToSend
+                          ? `Write a message to ${characterName}... (Enter to send, Shift+Enter for new line)`
+                          : `Write a message to ${characterName}... (Ctrl+Enter to send, Enter for new line)`}
                 </span>
                 {!isGenerating && (
                   <button
@@ -523,6 +544,29 @@ export const ChatComposer = memo(
           </div>
 
           <div className="bb-chat-viewport__composer-actions">
+            {isCompact && isKeyboardOpen && (
+              <Button
+                type="button"
+                variant="b2"
+                size="lg"
+                borderless
+                active={manualKeyboardChipsOpen}
+                icon={manualKeyboardChipsOpen ? 'chevronDown' : 'sliders'}
+                title={
+                  manualKeyboardChipsOpen
+                    ? 'Hide Model & Persona row'
+                    : 'Show Model & Persona row'
+                }
+                aria-label={
+                  manualKeyboardChipsOpen
+                    ? 'Hide Model and Persona selectors'
+                    : 'Show Model and Persona selectors'
+                }
+                className="bb-chat-viewport__composer-icon-btn"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setManualKeyboardChipsOpen((prev) => !prev)}
+              />
+            )}
             <Button
               ref={emojiBtnRef}
               type="button"
@@ -581,58 +625,62 @@ export const ChatComposer = memo(
           </div>
         </div>
 
-        <div className="bb-chat-viewport__composer-chips">
-          <div className="bb-chat-viewport__composer-chips-left">
-            <ConnectionModelPicker
-              connections={hubConnections}
-              customFamilies={hubCustomFamilies}
-              activeConnectionId={activeProviderId}
-              activeModelId={activeModelId}
-              activeModelName={activeModelName || modelLabel}
-              placement="top"
-              onSelectConnection={onSelectHubModel}
-              onUpdateConnection={onUpdateHubConnection}
-              onFetchConnectionModels={onFetchHubModels}
-              onDeleteConnection={onDeleteHubConnection}
-              onRevealConnectionKey={onRevealHubKey}
-              onPingConnections={onPingHubConnections}
-              onFetchTelemetry={onFetchHubTelemetry}
-              onAddCustomFamily={onAddHubCustomFamily}
-              onDeleteCustomFamily={onDeleteHubCustomFamily}
-              onOpenAddConnection={onClickModelBadge}
-            />
+        {!chipsCollapsed && (
+          <div className="bb-chat-viewport__composer-chips">
+            <div className="bb-chat-viewport__composer-chips-left">
+              <ConnectionModelPicker
+                connections={hubConnections}
+                customFamilies={hubCustomFamilies}
+                activeConnectionId={activeProviderId}
+                activeModelId={activeModelId}
+                activeModelName={activeModelName || modelLabel}
+                placement="top"
+                onSelectConnection={onSelectHubModel}
+                onUpdateConnection={onUpdateHubConnection}
+                onFetchConnectionModels={onFetchHubModels}
+                onDeleteConnection={onDeleteHubConnection}
+                onRevealConnectionKey={onRevealHubKey}
+                onPingConnections={onPingHubConnections}
+                onFetchTelemetry={onFetchHubTelemetry}
+                onAddCustomFamily={onAddHubCustomFamily}
+                onDeleteCustomFamily={onDeleteHubCustomFamily}
+                onOpenAddConnection={onClickModelBadge}
+              />
 
-            <ConsoleToggleButton
-              open={consoleOpen}
-              onClick={onToggleConsole}
-              title={
-                consoleOpen
-                  ? 'Hide live output console'
-                  : 'Open live output console (prompts, LLM outputs & workspace logs)'
-              }
+              {!isCompact && (
+                <ConsoleToggleButton
+                  open={consoleOpen}
+                  onClick={onToggleConsole}
+                  title={
+                    consoleOpen
+                      ? 'Hide live output console'
+                      : 'Open live output console (prompts, LLM outputs & workspace logs)'
+                  }
+                />
+              )}
+            </div>
+
+            <PersonaPicker
+              personas={personas}
+              activePersonaAvatar={activePersonaAvatar}
+              personaName={personaName}
+              personaAvatarUrl={personaAvatarUrl}
+              cards={cards}
+              groups={groups}
+              activeCharacter={activeCharacter}
+              hasUserMessages={hasUserMessages}
+              userMessageCount={userMessageCount}
+              disabled={isGenerating}
+              onSelectPersona={onSelectPersona}
+              onConfirmReplacePersonaInChat={onConfirmReplacePersonaInChat}
+              onToggleBindActiveCharacter={onToggleBindPersonaToActiveCard}
+              onOpenManageModal={onOpenManagePersonaModal || onClickPersonaBadge}
+              onOpenCreateModal={onOpenCreatePersonaModal || onClickPersonaBadge}
+              onDuplicatePersona={onDuplicatePersona}
+              onDeletePersona={onDeletePersona}
             />
           </div>
-
-          <PersonaPicker
-            personas={personas}
-            activePersonaAvatar={activePersonaAvatar}
-            personaName={personaName}
-            personaAvatarUrl={personaAvatarUrl}
-            cards={cards}
-            groups={groups}
-            activeCharacter={activeCharacter}
-            hasUserMessages={hasUserMessages}
-            userMessageCount={userMessageCount}
-            disabled={isGenerating}
-            onSelectPersona={onSelectPersona}
-            onConfirmReplacePersonaInChat={onConfirmReplacePersonaInChat}
-            onToggleBindActiveCharacter={onToggleBindPersonaToActiveCard}
-            onOpenManageModal={onOpenManagePersonaModal || onClickPersonaBadge}
-            onOpenCreateModal={onOpenCreatePersonaModal || onClickPersonaBadge}
-            onDuplicatePersona={onDuplicatePersona}
-            onDeletePersona={onDeletePersona}
-          />
-        </div>
+        )}
       </form>
     );
   }),

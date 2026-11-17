@@ -484,6 +484,16 @@ function ChatMessageCardInner({
     setIsEditing(false);
   };
 
+  const mobileSheetMetaSubtitle = [
+    `#${msgNum}`,
+    !isStreaming && message?.time ? message.time : null,
+    `${message?.tokens || 0} tok`,
+    !isStreaming && timerLabel ? timerLabel : null,
+    hasModelInfo ? modelTooltipText : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   const kebabItems = [
     {
       id: 'copy',
@@ -491,12 +501,27 @@ function ChatMessageCardInner({
       label: copied ? 'Copied' : 'Copy Text',
       onClick: handleCopyText,
     },
+    canEdit && {
+      id: 'edit',
+      icon: 'edit',
+      label: isEditing ? 'Close Editor' : 'Edit Message',
+      onClick: () => setIsEditing((prev) => !prev),
+    },
+    canCreateBranch && {
+      id: 'branch',
+      icon: 'codeBranch',
+      label: 'Create Branch Here',
+      onClick: () => onCreateBranch(message.index),
+    },
     onEnterMultiSelect && {
       id: 'select',
       icon: 'check',
-      label: 'Select',
+      label: 'Select Messages',
       onClick: () => onEnterMultiSelect(message.index),
     },
+    (!isUser && !isGreetingMsg && totalSwipes > 1 && onDeleteSwipe) || onDelete
+      ? { divider: true, id: 'danger-div' }
+      : null,
     !isUser &&
       !isGreetingMsg &&
       totalSwipes > 1 &&
@@ -622,6 +647,15 @@ function ChatMessageCardInner({
       <div className="bb-chat-msg-card__content">
         <header className="bb-chat-msg-card__header">
           <div className="bb-chat-msg-card__sender-wrap">
+            <span className="bb-chat-msg-card__inline-avatar" aria-hidden="true">
+              <SafeImage
+                src={avatarSrc}
+                alt=""
+                loading="lazy"
+                className="bb-chat-msg-card__avatar-img"
+                fallback={<span>{avatarFallback}</span>}
+              />
+            </span>
             <h3 className="bb-chat-msg-card__sender">{senderLabel}</h3>
             {(hasModelInfo || fallbackInfo) && (
               <span className="bb-chat-msg-card__model-group">
@@ -708,7 +742,8 @@ function ChatMessageCardInner({
                 <KebabMenu
                   items={kebabItems}
                   size="sm"
-                  title="Message options"
+                  title={`${senderLabel} · Message #${msgNum}`}
+                  subtitle={mobileSheetMetaSubtitle}
                   disabled={isStreaming}
                 />
               )}

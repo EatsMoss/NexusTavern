@@ -62,6 +62,8 @@ export function CenterWorkspaceSheets({
   composerToasts,
   dismissComposerToast,
   consoleStream,
+  consoleOpen,
+  onChangeConsoleOpen,
   recapConfig,
 }) {
   const {
@@ -443,6 +445,8 @@ export function CenterWorkspaceSheets({
       isGenerating={chat.isGenerating}
       onStopGeneration={chat.handleStopGeneration}
       consoleStream={consoleStream}
+      consoleOpen={consoleOpen}
+      onChangeConsoleOpen={onChangeConsoleOpen}
       recapCompressDepth={
         recapConfig.enabled && recapConfig.stripEnabled
           ? recapConfig.keepFullDepth

@@ -55,8 +55,19 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 18%;
+  object-position: center 20%;
   display: block;
+}
+
+@media (max-width: 767px) {
+  .bb-avatar-stack__item {
+    border-radius: var(--md-sys-shape-corner-xs, 6px);
+  }
+
+  .bb-avatar-stack__item.is-under {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }
 
 .bb-avatar-stack__initials {

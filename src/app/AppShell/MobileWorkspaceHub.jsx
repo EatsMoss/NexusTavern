@@ -18,6 +18,8 @@ export function MobileWorkspaceHub({
   personasWs,
   apiHub,
   serverStatus = null,
+  consoleOpen = false,
+  onOpenConsoleInChat,
   onOpenQrModal,
   onOpenSandbox,
 }) {
@@ -146,6 +148,14 @@ export function MobileWorkspaceHub({
             title="Media & Backgrounds"
             subtitle="Scenario backgrounds & gallery"
             onClick={() => onChangeSubScreen('media')}
+          />
+          <ModuleNavCard
+            icon="code"
+            title="Live Output Console"
+            badge={consoleOpen ? 'Open' : null}
+            badgeTone="active"
+            subtitle="Inspect compiled prompts, raw LLM stream & workspace logs"
+            onClick={onOpenConsoleInChat}
           />
           <ModuleNavCard
             icon="qr"

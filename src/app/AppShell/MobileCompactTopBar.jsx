@@ -20,6 +20,8 @@ export function MobileCompactTopBar({
   scenario,
   personasWs,
   chat,
+  consoleOpen = false,
+  onToggleConsole,
   onOpenQrModal,
 }) {
   const isDemo = !scenario.hasActiveScenario || isDemoCardId(scenario.selectedCardId);
@@ -62,6 +64,13 @@ export function MobileCompactTopBar({
         onClick: () => personasWs.handleOpenManagePersonaModal?.(),
       },
       {
+        id: 'console',
+        label: consoleOpen ? 'Hide Live Output Console' : 'Live Output Console',
+        icon: 'code',
+        active: Boolean(consoleOpen),
+        onClick: () => onToggleConsole?.(),
+      },
+      {
         id: 'remote-qr',
         label: 'Remote Access & QR...',
         icon: 'qr',
@@ -74,6 +83,8 @@ export function MobileCompactTopBar({
       scenario.hasActiveScenario,
       onNavigateMobileTab,
       personasWs,
+      consoleOpen,
+      onToggleConsole,
       onOpenQrModal,
     ],
   );

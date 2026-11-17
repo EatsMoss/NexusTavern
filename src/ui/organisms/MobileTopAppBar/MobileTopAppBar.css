@@ -61,7 +61,7 @@
 .bb-mobile-topbar__avatar {
   width: 32px;
   height: 32px;
-  border-radius: var(--md-sys-shape-corner-full, 9999px);
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
   overflow: hidden;
   flex-shrink: 0;
   display: inline-flex;
@@ -74,6 +74,7 @@
 [data-short-viewport='true'] .bb-mobile-topbar__avatar {
   width: 26px;
   height: 26px;
+  border-radius: 5px;
 }
 
 .bb-mobile-topbar__avatar-img {

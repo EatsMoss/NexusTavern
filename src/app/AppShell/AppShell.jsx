@@ -169,6 +169,7 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
   const chatStreamRef = useRef(null);
   const [chatListOpen, setChatListOpen] = useState(false);
   const [timelinesOpen, setTimelinesOpen] = useState(() => Boolean(initialUi.timelinesOpen));
+  const [consoleOpen, setConsoleOpen] = useState(false);
   const consoleStream = useConsoleStream();
 
   const loadCardsAndPersonasRef = useRef(null);
@@ -732,6 +733,8 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
     composerToasts,
     dismissComposerToast,
     consoleStream,
+    consoleOpen,
+    onChangeConsoleOpen: setConsoleOpen,
     recapConfig: messageRecap.config,
   };
 
@@ -818,6 +821,12 @@ export function AppShell({ serverStatus, onToggleTunnel, tunnelBusy, onRefreshSt
       toasts,
       dismissToast,
       serverStatus,
+      consoleOpen,
+      onToggleConsole: () => setConsoleOpen((prev) => !prev),
+      onOpenConsoleInChat: () => {
+        setConsoleOpen(true);
+        mobileNav.navigateMobileTab('chat');
+      },
       onOpenQrModal: () => setQrModalOpen(true),
     });
 

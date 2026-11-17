@@ -604,6 +604,12 @@
   .bb-persona-picker__linked-badge {
     width: 30px;
     height: 30px;
+    border-radius: var(--md-sys-shape-corner-xs, 6px);
+  }
+
+  .bb-persona-picker__linked-img {
+    border-radius: 4px;
+    object-position: center 20%;
   }
 
   .bb-persona-picker__confirm-actions > button {

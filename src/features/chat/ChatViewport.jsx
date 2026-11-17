@@ -165,6 +165,8 @@ export function ChatViewport({
   isGenerating = false,
   onStopGeneration,
   consoleStream = null,
+  consoleOpen: controlledConsoleOpen,
+  onChangeConsoleOpen,
   recapCompressDepth = null,
   hasActiveScenario = true,
   switchingScenario = false,
@@ -180,7 +182,10 @@ export function ChatViewport({
   const composerEmojiBtnRef = useRef(null);
 
   const [composerEmojiOpen, setComposerEmojiOpen] = useState(false);
-  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [uncontrolledConsoleOpen, setUncontrolledConsoleOpen] = useState(false);
+  const consoleOpen =
+    controlledConsoleOpen !== undefined ? controlledConsoleOpen : uncontrolledConsoleOpen;
+  const setConsoleOpen = onChangeConsoleOpen || setUncontrolledConsoleOpen;
   const internalConsoleStream = useConsoleStream({ enabled: !consoleStream });
   const activeConsoleStream = consoleStream || internalConsoleStream;
   const {
@@ -797,7 +802,7 @@ export function ChatViewport({
       }
       return false;
     });
-  }, [isMobile, resolvedComposerRef]);
+  }, [isMobile, resolvedComposerRef, setConsoleOpen]);
 
   const handleInsertComposerEmoji = useCallback(
     (emoji) => {
@@ -830,7 +835,7 @@ export function ChatViewport({
       }
       return next;
     });
-  }, [isMobile, resolvedStreamRef]);
+  }, [isMobile, resolvedStreamRef, setConsoleOpen]);
 
   useEffect(() => {
     if (!hasActiveScenario || !activeChatFile || switchingScenario) return;

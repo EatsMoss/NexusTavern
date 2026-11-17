@@ -34,9 +34,46 @@ function getDecoratorFlagsSnapshot() {
   }|${ai.smoothStreaming !== false ? 1 : 0}`;
 }
 
+function parseMarkdownTableCells(rowLine = '') {
+  let trimmed = String(rowLine || '').trim();
+  if (trimmed.startsWith('|')) trimmed = trimmed.slice(1);
+  if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
+  return trimmed.split('|').map((c) => c.trim());
+}
+
+function tryParseMarkdownTable(paragraphText = '') {
+  const lines = String(paragraphText || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length < 2) return null;
+  if (!lines[0].includes('|') || !lines[1].includes('|')) return null;
+
+  const sepCells = parseMarkdownTableCells(lines[1]);
+  if (
+    sepCells.length === 0 ||
+    !sepCells.every((cell) => /^:?-{2,}:?$/.test(cell))
+  ) {
+    return null;
+  }
+
+  const headers = parseMarkdownTableCells(lines[0]);
+  if (headers.length === 0) return null;
+  const rows = lines.slice(2).map((line) => parseMarkdownTableCells(line));
+  return { type: 'table', headers, rows };
+}
+
+function wrapHtmlTablesForScroll(html = '') {
+  if (!html || !/<table\b/i.test(html)) return html;
+  return String(html).replace(
+    /<table\b[\s\S]*?<\/table>/gi,
+    (tableMarkup) => `<div class="bb-decorator-table-scroll">${tableMarkup}</div>`,
+  );
+}
+
 /**
  * Splits a plain-text body into structural blocks:
- * fenced code blocks, blockquotes, dividers and paragraphs.
+ * fenced code blocks, Markdown tables, blockquotes, dividers and paragraphs.
  * Only applied when the body carries no HTML markup of its own.
  */
 function parseMessageBlocks(cleanText) {
@@ -62,7 +99,12 @@ function parseMessageBlocks(cleanText) {
           .join('\n');
         blocks.push({ type: 'blockquote', content: quoteClean });
       } else {
-        blocks.push({ type: 'paragraph', content: trimmed });
+        const parsedTable = tryParseMarkdownTable(trimmed);
+        if (parsedTable) {
+          blocks.push(parsedTable);
+        } else {
+          blocks.push({ type: 'paragraph', content: trimmed });
+        }
       }
     }
   };
@@ -359,7 +401,15 @@ function renderStreamingSanitizedHtml(sanitizedHtml = '', appendTailDots = false
       }
     });
 
-    return React.createElement(tag, props, children.length > 0 ? children : null);
+    const tableNode = React.createElement(tag, props, children.length > 0 ? children : null);
+    if (tag === 'table') {
+      return (
+        <div key={`${pathKey}-tscroll`} className="bb-decorator-table-scroll">
+          {tableNode}
+        </div>
+      );
+    }
+    return tableNode;
   };
 
   const rootChildren = Array.from(root.childNodes);
@@ -493,7 +543,7 @@ export const MessageDecorator = memo(function MessageDecorator({
           recapText: resolvedRecap,
           isRecapStreaming: false,
           blocks: [],
-          htmlBody: decorateTextNodesInHtml(sanitized),
+          htmlBody: wrapHtmlTablesForScroll(decorateTextNodesInHtml(sanitized)),
           streamingHtmlNodes: null,
         };
       }
@@ -691,6 +741,39 @@ export const MessageDecorator = memo(function MessageDecorator({
 
             if (block.type === 'hr') {
               return <hr key={`b-${idx}`} className="bb-decorator-hr" />;
+            }
+
+            if (block.type === 'table') {
+              return (
+                <div key={`b-${idx}`} className="bb-decorator-table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        {block.headers.map((hCell, hIdx) => (
+                          <th
+                            key={`th-${hIdx}`}
+                            dangerouslySetInnerHTML={{ __html: decorateInlineText(hCell) }}
+                          />
+                        ))}
+                      </tr>
+                    </thead>
+                    {block.rows.length > 0 && (
+                      <tbody>
+                        {block.rows.map((rCells, rIdx) => (
+                          <tr key={`tr-${rIdx}`}>
+                            {rCells.map((cText, cIdx) => (
+                              <td
+                                key={`td-${cIdx}`}
+                                dangerouslySetInnerHTML={{ __html: decorateInlineText(cText) }}
+                              />
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    )}
+                  </table>
+                </div>
+              );
             }
 
             if (block.type === 'blockquote') {

@@ -820,8 +820,122 @@
 [data-hide-msg-tokens='true'] .bb-chat-msg-card__pill--tokens,
 [data-hide-model-icons='true'] .bb-chat-msg-card__model-badge,
 [data-hide-msg-ids='true'] .bb-chat-msg-card__avatar-num,
-[data-hide-chat-avatars='true'] .bb-chat-msg-card__avatar {
+[data-hide-chat-avatars='true'] .bb-chat-msg-card__avatar,
+[data-hide-chat-avatars='true'] .bb-chat-msg-card__inline-avatar {
   display: none !important;
+}
+
+/* Inline Rounded-Square Header Portrait (Persona-style 1:1 framing, hidden on wide desktop) */
+.bb-chat-msg-card__inline-avatar {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+  border: 1px solid var(--bb-page-border-soft, rgba(125, 113, 98, 0.34));
+  background: var(--bb-page-panel-bg, var(--md-sys-color-surface-container-high));
+  color: var(--bb-ink-main, var(--md-sys-color-on-surface));
+  font-family: var(--bb-font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  user-select: none;
+}
+
+.bb-chat-msg-card__inline-avatar .bb-chat-msg-card__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+
+.bb-chat-msg-card--last .bb-chat-msg-card__inline-avatar {
+  border-color: var(--bb-accent-border, var(--md-sys-color-primary));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--bb-accent-border, var(--md-sys-color-primary)) 45%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.36);
+}
+
+/* ==========================================================================
+   STEP A4 — COMPACT SMARTPHONE MESSAGE CARD REFLOW (100% Reading Width)
+   Moves portrait into header as a Persona-framed rounded square (`36x36px`,
+   `object-position: center 20%`), trims horizontal padding (+55% reading line
+   width), condenses telemetry tap-chip, and enlarges footer touch targets (`40px`).
+   ========================================================================== */
+@media (max-width: 640px) {
+  .bb-chat-msg-card {
+    --bb-msg-avatar-height: 96px;
+    padding: 11px 13px;
+    gap: 8px;
+  }
+
+  .bb-chat-msg-card__avatar {
+    display: none;
+  }
+
+  .bb-chat-msg-card__inline-avatar {
+    display: inline-flex;
+  }
+
+  .bb-chat-msg-card--dimmed .bb-chat-msg-card__inline-avatar {
+    opacity: 0.78;
+  }
+
+  .bb-chat-msg-card__header {
+    height: auto;
+    min-height: 36px;
+    max-height: none;
+    gap: 6px;
+  }
+
+  .bb-chat-msg-card__sender-wrap {
+    gap: 8px;
+    flex: 1 1 auto;
+  }
+
+  .bb-chat-msg-card__sender {
+    font-size: calc(16px * var(--bb-font-scale, 1));
+  }
+
+  /* Keep header telemetry ultra-compact (`tok · t/s`); full `#ID + timestamp + model`
+     lives inside the message `⋮` BottomSheet subtitle */
+  .bb-chat-msg-card__pill--time {
+    display: none;
+  }
+
+  .bb-chat-msg-card__pill--time + .bb-chat-msg-card__pill--tokens::before {
+    display: none;
+  }
+
+  .bb-chat-msg-card__actions {
+    height: 34px;
+  }
+
+  /* Thumb-friendly 40px M3 swipe & branch footer controls */
+  .bb-chat-msg-card__footer {
+    padding-top: 8px;
+    margin-top: 4px;
+    gap: 8px;
+  }
+
+  .bb-chat-msg-card__swipes {
+    gap: 8px;
+  }
+
+  .bb-chat-msg-card__ctrl-btn.bb-m3-btn--b2.bb-m3-btn--icon-only {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+  }
+
+  .bb-chat-msg-card__swipe-count {
+    min-width: 46px;
+    font-size: calc(12.5px * var(--bb-font-scale, 1));
+  }
 }
 
 [data-always-expand-actions='true'] .bb-chat-msg-card__telemetry-dot-btn {

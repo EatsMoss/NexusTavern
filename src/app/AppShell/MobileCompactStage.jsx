@@ -26,6 +26,9 @@ export function useMobileCompactChrome({
   toasts,
   dismissToast,
   serverStatus,
+  consoleOpen = false,
+  onToggleConsole,
+  onOpenConsoleInChat,
   onOpenQrModal,
 }) {
   const {
@@ -52,6 +55,8 @@ export function useMobileCompactChrome({
       scenario={scenario}
       personasWs={personasWs}
       chat={chat}
+      consoleOpen={consoleOpen}
+      onToggleConsole={onToggleConsole}
       onOpenQrModal={onOpenQrModal}
     />
   );
@@ -160,6 +165,8 @@ export function useMobileCompactChrome({
         personasWs={personasWs}
         apiHub={apiHub}
         serverStatus={serverStatus}
+        consoleOpen={consoleOpen}
+        onOpenConsoleInChat={onOpenConsoleInChat}
         onOpenQrModal={onOpenQrModal}
         onOpenSandbox={() => setViewMode('sandbox')}
       />

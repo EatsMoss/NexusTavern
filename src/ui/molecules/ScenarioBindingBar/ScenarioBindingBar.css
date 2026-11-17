@@ -311,6 +311,15 @@
   white-space: nowrap;
 }
 
+@media (max-width: 767px) {
+  .bb-scenario-link-btn__badge,
+  .bb-scenario-link-btn__img,
+  .bb-scenario-bind-bar__quick-avatar,
+  .bb-scenario-bind-chip__avatar {
+    border-radius: 5px;
+  }
+}
+
 .bb-scenario-bind-chip__rm {
   appearance: none;
   display: inline-flex;

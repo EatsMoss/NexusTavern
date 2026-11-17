@@ -18,6 +18,7 @@ export function KebabMenu({
   size = 'sm',
   align = 'right',
   title = 'Actions',
+  subtitle = '',
   disabled = false,
   mobileSheet = true,
   onOpenChange = null,
@@ -212,6 +213,7 @@ export function KebabMenu({
             open={open}
             onClose={() => setOpen(false)}
             title={title}
+            subtitle={subtitle}
             zIndex={9992}
             bodyClassName="bb-kebab-menu__sheet-body"
           >

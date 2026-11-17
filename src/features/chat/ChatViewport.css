@@ -460,14 +460,51 @@
   color: var(--bb-ink-accent, var(--md-sys-color-primary));
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .bb-chat-viewport {
-    --bb-chat-column-gutter: 10px;
+    --bb-chat-column-gutter: 8px;
   }
 
   .bb-chat-viewport__composer {
-    margin-left: var(--bb-chat-column-gutter);
-    margin-right: var(--bb-chat-column-gutter);
+    margin: 0 var(--bb-chat-column-gutter) 8px;
+    padding: 5px 10px;
+  }
+
+  [data-keyboard-open='true'] .bb-chat-viewport__composer {
+    margin-bottom: 6px;
+  }
+
+  /* Prevent iOS Safari / mobile Chrome forced focus zoom (< 16px) */
+  .bb-chat-viewport__textarea,
+  .bb-chat-viewport__placeholder-text {
+    font-size: max(16px, var(--bb-body-size, 15px));
+  }
+
+  /* Single elastic row for [Provider | Model] + [Persona] without wrapping */
+  .bb-chat-viewport__composer-chips {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .bb-chat-viewport__composer-chips-left {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .bb-chat-viewport__composer-chips-left .bb-conn-picker {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .bb-chat-viewport__composer-chips-left .bb-conn-picker__capsule {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .bb-chat-viewport__composer-chips > .bb-persona-picker {
+    flex: 0 1 42%;
+    min-width: 92px;
+    max-width: 44%;
   }
 
   .bb-chat-viewport.is-emoji-tray-open > .bb-chat-viewport__composer {
@@ -475,16 +512,40 @@
   }
 
   .bb-chat-viewport__stream {
-    padding: 10px 0 16px;
+    padding: 8px 0 12px;
+    gap: 9px;
+  }
+
+  .bb-chat-viewport__track {
+    gap: 9px;
   }
 
   .bb-chat-viewport__jump-bottom {
-    right: 16px;
-    bottom: 76px;
+    right: 14px;
+    bottom: 12px;
   }
 
   .bb-chat-history {
-    width: calc(100% - 20px);
+    width: calc(100% - 16px);
+  }
+
+  .bb-chat-history__avatar-wrap {
+    width: 46px;
+    height: 46px;
+    aspect-ratio: 1 / 1;
+  }
+
+  .bb-chat-history__char-avatar {
+    border-radius: var(--md-sys-shape-corner-xs, 6px);
+  }
+
+  .bb-chat-history__char-avatar img,
+  .bb-chat-history__persona-avatar img {
+    object-position: center 20%;
+  }
+
+  .bb-chat-history__persona-avatar {
+    border-radius: 5px;
   }
 }
 

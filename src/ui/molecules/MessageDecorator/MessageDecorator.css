@@ -465,8 +465,37 @@
 
 .bb-decorator-rich {
   display: block;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   line-height: 1.45;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  overflow-wrap: break-word;
+}
+
+.bb-decorator-body {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  overflow-wrap: break-word;
+}
+
+.bb-decorator-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  margin: 6px 0;
+  border-radius: var(--md-sys-shape-corner-xs, 6px);
+}
+
+.bb-decorator-table-scroll > table {
+  margin: 0;
+  min-width: max-content;
+  width: 100%;
 }
 
 .bb-decorator-rich p {
